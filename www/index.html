@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#020617" />
+  <title>Nexory</title>
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <div id="app-bg"></div>
+  <div id="app">
+    <header class="top-bar safe-top">
+      <div class="top-bar__left"><span class="brand-pixel">NEXORY</span></div>
+      <button type="button" class="icon-btn" id="btn-search-open" aria-label="Поиск">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </button>
+    </header>
+    <main id="screens">
+      <section class="screen screen--active" data-screen="home">
+        <div class="wave-hero">
+          <button type="button" class="wave-orb" id="btn-wave-play">
+            <span class="wave-orb__ring wave-orb__ring--1"></span>
+            <span class="wave-orb__ring wave-orb__ring--2"></span>
+            <span class="wave-orb__ring wave-orb__ring--3"></span>
+            <span class="wave-orb__core"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+          </button>
+          <h1 class="wave-title pixel">Моя волна</h1>
+          <p class="wave-sub" id="wave-source-label">Зажмите для настройки · нажмите для погружения</p>
+        </div>
+        <div class="section"><div class="section-head"><h2 class="section-title pixel">Недавние</h2></div><div class="h-scroll" id="recent-list"></div></div>
+        <div class="section"><div class="section-head"><h2 class="section-title pixel">Любимые</h2><button type="button" class="link-btn" data-goto="library">Все</button></div><div class="h-scroll" id="favorites-preview"></div></div>
+        <div class="section"><div class="section-head"><h2 class="section-title pixel">Популярное</h2></div><div class="chip-row" id="popular-chips"><button type="button" class="chip chip--active" data-popular="yandex">Яндекс</button><button type="button" class="chip" data-popular="vk">VK</button><button type="button" class="chip" data-popular="soundcloud">SoundCloud</button></div><div class="v-list" id="popular-list"></div></div>
+      </section>
+      <section class="screen" data-screen="search">
+        <div class="search-box"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="search-input" placeholder="Трек, артист, альбом..." autocomplete="off" enterkeyhint="search" /><button type="button" class="search-clear" id="search-clear" hidden>×</button></div>
+        <div class="chip-row" id="search-source-chips"><button type="button" class="chip chip--active" data-source="yandex">Яндекс</button><button type="button" class="chip" data-source="vk">VK</button><button type="button" class="chip" data-source="soundcloud">SC</button></div>
+        <div class="search-status" id="search-status"></div>
+        <div class="v-list v-list--tracks" id="search-results"></div>
+      </section>
+      <section class="screen" data-screen="library">
+        <h1 class="screen-title pixel">Библиотека</h1>
+        <div class="lib-actions"><button type="button" class="lib-card" id="btn-create-playlist"><span class="lib-card__icon">+</span><span>Создать плейлист</span></button><button type="button" class="lib-card" id="btn-import-playlist"><span class="lib-card__icon">↓</span><span>Импорт</span></button></div>
+        <div class="section"><h2 class="section-title pixel">Любимые</h2><div class="v-list v-list--tracks" id="library-likes"></div></div>
+        <div class="section"><h2 class="section-title pixel">Плейлисты</h2><div id="library-playlists"></div></div>
+      </section>
+      <section class="screen" data-screen="settings">
+        <h1 class="screen-title pixel">Настройки</h1>
+        <div class="settings-group"><label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="https://your-vps:3950" /></label><label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="Bearer secret" autocomplete="off" /></label></div>
+        <div class="settings-group"><h3 class="settings-label pixel">Сервисы</h3><label class="field"><span>Яндекс OAuth</span><textarea id="cfg-yandex" rows="2" placeholder="OAuth токен"></textarea><small class="field-hint" id="yandex-status"></small></label><label class="field"><span>VK access_token</span><textarea id="cfg-vk" rows="2" placeholder="access_token"></textarea><small class="field-hint" id="vk-status"></small></label><label class="field"><span>SoundCloud client_id (опц.)</span><input type="text" id="cfg-sc" placeholder="Авто через gateway" /></label></div>
+        <div class="settings-group"><label class="field"><span>Источник волны</span><select id="cfg-wave-source"><option value="yandex">Яндекс — Моя волна</option></select></label></div>
+        <button type="button" class="primary-btn" id="btn-save-settings">Сохранить</button>
+      </section>
+    </main>
+    <footer class="mini-player safe-bottom" id="mini-player" hidden>
+      <button type="button" class="mini-player__main" id="mini-open-full"><img class="mini-cover" id="mini-cover" alt="" /><div class="mini-meta"><div class="mini-title" id="mini-title">—</div><div class="mini-artist" id="mini-artist">—</div><div class="mini-from" id="mini-from"></div></div></button>
+      <div class="mini-controls"><button type="button" class="icon-btn icon-btn--sm" id="mini-prev" aria-label="Назад"><svg viewBox="0 0 24 24"><path d="M6 6v12"/><path d="M18 6l-8 6 8 6z"/></svg></button><button type="button" class="icon-btn icon-btn--play" id="mini-play" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button><button type="button" class="icon-btn icon-btn--sm" id="mini-next" aria-label="Далее"><svg viewBox="0 0 24 24"><path d="M18 6v12"/><path d="M6 6l8 6-8 6z"/></svg></button></div>
+    </footer>
+    <nav class="tab-bar safe-bottom" id="tab-bar">
+      <button type="button" class="tab tab--active" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg><span>Главная</span></button>
+      <button type="button" class="tab" data-tab="library"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h16"/></svg><span>Библиотека</span></button>
+      <button type="button" class="tab" data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg><span>Настройки</span></button>
+    </nav>
+    <div class="full-player" id="full-player" hidden>
+      <div class="full-player__backdrop" id="full-backdrop"></div>
+      <div class="full-player__sheet safe-top safe-bottom">
+        <button type="button" class="full-player__close" id="full-close">↓</button>
+        <div class="full-player__source" id="full-from">Играет из …</div>
+        <div class="full-cover-wrap"><img class="full-cover" id="full-cover" alt="" /></div>
+        <div class="full-meta"><h2 class="full-title pixel" id="full-title">—</h2><p class="full-artist" id="full-artist">—</p></div>
+        <div class="waveform" id="waveform" aria-hidden="true"></div>
+        <div class="progress-row"><span class="time" id="time-current">0:00</span><input type="range" class="seek" id="seek" min="0" max="1000" value="0" /><span class="time" id="time-total">0:00</span></div>
+        <div class="full-controls"><button type="button" class="icon-btn" id="full-shuffle" aria-label="Shuffle"><svg viewBox="0 0 24 24"><path d="M16 3h5v5M4 20L21 3M4 4l5 5M21 16v5h-5"/></svg></button><button type="button" class="icon-btn icon-btn--lg" id="full-prev"><svg viewBox="0 0 24 24"><path d="M6 6v12"/><path d="M18 6l-8 6 8 6z"/></svg></button><button type="button" class="icon-btn icon-btn--xl" id="full-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button><button type="button" class="icon-btn icon-btn--lg" id="full-next"><svg viewBox="0 0 24 24"><path d="M18 6v12"/><path d="M6 6l8 6-8 6z"/></svg></button><button type="button" class="icon-btn" id="full-like" aria-label="Like"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9C.5 8.5 2 5 5.5 5 8 5 10 7 12 9c2-2 4-4 6.5-4 3.5 0 5 3.5 3.5 7-2.5 4.5-9.5 9-9.5 9z"/></svg></button></div>
+        <div class="queue-head pixel">Очередь</div>
+        <div class="queue-list" id="queue-list"></div>
+      </div>
+    </div>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+  <audio id="audio" preload="metadata" playsinline webkit-playsinline></audio>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
