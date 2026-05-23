@@ -38,6 +38,17 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Nexory iOS v1.0.${{ github.run_number }}
+          files: build/Nexory.ipa
+          make_latest: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
