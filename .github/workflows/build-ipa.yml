@@ -16,6 +16,8 @@ jobs:
   build:
     runs-on: macos-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -45,7 +47,7 @@ jobs:
           name: Nexory iOS v1.0.${{ github.run_number }}
           files: build/Nexory.ipa
           make_latest: true
-          generate_release_notes: true
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

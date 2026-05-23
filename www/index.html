@@ -12,16 +12,16 @@
 <body>
   <div id="app-bg"></div>
   <div id="setup-gate" class="setup-gate" hidden>
-    <img class="setup-gate__logo" src="assets/flow-mark.svg" alt="Nexory" />
+    <img class="setup-gate__logo" src="assets/nexory-icon.png" alt="Nexory" />
     <h1 class="setup-gate__title pixel">NEXORY</h1>
-    <p class="setup-gate__text">Подключи gateway и токены — без этого музыка не играет.</p>
+    <p class="setup-gate__text">1) Запусти gateway на ПК<br>2) Укажи URL и Secret<br>3) Вставь Яндекс OAuth для волны</p>
     <button type="button" class="primary-btn" id="setup-gate-btn">Открыть настройки</button>
   </div>
 
   <div id="app">
     <header class="top-bar safe-top">
       <div class="top-bar__brand">
-        <img class="brand-mark" src="assets/flow-mark.svg" alt="" />
+        <img class="brand-mark" src="assets/nexory-icon.png" alt="" />
         <span class="brand-pixel">NEXORY</span>
       </div>
       <button type="button" class="icon-btn" id="btn-search-open" aria-label="Поиск" data-icon="search"></button>
@@ -49,7 +49,7 @@
           <div class="h-scroll" id="favorites-preview"></div>
         </div>
         <div class="section">
-          <div class="section-head"><h2 class="section-title pixel">Популярное</h2></div>>
+          <div class="section-head"><h2 class="section-title pixel">Популярное</h2></div>
           <div class="chip-row" id="popular-chips">
             <button type="button" class="chip chip--active" data-popular="yandex">Яндекс</button>
             <button type="button" class="chip" data-popular="vk">VK</button>
@@ -71,7 +71,7 @@
           <button type="button" class="chip" data-source="soundcloud">SC</button>
         </div>
         <div class="search-status" id="search-status"></div>
-        <div class="v-list v-list--tracks" id="search-results"></div>>
+        <div class="v-list v-list--tracks" id="search-results"></div>
       </section>
 
       <section class="screen" data-screen="library">
@@ -109,7 +109,10 @@
 
     <footer class="mini-player safe-bottom" id="mini-player" hidden>
       <button type="button" class="mini-player__main" id="mini-open-full">
-        <div class="mini-cover-wrap" id="mini-cover-wrap"><span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span></div>>
+        <div class="mini-cover-wrap" id="mini-cover-wrap">
+          <img class="mini-cover" id="mini-cover" alt="" hidden />
+          <span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>
+        </div>
         <div class="mini-meta">
           <div class="mini-title" id="mini-title">—</div>
           <div class="mini-artist" id="mini-artist">—</div>
@@ -136,6 +139,7 @@
         <span class="full-cover-ph" data-icon="music-2" data-icon-class="ui-icon lg cover-ph"></span>
         <img class="full-cover" id="full-cover" alt="" hidden />
       </div>
+      <div class="full-cover-dots" aria-hidden="true"><span></span><span></span></div>
       <div class="full-meta">
         <h2 class="full-title pixel" id="full-title">—</h2>
         <p class="full-artist" id="full-artist">—</p>

@@ -49,7 +49,7 @@ const UI = (() => {
   function cardHtml(track) {
     return `<div class="card-tile" data-key="${Store.trackKey(track)}">
       <div class="track-cover" style="width:100%;aspect-ratio:1;border-radius:0">${coverBlock(track.source, track.cover)}</div>
-      <div class="card-tile__meta"><div class="card-tile__title">${esc(track.title)}</div><div class="card-tile__sub">${esc(track.artist)}</div></div>>
+      <div class="card-tile__meta"><div class="card-tile__title">${esc(track.title)}</div><div class="card-tile__sub">${esc(track.artist)}</div></div>
     </div>`
   }
 
@@ -61,7 +61,7 @@ const UI = (() => {
         const idx = tracks.findIndex((t) => Store.trackKey(t) === key)
         try {
           await Player.playQueue(tracks, Math.max(0, idx), playAllFrom)
-          $('#full-player').hidden = false
+          openFullPlayer()
         } catch (e) {
           toast(e.message || 'Ошибка воспроизведения')
         }
@@ -89,6 +89,23 @@ const UI = (() => {
     }
   }
 
+  function setFullPlayer(open) {
+    const fp = $('#full-player')
+    const tab = $('#tab-bar')
+    if (!fp) return
+    fp.hidden = !open
+    document.body.classList.toggle('player-open', open)
+    if (tab) tab.hidden = open
+  }
+
+  function openFullPlayer() {
+    setFullPlayer(true)
+  }
+
+  function closeFullPlayer() {
+    setFullPlayer(false)
+  }
+
   function updateSetupGate() {
     const gate = $('#setup-gate')
     if (!gate) return
@@ -103,7 +120,7 @@ const UI = (() => {
     const favEl = $('#favorites-preview')
     if (recentEl) {
       const items = s.recent.slice(0, 12)
-      recentEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Включи волну или найди трек</div>>'
+      recentEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Включи волну или найди трек</div>'
       bindTrackClicks(recentEl, items, 'Недавние')
     }
     if (favEl) {
@@ -146,7 +163,7 @@ const UI = (() => {
     const plEl = $('#library-playlists')
     if (plEl) {
       plEl.innerHTML = s.playlists.length
-        ? s.playlists.map((p) => `<div class="playlist-row"><div><div class="playlist-row__name">${esc(p.name)}</div>><small>${p.tracks.length} треков</small></div><span>›</span></div>`).join('')
+        ? s.playlists.map((p) => `<div class="playlist-row"><div><div class="playlist-row__name">${esc(p.name)}</div><small>${p.tracks.length} треков</small></div><span>›</span></div>`).join('')
         : '<div class="empty-hint">Создай плейлист</div>'
     }
   }
@@ -166,22 +183,26 @@ const UI = (() => {
     $('#mini-player').hidden = false
     $('#mini-title').textContent = track.title
     $('#mini-artist').textContent = track.artist
-    setCover($('#mini-cover-wrap'), null, track)
+    setCover($('#mini-cover-wrap'), $('#mini-cover'), track)
     $('#full-title').textContent = track.title
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from ? `Играет из ${from}` : ''
+    $('#full-like').classList.toggle('is-active', Store.isLiked(track))
     setCover($('#full-cover-wrap'), $('#full-cover'), track)
   }
 
   function setPlayIcon(paused) {
     const icon = paused ? 'play' : 'pause'
-    ;['#mini-play', '#full-play'].forEach((sel) => {
-      const el = $(sel)
-      if (el) {
-        el.dataset.icon = icon
-        el.innerHTML = Icons.svg(icon, el.classList.contains('icon-btn--xl') ? 'ui-icon lg' : 'ui-icon')
-      }
-    })
+    const mini = $('#mini-play')
+    if (mini) {
+      mini.dataset.icon = icon
+      mini.innerHTML = Icons.svg(icon, 'ui-icon')
+    }
+    const full = $('#full-play')
+    if (full) {
+      full.dataset.icon = icon
+      full.innerHTML = Icons.svg(icon, 'ui-icon lg')
+    }
   }
 
   async function runSearch(q) {
@@ -213,7 +234,7 @@ const UI = (() => {
         if (!Api.isConfigured()) throw new Error('Настрой gateway в настройках')
         if (!Store.get().yandexToken) throw new Error('Добавь Яндекс OAuth')
         await Player.startWave()
-        $('#full-player').hidden = false
+        openFullPlayer()
       } catch (e) {
         toast(e.message || 'Ошибка волны')
       }
@@ -281,8 +302,8 @@ const UI = (() => {
       renderLibrary()
     })
 
-    $('#mini-open-full')?.addEventListener('click', () => { $('#full-player').hidden = false })
-    $('#full-close')?.addEventListener('click', () => { $('#full-player').hidden = true })
+    $('#mini-open-full')?.addEventListener('click', () => openFullPlayer())
+    $('#full-close')?.addEventListener('click', () => closeFullPlayer())
 
     $('#mini-play')?.addEventListener('click', (e) => { e.stopPropagation(); Player.toggle() })
     $('#full-play')?.addEventListener('click', () => Player.toggle())
