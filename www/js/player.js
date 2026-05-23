@@ -95,7 +95,10 @@ const Player = (() => {
   }
 
   async function toggle() {
-    if (!audio.src) return
+    if (!audio.src) {
+      emit('error', 'Трек ещё не загружен')
+      return
+    }
     if (audio.paused) await audio.play()
     else audio.pause()
     emit('state', { paused: audio.paused })

@@ -2,6 +2,8 @@ const UI = (() => {
   let toastTimer = null
   let searchSource = 'yandex'
   let popularSource = 'yandex'
+  let busy = false
+  const trackLists = new WeakMap()
 
   const $ = (sel) => document.querySelector(sel)
 
@@ -47,26 +49,47 @@ const UI = (() => {
   }
 
   function cardHtml(track) {
-    return `<div class="card-tile" data-key="${Store.trackKey(track)}">
+    return `<button type="button" class="card-tile" data-key="${Store.trackKey(track)}">
       <div class="track-cover" style="width:100%;aspect-ratio:1;border-radius:0">${coverBlock(track.source, track.cover)}</div>
       <div class="card-tile__meta"><div class="card-tile__title">${esc(track.title)}</div><div class="card-tile__sub">${esc(track.artist)}</div></div>
-    </div>`
+    </button>`
+  }
+
+  function registerTrackList(container, tracks, playAllFrom) {
+    if (!container) return
+    trackLists.set(container, { tracks: tracks.slice(), playAllFrom })
+    Icons.mount(container)
+  }
+
+  async function playFromList(container, key, el) {
+    if (busy) return
+    const list = trackLists.get(container)
+    if (!list) return
+    const { tracks, playAllFrom } = list
+    const idx = tracks.findIndex((t) => Store.trackKey(t) === key)
+    if (idx < 0) return
+
+    if (!Api.isConfigured()) {
+      toast('Сначала настрой gateway в Настройках')
+      showScreen('settings')
+      return
+    }
+
+    busy = true
+    if (el) el.classList.add('is-busy')
+    toast('Загружаем…')
+    try {
+      await Player.playQueue(tracks, idx, playAllFrom)
+    } catch (e) {
+      toast(e.message || 'Ошибка воспроизведения')
+    } finally {
+      busy = false
+      if (el) el.classList.remove('is-busy')
+    }
   }
 
   function bindTrackClicks(container, tracks, playAllFrom) {
-    Icons.mount(container)
-    container.querySelectorAll('.track-row, .card-tile').forEach((el) => {
-      el.addEventListener('click', async () => {
-        const key = el.dataset.key
-        const idx = tracks.findIndex((t) => Store.trackKey(t) === key)
-        try {
-          await Player.playQueue(tracks, Math.max(0, idx), playAllFrom)
-          openFullPlayer()
-        } catch (e) {
-          toast(e.message || 'Ошибка воспроизведения')
-        }
-      })
-    })
+    registerTrackList(container, tracks, playAllFrom)
   }
 
   function setCover(wrap, img, track) {
@@ -111,7 +134,24 @@ const UI = (() => {
     if (!gate) return
     const ok = Api.isConfigured()
     gate.hidden = ok
-    if (!ok) showScreen('settings')
+    updateGatewayBanner()
+  }
+
+  async function updateGatewayBanner() {
+    const banner = $('#gateway-banner')
+    if (!banner) return
+    if (!Api.isConfigured()) {
+      banner.hidden = true
+      return
+    }
+    try {
+      await Api.health()
+      banner.hidden = true
+    } catch (e) {
+      banner.hidden = false
+      banner.innerHTML = `${esc(e.message)}<br><button type="button" id="banner-settings">Открыть настройки</button>`
+      $('#banner-settings')?.addEventListener('click', () => showScreen('settings'), { once: true })
+    }
   }
 
   function renderHome() {
@@ -224,19 +264,35 @@ const UI = (() => {
   }
 
   function wireEvents() {
+    $('#screens')?.addEventListener('click', (e) => {
+      const el = e.target.closest('.track-row, .card-tile')
+      if (!el?.dataset.key) return
+      const container = el.closest('[data-track-list]')
+      if (!container) return
+      e.preventDefault()
+      playFromList(container, el.dataset.key, el)
+    })
+
     document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showScreen(t.dataset.tab)))
     document.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => showScreen(b.dataset.goto)))
     $('#btn-search-open')?.addEventListener('click', () => showScreen('search'))
     $('#setup-gate-btn')?.addEventListener('click', () => showScreen('settings'))
 
     $('#btn-wave-play')?.addEventListener('click', async () => {
+      const orb = $('#btn-wave-play')
+      if (busy) return
       try {
         if (!Api.isConfigured()) throw new Error('Настрой gateway в настройках')
         if (!Store.get().yandexToken) throw new Error('Добавь Яндекс OAuth')
+        busy = true
+        orb?.classList.add('is-busy')
+        toast('Запускаем волну…')
         await Player.startWave()
-        openFullPlayer()
       } catch (e) {
         toast(e.message || 'Ошибка волны')
+      } finally {
+        busy = false
+        orb?.classList.remove('is-busy')
       }
     })
 
@@ -289,6 +345,7 @@ const UI = (() => {
       updateSetupGate()
       toast('Сохранено')
       renderHome()
+      updateGatewayBanner()
       const yt = $('#cfg-yandex').value.trim()
       const vk = $('#cfg-vk').value.trim()
       if (yt && Api.isConfigured()) Api.validateYandex(yt).then((r) => { $('#yandex-status').textContent = r.ok ? `✓ ${r.login || 'OK'}` : r.error })
@@ -302,8 +359,17 @@ const UI = (() => {
       renderLibrary()
     })
 
-    $('#mini-open-full')?.addEventListener('click', () => openFullPlayer())
+    $('#mini-open-full')?.addEventListener('click', () => {
+      if (!Player.current()) {
+        toast('Сначала включи трек')
+        return
+      }
+      openFullPlayer()
+    })
     $('#full-close')?.addEventListener('click', () => closeFullPlayer())
+    $('#full-player')?.addEventListener('click', (e) => {
+      if (e.target.id === 'full-player' || e.target.id === 'full-bg') closeFullPlayer()
+    })
 
     $('#mini-play')?.addEventListener('click', (e) => { e.stopPropagation(); Player.toggle() })
     $('#full-play')?.addEventListener('click', () => Player.toggle())
@@ -323,6 +389,7 @@ const UI = (() => {
     $('#seek')?.addEventListener('input', (e) => Player.seek(Number(e.target.value) / 1000))
 
     Player.on('trackchange', ({ track }) => updatePlayerUI(track))
+    Player.on('playing', () => openFullPlayer())
     Player.on('state', ({ paused }) => setPlayIcon(paused))
     Player.on('time', ({ current, duration }) => {
       $('#time-current').textContent = Player.fmt(current)
@@ -333,6 +400,7 @@ const UI = (() => {
   }
 
   function init() {
+    closeFullPlayer()
     Icons.mount()
     renderSettingsForm()
     updateSetupGate()
@@ -340,6 +408,7 @@ const UI = (() => {
     renderLibrary()
     wireEvents()
     setPlayIcon(true)
+    updateGatewayBanner()
   }
 
   return { init, toast, showScreen, renderHome, renderLibrary }

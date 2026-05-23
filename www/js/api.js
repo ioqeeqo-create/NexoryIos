@@ -1,4 +1,6 @@
 const Api = (() => {
+  const TIMEOUT_MS = 12000
+
   function cfg() {
     return Store.get()
   }
@@ -32,15 +34,30 @@ const Api = (() => {
     return Boolean(String(c.gatewayUrl || '').trim() && String(c.gatewaySecret || '').trim())
   }
 
+  async function fetchWithTimeout(url, opts = {}) {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+    try {
+      return await fetch(url, { ...opts, signal: ctrl.signal })
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        throw new Error('Gateway не отвечает (таймаут). Проверь IP и что сервер запущен на ПК')
+      }
+      throw new Error('Нет связи с gateway. Телефон и ПК в одной Wi‑Fi?')
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   async function health() {
-    const r = await fetch(`${base()}/health`, { method: 'GET' })
+    const r = await fetchWithTimeout(`${base()}/health`, { method: 'GET' })
     const data = await r.json().catch(() => ({}))
     if (!r.ok || !data.ok) throw new Error('Gateway не отвечает')
     return data
   }
 
   async function post(path, body) {
-    const r = await fetch(`${base()}/mobile/v1${path}`, {
+    const r = await fetchWithTimeout(`${base()}/mobile/v1${path}`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(body),
