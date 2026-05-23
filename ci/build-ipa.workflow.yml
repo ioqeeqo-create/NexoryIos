@@ -1,0 +1,49 @@
+# Скопируй этот файл в `.github/workflows/build-ipa.yml` если push workflow не прошёл.
+# Нужен scope `workflow` у gh: gh auth refresh -h github.com -s workflow
+
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Build signed IPA
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+          IOS_EXPORT_METHOD: ${{ vars.IOS_EXPORT_METHOD }}
+        run: bash scripts/build-ios.sh
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexory-iOS-${{ github.run_number }}
+          path: build/Nexory.ipa
+          retention-days: 30
+          if-no-files-found: error
