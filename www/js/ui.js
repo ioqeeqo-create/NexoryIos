@@ -4,7 +4,6 @@ const UI = (() => {
   let popularSource = 'yandex'
 
   const $ = (sel) => document.querySelector(sel)
-  const $$ = (sel) => [...document.querySelectorAll(sel)]
 
   function toast(msg) {
     const el = $('#toast')
@@ -12,32 +11,33 @@ const UI = (() => {
     el.textContent = msg
     el.hidden = false
     clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => {
-      el.hidden = true
-    }, 2800)
+    toastTimer = setTimeout(() => { el.hidden = true }, 3200)
   }
 
   function showScreen(name) {
-    $$('.screen').forEach((s) => s.classList.toggle('screen--active', s.dataset.screen === name))
-    $$('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
-    if (name === 'search') setTimeout(() => $('#search-input')?.focus(), 200)
+    document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('screen--active', s.dataset.screen === name))
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
+    if (name === 'search') setTimeout(() => $('#search-input')?.focus(), 150)
   }
 
-  function coverFallback(source) {
-    const colors = { yandex: '#fc3f1d', vk: '#0077ff', soundcloud: '#ff5500' }
-    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="${colors[source] || '#333'}" width="100" height="100"/></svg>`)}`
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
   }
 
   function badge(source) {
     const map = { yandex: ['Я', 'badge-yandex'], vk: ['VK', 'badge-vk'], soundcloud: ['SC', 'badge-sc'] }
     const [t, c] = map[source] || ['?', '']
-    return `<span class="track-row__badge ${c}">${t}</span>`
+    return `<span class="badge ${c}">${t}</span>`
+  }
+
+  function coverBlock(source, url) {
+    if (url) return `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
+    return `<span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
   }
 
   function trackRowHtml(track, idx) {
-    const cover = track.cover || coverFallback(track.source)
     return `<button type="button" class="track-row" data-idx="${idx ?? ''}" data-key="${Store.trackKey(track)}">
-      <img src="${cover}" alt="" loading="lazy" />
+      <div class="track-cover">${coverBlock(track.source, track.cover)}</div>
       <div class="track-row__meta">
         <div class="track-row__title">${esc(track.title)}</div>
         <div class="track-row__artist">${esc(track.artist)}</div>
@@ -47,35 +47,54 @@ const UI = (() => {
   }
 
   function cardHtml(track) {
-    const cover = track.cover || coverFallback(track.source)
     return `<div class="card-tile" data-key="${Store.trackKey(track)}">
-      <img src="${cover}" alt="" loading="lazy" />
-      <div class="card-tile__meta">
-        <div class="card-tile__title">${esc(track.title)}</div>
-        <div class="card-tile__sub">${esc(track.artist)}</div>
-      </div>
+      <div class="track-cover" style="width:100%;aspect-ratio:1;border-radius:0">${coverBlock(track.source, track.cover)}</div>
+      <div class="card-tile__meta"><div class="card-tile__title">${esc(track.title)}</div><div class="card-tile__sub">${esc(track.artist)}</div></div>>
     </div>`
   }
 
-  function esc(s) {
-    return String(s || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/"/g, '&quot;')
-  }
-
   function bindTrackClicks(container, tracks, playAllFrom) {
+    Icons.mount(container)
     container.querySelectorAll('.track-row, .card-tile').forEach((el) => {
       el.addEventListener('click', async () => {
         const key = el.dataset.key
         const idx = tracks.findIndex((t) => Store.trackKey(t) === key)
         try {
           await Player.playQueue(tracks, Math.max(0, idx), playAllFrom)
+          $('#full-player').hidden = false
         } catch (e) {
           toast(e.message || 'Ошибка воспроизведения')
         }
       })
     })
+  }
+
+  function setCover(wrap, img, track) {
+    if (!wrap) return
+    const ph = wrap.querySelector('[data-icon]')
+    if (track?.cover) {
+      if (img) {
+        img.hidden = false
+        img.src = track.cover
+        img.onerror = () => {
+          img.hidden = true
+          if (ph) ph.hidden = false
+        }
+      }
+      if (ph) ph.hidden = true
+    } else {
+      if (img) { img.hidden = true; img.removeAttribute('src') }
+      if (ph) ph.hidden = false
+      Icons.mount(wrap)
+    }
+  }
+
+  function updateSetupGate() {
+    const gate = $('#setup-gate')
+    if (!gate) return
+    const ok = Api.isConfigured()
+    gate.hidden = ok
+    if (!ok) showScreen('settings')
   }
 
   function renderHome() {
@@ -84,17 +103,13 @@ const UI = (() => {
     const favEl = $('#favorites-preview')
     if (recentEl) {
       const items = s.recent.slice(0, 12)
-      recentEl.innerHTML = items.length
-        ? items.map((t) => cardHtml(t)).join('')
-        : '<div class="empty-hint">Пока пусто — включи волну или найди трек</div>'
-      bindTrackClicks(recentEl, items, 'Недавнее')
+      recentEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Включи волну или найди трек</div>>'
+      bindTrackClicks(recentEl, items, 'Недавние')
     }
     if (favEl) {
       const items = s.likes.slice(0, 12)
-      favEl.innerHTML = items.length
-        ? items.map((t) => cardHtml(t)).join('')
-        : '<div class="empty-hint">Нет лайков</div>'
-      bindTrackClicks(favEl, items, 'Любимое')
+      favEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Нет лайков</div>'
+      bindTrackClicks(favEl, items, 'Любимые')
     }
     loadPopular()
   }
@@ -102,6 +117,10 @@ const UI = (() => {
   async function loadPopular() {
     const el = $('#popular-list')
     if (!el) return
+    if (!Api.isConfigured()) {
+      el.innerHTML = '<div class="empty-hint">Настрой gateway</div>'
+      return
+    }
     const queries = Api.POPULAR[popularSource] || Api.POPULAR.yandex
     const q = queries[Math.floor(Math.random() * queries.length)]
     el.innerHTML = '<div class="empty-hint">Загрузка…</div>'
@@ -121,20 +140,14 @@ const UI = (() => {
     if (likesEl) {
       likesEl.innerHTML = s.likes.length
         ? s.likes.map((t, i) => trackRowHtml(t, i)).join('')
-        : '<div class="empty-hint">Лайкай треки в плеере ♥</div>'
-      bindTrackClicks(likesEl, s.likes, 'Любимое')
+        : '<p class="empty-hint">Лайкай треки в плеере</p>'
+      bindTrackClicks(likesEl, s.likes, 'Любимые')
     }
     const plEl = $('#library-playlists')
     if (plEl) {
       plEl.innerHTML = s.playlists.length
-        ? s.playlists
-            .map(
-              (p) => `<div class="playlist-row" data-pl="${p.id}">
-            <div><div class="playlist-row__name">${esc(p.name)}</div><div class="playlist-row__count">${p.tracks.length} треков</div></div>
-            <span>›</span></div>`,
-            )
-            .join('')
-        : '<div class="empty-hint">Создай свой плейлист</div>'
+        ? s.playlists.map((p) => `<div class="playlist-row"><div><div class="playlist-row__name">${esc(p.name)}</div>><small>${p.tracks.length} треков</small></div><span>›</span></div>`).join('')
+        : '<div class="empty-hint">Создай плейлист</div>'
     }
   }
 
@@ -145,67 +158,37 @@ const UI = (() => {
     $('#cfg-yandex').value = s.yandexToken || ''
     $('#cfg-vk').value = s.vkToken || ''
     $('#cfg-sc').value = s.scClientId || ''
-    $('#cfg-wave-source').value = s.waveSource || 'yandex'
   }
 
   function updatePlayerUI(track) {
     if (!track) return
-    const cover = track.cover || coverFallback(track.source)
     const from = Player.playingFrom()
     $('#mini-player').hidden = false
-    $('#mini-cover').src = cover
     $('#mini-title').textContent = track.title
     $('#mini-artist').textContent = track.artist
-    $('#mini-from').textContent = from ? `Играет из ${from}` : ''
-    $('#full-cover').src = cover
+    setCover($('#mini-cover-wrap'), null, track)
     $('#full-title').textContent = track.title
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from ? `Играет из ${from}` : ''
-    $('#full-backdrop').style.background = track.cover
-      ? `linear-gradient(180deg, rgba(0,0,0,0.2), #050505), url(${track.cover}) center/cover`
-      : ''
-    $('#full-like').classList.toggle('is-active', Store.isLiked(track))
-
-    const q = Player.queue()
-    const idx = Player.index()
-    const ql = $('#queue-list')
-    if (ql) {
-      ql.innerHTML = q
-        .map(
-          (t, i) => `<div class="queue-item ${i === idx ? 'queue-item--active' : ''}" data-q="${i}">
-          <img src="${t.cover || coverFallback(t.source)}" alt="" />
-          <div><div>${esc(t.title)}</div><small>${esc(t.artist)}</small></div>
-        </div>`,
-        )
-        .join('')
-      ql.querySelectorAll('.queue-item').forEach((el) => {
-        el.addEventListener('click', async () => {
-          try {
-            await Player.playTrackAt(Number(el.dataset.q))
-          } catch (e) {
-            toast(e.message)
-          }
-        })
-      })
-    }
+    setCover($('#full-cover-wrap'), $('#full-cover'), track)
   }
 
   function setPlayIcon(paused) {
-    const path = paused ? 'M8 5v14l11-7z' : 'M6 5h4v14H6zm8 0h4v14h-4z'
-    ;['#mini-play svg path', '#full-play svg path'].forEach((sel) => {
-      const p = document.querySelector(sel)
-      if (p) p.setAttribute('d', path.includes('M6 5') ? 'M6 5h4v14H6zm8 0h4v14h-4z' : 'M8 5v14l11-7z')
+    const icon = paused ? 'play' : 'pause'
+    ;['#mini-play', '#full-play'].forEach((sel) => {
+      const el = $(sel)
+      if (el) {
+        el.dataset.icon = icon
+        el.innerHTML = Icons.svg(icon, el.classList.contains('icon-btn--xl') ? 'ui-icon lg' : 'ui-icon')
+      }
     })
   }
 
   async function runSearch(q) {
     const status = $('#search-status')
     const results = $('#search-results')
-    if (!q.trim()) {
-      status.textContent = ''
-      results.innerHTML = ''
-      return
-    }
+    if (!q.trim()) { status.textContent = ''; results.innerHTML = ''; return }
+    if (!Api.isConfigured()) { status.textContent = 'Настрой gateway'; return }
     status.textContent = 'Ищем…'
     try {
       const out = await Api.search(q.trim(), searchSource)
@@ -220,14 +203,17 @@ const UI = (() => {
   }
 
   function wireEvents() {
-    $$('.tab').forEach((t) => t.addEventListener('click', () => showScreen(t.dataset.tab)))
-    $$('[data-goto]').forEach((b) => b.addEventListener('click', () => showScreen(b.dataset.goto)))
+    document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showScreen(t.dataset.tab)))
+    document.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => showScreen(b.dataset.goto)))
     $('#btn-search-open')?.addEventListener('click', () => showScreen('search'))
+    $('#setup-gate-btn')?.addEventListener('click', () => showScreen('settings'))
 
     $('#btn-wave-play')?.addEventListener('click', async () => {
       try {
-        if (!Store.get().yandexToken) throw new Error('Добавь Яндекс-токен в настройках')
+        if (!Api.isConfigured()) throw new Error('Настрой gateway в настройках')
+        if (!Store.get().yandexToken) throw new Error('Добавь Яндекс OAuth')
         await Player.startWave()
+        $('#full-player').hidden = false
       } catch (e) {
         toast(e.message || 'Ошибка волны')
       }
@@ -237,16 +223,15 @@ const UI = (() => {
       const btn = e.target.closest('[data-popular]')
       if (!btn) return
       popularSource = btn.dataset.popular
-      $$('#popular-chips .chip').forEach((c) => c.classList.toggle('chip--active', c === btn))
+      document.querySelectorAll('#popular-chips .chip').forEach((c) => c.classList.toggle('chip--active', c === btn))
       loadPopular()
     })
 
     let searchDebounce
     $('#search-input')?.addEventListener('input', (e) => {
-      const v = e.target.value
-      $('#search-clear').hidden = !v
+      $('#search-clear').hidden = !e.target.value
       clearTimeout(searchDebounce)
-      searchDebounce = setTimeout(() => runSearch(v), 400)
+      searchDebounce = setTimeout(() => runSearch(e.target.value), 400)
     })
     $('#search-clear')?.addEventListener('click', () => {
       $('#search-input').value = ''
@@ -257,8 +242,19 @@ const UI = (() => {
       const btn = e.target.closest('[data-source]')
       if (!btn) return
       searchSource = btn.dataset.source
-      $$('#search-source-chips .chip').forEach((c) => c.classList.toggle('chip--active', c === btn))
+      document.querySelectorAll('#search-source-chips .chip').forEach((c) => c.classList.toggle('chip--active', c === btn))
       runSearch($('#search-input').value)
+    })
+
+    $('#btn-test-gateway')?.addEventListener('click', async () => {
+      Store.patch({ gatewayUrl: $('#cfg-gateway').value.trim(), gatewaySecret: $('#cfg-secret').value.trim() })
+      $('#gateway-status').textContent = 'Проверяем…'
+      try {
+        await Api.health()
+        $('#gateway-status').textContent = '✓ Gateway OK'
+      } catch (e) {
+        $('#gateway-status').textContent = e.message
+      }
     })
 
     $('#btn-save-settings')?.addEventListener('click', async () => {
@@ -268,21 +264,14 @@ const UI = (() => {
         yandexToken: $('#cfg-yandex').value.trim(),
         vkToken: $('#cfg-vk').value.trim(),
         scClientId: $('#cfg-sc').value.trim(),
-        waveSource: $('#cfg-wave-source').value,
       })
+      updateSetupGate()
       toast('Сохранено')
+      renderHome()
       const yt = $('#cfg-yandex').value.trim()
       const vk = $('#cfg-vk').value.trim()
-      if (yt) {
-        Api.validateYandex(yt).then((r) => {
-          $('#yandex-status').textContent = r.ok ? `✓ ${r.login || 'OK'}` : r.error || 'Ошибка'
-        })
-      }
-      if (vk) {
-        Api.validateVk(vk).then((r) => {
-          $('#vk-status').textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error || 'Ошибка'
-        })
-      }
+      if (yt && Api.isConfigured()) Api.validateYandex(yt).then((r) => { $('#yandex-status').textContent = r.ok ? `✓ ${r.login || 'OK'}` : r.error })
+      if (vk && Api.isConfigured()) Api.validateVk(vk).then((r) => { $('#vk-status').textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error })
     })
 
     $('#btn-create-playlist')?.addEventListener('click', () => {
@@ -290,30 +279,15 @@ const UI = (() => {
       if (!name) return
       Store.addPlaylist(name)
       renderLibrary()
-      toast('Плейлист создан')
     })
 
-    $('#mini-open-full')?.addEventListener('click', () => {
-      $('#full-player').hidden = false
-    })
-    $('#full-close')?.addEventListener('click', () => {
-      $('#full-player').hidden = true
-    })
-    $('#full-backdrop')?.addEventListener('click', () => {
-      $('#full-player').hidden = true
-    })
+    $('#mini-open-full')?.addEventListener('click', () => { $('#full-player').hidden = false })
+    $('#full-close')?.addEventListener('click', () => { $('#full-player').hidden = true })
 
-    ;['#mini-play', '#full-play'].forEach((sel) => $(sel)?.addEventListener('click', () => Player.toggle()))
-    ;['#mini-next', '#full-next'].forEach((sel) =>
-      $(sel)?.addEventListener('click', async () => {
-        try {
-          await Player.next()
-        } catch (e) {
-          toast(e.message)
-        }
-      }),
-    )
-    ;['#mini-prev', '#full-prev'].forEach((sel) => $(sel)?.addEventListener('click', () => Player.prev()))
+    $('#mini-play')?.addEventListener('click', (e) => { e.stopPropagation(); Player.toggle() })
+    $('#full-play')?.addEventListener('click', () => Player.toggle())
+    $('#full-next')?.addEventListener('click', async () => { try { await Player.next() } catch (err) { toast(err.message) } })
+    $('#full-prev')?.addEventListener('click', () => Player.prev())
     $('#full-like')?.addEventListener('click', () => {
       const t = Player.current()
       if (!t) return
@@ -323,13 +297,9 @@ const UI = (() => {
       renderLibrary()
     })
     $('#full-shuffle')?.addEventListener('click', () => {
-      const on = Player.toggleShuffle()
-      $('#full-shuffle').classList.toggle('is-active', on)
+      $('#full-shuffle').classList.toggle('is-active', Player.toggleShuffle())
     })
-
-    $('#seek')?.addEventListener('input', (e) => {
-      Player.seek(Number(e.target.value) / 1000)
-    })
+    $('#seek')?.addEventListener('input', (e) => Player.seek(Number(e.target.value) / 1000))
 
     Player.on('trackchange', ({ track }) => updatePlayerUI(track))
     Player.on('state', ({ paused }) => setPlayIcon(paused))
@@ -342,11 +312,14 @@ const UI = (() => {
   }
 
   function init() {
+    Icons.mount()
     renderSettingsForm()
+    updateSetupGate()
     renderHome()
     renderLibrary()
     wireEvents()
+    setPlayIcon(true)
   }
 
-  return { init, toast, showScreen, renderHome, renderLibrary, renderSettingsForm }
+  return { init, toast, showScreen, renderHome, renderLibrary }
 })()

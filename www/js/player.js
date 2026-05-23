@@ -59,6 +59,10 @@ const Player = (() => {
     const track = queue[index]
     playingFrom = fromLabel || playingFrom
     emit('trackchange', { track, index, queue })
+    const bg = document.getElementById('full-bg')
+    if (bg) {
+      bg.style.backgroundImage = track.cover ? `url(${track.cover})` : 'none'
+    }
     try {
       const url = await resolveUrl(track)
       audio.src = url
@@ -82,6 +86,7 @@ const Player = (() => {
   }
 
   async function playQueue(tracks, startIdx = 0, fromLabel = '') {
+    if (!Api.isConfigured()) throw new Error('Настрой gateway URL и Secret')
     queue = tracks.slice()
     waveMode = fromLabel.includes('волна') || fromLabel.includes('Моя волна')
     shuffle = false

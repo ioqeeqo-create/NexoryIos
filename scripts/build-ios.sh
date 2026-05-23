@@ -25,12 +25,22 @@ if [ ! -d ios/App ]; then
 fi
 npx cap sync ios
 
+echo "==> App icon"
+if [ -f "$ROOT/resources/icon.png" ]; then
+  npx @capacitor/assets generate --ios --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#06080d' || echo "icon generate skipped"
+fi
+
 PLIST="${IOS_DIR}/App/Info.plist"
 if [ -f "$PLIST" ]; then
   /usr/libexec/PlistBuddy -c "Print :UIBackgroundModes" "$PLIST" >/dev/null 2>&1 || \
     /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$PLIST"
   /usr/libexec/PlistBuddy -c "Print :UIBackgroundModes:0" "$PLIST" >/dev/null 2>&1 || \
     /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string audio" "$PLIST"
+  /usr/libexec/PlistBuddy -c "Print :NSAppTransportSecurity" "$PLIST" >/dev/null 2>&1 || \
+    /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST"
+  /usr/libexec/PlistBuddy -c "Print :NSAppTransportSecurity:NSAllowsArbitraryLoads" "$PLIST" >/dev/null 2>&1 && \
+    /usr/libexec/PlistBuddy -c "Set :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" "$PLIST" || \
+    /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" "$PLIST"
 fi
 
 echo "==> CocoaPods"

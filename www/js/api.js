@@ -27,6 +27,18 @@ const Api = (() => {
     }
   }
 
+  function isConfigured() {
+    const c = cfg()
+    return Boolean(String(c.gatewayUrl || '').trim() && String(c.gatewaySecret || '').trim())
+  }
+
+  async function health() {
+    const r = await fetch(`${base()}/health`, { method: 'GET' })
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok || !data.ok) throw new Error('Gateway не отвечает')
+    return data
+  }
+
   async function post(path, body) {
     const r = await fetch(`${base()}/mobile/v1${path}`, {
       method: 'POST',
@@ -34,7 +46,8 @@ const Api = (() => {
       body: JSON.stringify(body),
     })
     const data = await r.json().catch(() => ({}))
-    if (!r.ok && !data.error) throw new Error(`HTTP ${r.status}`)
+    if (!r.ok && !data.error) throw new Error(data.error || `HTTP ${r.status}`)
+    if (data.error && data.ok === false) throw new Error(data.error)
     return data
   }
 
@@ -77,5 +90,5 @@ const Api = (() => {
     soundcloud: ['phonk', 'drill', 'hyperpop', 'lofi'],
   }
 
-  return { search, resolve, validateYandex, validateVk, waveFetch, waveFeedback, POPULAR, tokens }
+  return { search, resolve, validateYandex, validateVk, waveFetch, waveFeedback, POPULAR, tokens, health, isConfigured }
 })()
