@@ -8,6 +8,10 @@ echo "==> npm ci"
 npm ci
 
 echo "==> Capacitor iOS"
+if [ -d ios ] && [ ! -d ios/App ]; then
+  echo "Removing incomplete ios/ folder"
+  rm -rf ios
+fi
 if [ ! -d ios/App ]; then
   npx cap add ios
 fi
@@ -33,7 +37,8 @@ WORKSPACE="App.xcworkspace"
 
 if [ -z "${IOS_CERTIFICATE_P12_BASE64:-}" ]; then
   echo "ERROR: IOS_CERTIFICATE_P12_BASE64 secret is not set."
-  echo "Add signing secrets to GitHub repo (Settings → Secrets) and re-run workflow."
+  echo "GitHub → Settings → Secrets → Actions:"
+  echo "  IOS_CERTIFICATE_P12_BASE64, IOS_CERTIFICATE_PASSWORD, IOS_PROVISIONING_PROFILE_BASE64"
   exit 1
 fi
 
