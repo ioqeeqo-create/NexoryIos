@@ -1,5 +1,12 @@
 const Api = (() => {
-  const TIMEOUT_MS = 12000
+  const TIMEOUT = {
+    health: 8000,
+    search: 22000,
+    resolve: 45000,
+    wave: 35000,
+    import: 60000,
+    default: 20000,
+  }
 
   function cfg() {
     return Store.get()
@@ -34,9 +41,9 @@ const Api = (() => {
     return Boolean(String(c.gatewayUrl || '').trim() && String(c.gatewaySecret || '').trim())
   }
 
-  async function fetchWithTimeout(url, opts = {}) {
+  async function fetchWithTimeout(url, opts = {}, ms = TIMEOUT.default) {
     const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+    const timer = setTimeout(() => ctrl.abort(), ms)
     try {
       return await fetch(url, { ...opts, signal: ctrl.signal })
     } catch (e) {
@@ -50,18 +57,18 @@ const Api = (() => {
   }
 
   async function health() {
-    const r = await fetchWithTimeout(`${base()}/health`, { method: 'GET' })
+    const r = await fetchWithTimeout(`${base()}/health`, { method: 'GET' }, TIMEOUT.health)
     const data = await r.json().catch(() => ({}))
     if (!r.ok || !data.ok) throw new Error('Gateway не отвечает')
     return data
   }
 
-  async function post(path, body) {
+  async function post(path, body, ms = TIMEOUT.default) {
     const r = await fetchWithTimeout(`${base()}/mobile/v1${path}`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(body),
-    })
+    }, ms)
     const data = await r.json().catch(() => ({}))
     if (!r.ok && !data.error) throw new Error(data.error || `HTTP ${r.status}`)
     if (data.error && data.ok === false) throw new Error(data.error)
@@ -69,23 +76,23 @@ const Api = (() => {
   }
 
   async function search(q, source) {
-    return post('/search', { q, source, tokens: tokens() })
+    return post('/search', { q, source, tokens: tokens() }, TIMEOUT.search)
   }
 
   async function resolve(track) {
-    return post('/resolve', { track, tokens: tokens(), preferMobile: true })
+    return post('/resolve', { track, tokens: tokens(), preferMobile: true }, TIMEOUT.resolve)
   }
 
   async function importPlaylist({ url, json }) {
-    return post('/playlist/import', { url, json, tokens: tokens() })
+    return post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
   }
 
   async function validateYandex(token) {
-    return post('/validate/yandex', { token })
+    return post('/validate/yandex', { token }, TIMEOUT.default)
   }
 
   async function validateVk(token) {
-    return post('/validate/vk', { token })
+    return post('/validate/vk', { token }, TIMEOUT.default)
   }
 
   async function waveFetch(opts = {}) {
@@ -97,12 +104,12 @@ const Api = (() => {
       resetSession: !!opts.resetSession,
       radioSessionId: opts.radioSessionId || rotor.radioSessionId,
       batchAnchorId: opts.batchAnchorId || rotor.batchAnchorId,
-    })
+    }, TIMEOUT.wave)
   }
 
   async function waveFeedback(payload) {
     const c = cfg()
-    return post('/yandex/wave/feedback', { token: c.yandexToken, ...payload })
+    return post('/yandex/wave/feedback', { token: c.yandexToken, ...payload }, TIMEOUT.wave)
   }
 
   return { search, resolve, importPlaylist, validateYandex, validateVk, waveFetch, waveFeedback, tokens, health, isConfigured }

@@ -66,12 +66,13 @@ const Store = (() => {
     return patch({ yandexRotor: meta })
   }
 
-  function addPlaylist(name, tracks = []) {
+  function addPlaylist(name, tracks = [], coverData = '') {
     const s = get()
     const pl = {
       id: `pl_${Date.now()}`,
       name: String(name || 'Плейлист').trim(),
       tracks: Array.isArray(tracks) ? tracks.map((t) => ({ ...t })) : [],
+      coverData: String(coverData || ''),
     }
     return patch({ playlists: [pl, ...s.playlists] })
   }
@@ -94,5 +95,18 @@ const Store = (() => {
     return get().playlists.find((p) => p.id === id) || null
   }
 
-  return { get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor, addPlaylist, importPlaylists, getPlaylist }
+  function updatePlaylist(id, patch) {
+    const s = get()
+    const playlists = s.playlists.map((p) => {
+      if (p.id !== id) return p
+      return {
+        ...p,
+        ...patch,
+        name: patch.name != null ? String(patch.name).trim() || p.name : p.name,
+      }
+    })
+    return patch({ playlists })
+  }
+
+  return { get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor, addPlaylist, importPlaylists, getPlaylist, updatePlaylist }
 })()

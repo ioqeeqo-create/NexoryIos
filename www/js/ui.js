@@ -3,6 +3,7 @@ const UI = (() => {
   let searchSource = 'yandex'
   let busy = false
   let openPlaylistId = null
+  let pendingCoverData = ''
   let seeking = false
   const trackLists = new WeakMap()
 
@@ -40,7 +41,7 @@ const UI = (() => {
     return `<img class="source-icon" src="${src}" alt="" loading="lazy" />`
   }
 
-  function sourceBadge(source) {
+  function sourceBadgeInline(source) {
     const map = {
       yandex: 'assets/source-yandex-music.png',
       vk: 'assets/source-vk.png',
@@ -48,14 +49,18 @@ const UI = (() => {
     }
     const src = map[source]
     if (!src) return ''
-    return `<img class="source-badge" src="${src}" alt="" loading="lazy" />`
+    return `<span class="track-source-inline"><img src="${src}" alt="" loading="lazy" /></span>`
+  }
+
+  function coverOnly(url) {
+    if (url) {
+      return `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
+    }
+    return `<span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
   }
 
   function coverBlock(source, url) {
-    const inner = url
-      ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
-      : `<span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
-    return `${inner}${sourceBadge(source)}`
+    return coverOnly(url)
   }
 
   function trackRowHtml(track, idx) {
@@ -63,15 +68,18 @@ const UI = (() => {
       <div class="track-cover">${coverBlock(track.source, track.cover)}</div>
       <div class="track-row__meta">
         <div class="track-row__title">${esc(track.title)}</div>
-        <div class="track-row__artist">${esc(track.artist)}</div>
+        <div class="track-row__artist">${esc(track.artist)}${sourceBadgeInline(track.source)}</div>
       </div>
     </button>`
   }
 
   function cardHtml(track) {
     return `<button type="button" class="card-tile" data-key="${Store.trackKey(track)}">
-      <div class="track-cover" style="width:100%;aspect-ratio:1;border-radius:0">${coverBlock(track.source, track.cover)}</div>
-      <div class="card-tile__meta"><div class="card-tile__title">${esc(track.title)}</div><div class="card-tile__sub">${esc(track.artist)}</div></div>
+      <div class="track-cover card-tile__cover">${coverOnly(track.cover)}</div>
+      <div class="card-tile__meta">
+        <div class="card-tile__title">${esc(track.title)}</div>
+        <div class="card-tile__sub">${esc(track.artist)}${sourceBadgeInline(track.source)}</div>
+      </div>
     </button>`
   }
 
@@ -225,6 +233,9 @@ const UI = (() => {
   }
 
   function playlistCoverHtml(pl) {
+    if (pl.coverData) {
+      return `<img src="${esc(pl.coverData)}" alt="" loading="lazy" />`
+    }
     const first = pl.tracks?.find((t) => t.cover)
     if (first?.cover) {
       return `<img src="${esc(first.cover)}" alt="" loading="lazy" />`
@@ -283,6 +294,32 @@ const UI = (() => {
       </button>
     `).join('')
     Icons.mount(plEl)
+  }
+
+  function openPlaylistCreateSheet(open) {
+    const sheet = $('#playlist-create-sheet')
+    if (!sheet) return
+    sheet.hidden = !open
+    if (open) {
+      pendingCoverData = ''
+      const nameEl = $('#playlist-create-name')
+      if (nameEl) nameEl.value = ''
+      const prev = $('#playlist-cover-preview')
+      if (prev) {
+        prev.innerHTML = Icons.svg('image', 'ui-icon lg')
+        prev.style.backgroundImage = ''
+      }
+      setTimeout(() => nameEl?.focus(), 120)
+    }
+  }
+
+  function saveNewPlaylist() {
+    const name = String($('#playlist-create-name')?.value || '').trim() || 'Мой плейлист'
+    Store.addPlaylist(name, [], pendingCoverData)
+    pendingCoverData = ''
+    openPlaylistCreateSheet(false)
+    renderLibrary()
+    toast('Плейлист создан')
   }
 
   function openImportSheet(open) {
@@ -475,7 +512,7 @@ const UI = (() => {
       if (!pl?.tracks?.length) return toast('Плейлист пуст')
       const shuffled = pl.tracks.slice().sort(() => Math.random() - 0.5)
       try {
-        await Player.playQueue(shuffled, 0, pl.name)
+        await Player.playQueue(shuffled, 0, `${pl.name} · shuffle`, { shuffle: true })
       } catch (e) {
         toast(e.message)
       }
@@ -513,7 +550,7 @@ const UI = (() => {
 
     $('#btn-save-settings')?.addEventListener('click', async () => {
       Store.patch({
-        gatewayUrl: $('#cfg-gateway').value.trim(),
+        gatewayUrl: $('#cfg-gateway').value.trim().replace(/\/+$/, ''),
         gatewaySecret: $('#cfg-secret').value.trim(),
         yandexToken: $('#cfg-yandex').value.trim(),
         vkToken: $('#cfg-vk').value.trim(),
@@ -529,12 +566,31 @@ const UI = (() => {
       if (vk && Api.isConfigured()) Api.validateVk(vk).then((r) => { $('#vk-status').textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error })
     })
 
-    $('#btn-create-playlist')?.addEventListener('click', () => {
-      const name = prompt('Название плейлиста')
-      if (!name) return
-      Store.addPlaylist(name)
-      renderLibrary()
+    $('#btn-create-playlist')?.addEventListener('click', () => openPlaylistCreateSheet(true))
+    $('#playlist-create-close')?.addEventListener('click', () => openPlaylistCreateSheet(false))
+    $('#playlist-create-cancel')?.addEventListener('click', () => openPlaylistCreateSheet(false))
+    $('#playlist-create-save')?.addEventListener('click', () => saveNewPlaylist())
+    $('#playlist-cover-pick')?.addEventListener('click', () => $('#playlist-cover-input')?.click())
+    $('#playlist-cover-input')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        pendingCoverData = String(reader.result || '')
+        const prev = $('#playlist-cover-preview')
+        if (prev && pendingCoverData) {
+          prev.innerHTML = ''
+          prev.style.backgroundImage = `url(${pendingCoverData})`
+          prev.style.backgroundSize = 'cover'
+          prev.style.backgroundPosition = 'center'
+        }
+      }
+      reader.readAsDataURL(file)
+      e.target.value = ''
     })
+
+    $('#mini-prev')?.addEventListener('click', (e) => { e.stopPropagation(); Player.prev().catch((err) => toast(err.message)) })
+    $('#mini-next')?.addEventListener('click', (e) => { e.stopPropagation(); Player.next().catch((err) => toast(err.message)) })
 
     $('#mini-open-full')?.addEventListener('click', () => {
       if (!Player.current()) {
@@ -580,6 +636,7 @@ const UI = (() => {
 
   function wireSeek() {
     const seek = $('#seek')
+    const row = $('#progress-row')
     if (!seek) return
 
     const applySeek = (commit) => {
@@ -589,15 +646,24 @@ const UI = (() => {
       if (commit) Player.seek(ratio)
     }
 
-    const startSeek = () => { seeking = true }
-    const endSeek = () => {
+    const startSeek = (e) => {
+      e.stopPropagation()
+      seeking = true
+    }
+    const endSeek = (e) => {
+      e?.stopPropagation?.()
       applySeek(true)
       seeking = false
     }
 
+    row?.addEventListener('click', (e) => e.stopPropagation())
+    row?.addEventListener('pointerdown', (e) => e.stopPropagation())
+    row?.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true })
+
     seek.addEventListener('pointerdown', startSeek)
-    seek.addEventListener('touchstart', startSeek, { passive: true })
-    seek.addEventListener('input', () => {
+    seek.addEventListener('touchstart', startSeek, { passive: false })
+    seek.addEventListener('input', (e) => {
+      e.stopPropagation()
       const ratio = Number(seek.value) / 1000
       const dur = Player.audio?.duration || 0
       if (dur > 0) $('#time-current').textContent = Player.fmt(dur * ratio)

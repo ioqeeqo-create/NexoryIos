@@ -27,17 +27,6 @@ const Player = (() => {
     return { yandex: 'Яндекс Музыка', vk: 'VK Музыка', soundcloud: 'SoundCloud' }[src] || src
   }
 
-  function buildWaveform() {
-    const el = document.getElementById('waveform')
-    if (!el || el.childElementCount) return
-    for (let i = 0; i < 32; i++) {
-      const bar = document.createElement('span')
-      bar.style.height = `${20 + Math.random() * 80}%`
-      bar.style.animationDelay = `${(i * 0.04).toFixed(2)}s`
-      el.appendChild(bar)
-    }
-  }
-
   function fmt(sec) {
     if (!Number.isFinite(sec) || sec < 0) return '0:00'
     const m = Math.floor(sec / 60)
@@ -76,12 +65,48 @@ const Player = (() => {
     } catch {}
   }
 
+  function waitForAudioReady(timeoutMs = 22000) {
+    return new Promise((resolve, reject) => {
+      if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        resolve()
+        return
+      }
+      let done = false
+      const finish = (fn, val) => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        audio.removeEventListener('canplay', onReady)
+        audio.removeEventListener('loadedmetadata', onReady)
+        audio.removeEventListener('error', onErr)
+        fn(val)
+      }
+      const onReady = () => finish(resolve)
+      const onErr = () => finish(reject, new Error('Поток недоступен — попробуй другой трек'))
+      const timer = setTimeout(() => finish(reject, new Error('Таймаут загрузки трека')), timeoutMs)
+      audio.addEventListener('canplay', onReady, { once: true })
+      audio.addEventListener('loadedmetadata', onReady, { once: true })
+      audio.addEventListener('error', onErr, { once: true })
+    })
+  }
+
   async function resolveUrl(track) {
     if (track.url) return track.url
-    const out = await Api.resolve(track)
-    if (!out.ok || !out.url) throw new Error(out.error || 'Не удалось получить поток')
-    track.url = out.url
-    return out.url
+    let lastErr = new Error('Не удалось получить поток')
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const out = await Api.resolve(track)
+        if (out.ok && out.url) {
+          track.url = out.url
+          return out.url
+        }
+        lastErr = new Error(out.error || 'Не удалось получить поток')
+      } catch (e) {
+        lastErr = e
+      }
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 600))
+    }
+    throw lastErr
   }
 
   async function playTrackAt(i, fromLabel) {
@@ -97,7 +122,11 @@ const Player = (() => {
     }
     try {
       const url = await resolveUrl(track)
+      audio.pause()
+      audio.removeAttribute('src')
       audio.src = url
+      audio.load()
+      await waitForAudioReady()
       await audio.play().catch((e) => {
         const msg = String(e?.message || e)
         if (/not supported/i.test(msg)) throw new Error('Поток не поддерживается на iOS — попробуй другой трек')
@@ -121,11 +150,12 @@ const Player = (() => {
     }
   }
 
-  async function playQueue(tracks, startIdx = 0, fromLabel = '') {
+  async function playQueue(tracks, startIdx = 0, fromLabel = '', opts = {}) {
     if (!Api.isConfigured()) throw new Error('Настрой gateway URL и Secret')
-    queue = tracks.slice()
+    const list = tracks.slice()
+    shuffle = !!opts.shuffle
+    queue = shuffle ? list.sort(() => Math.random() - 0.5) : list
     waveMode = fromLabel.includes('волна') || fromLabel.includes('Моя волна')
-    shuffle = false
     playingFrom = fromLabel
     await playTrackAt(startIdx, fromLabel)
   }
@@ -154,6 +184,12 @@ const Player = (() => {
         batchId: track.yandexRotor.sessionBatchId || track.yandexRotor.batchId,
       }).catch(() => {})
     }
+    if (shuffle && queue.length > 1) {
+      let nextIdx = index
+      while (nextIdx === index) nextIdx = Math.floor(Math.random() * queue.length)
+      await playTrackAt(nextIdx)
+      return
+    }
     if (index < queue.length - 1) {
       await playTrackAt(index + 1)
       return
@@ -165,6 +201,12 @@ const Player = (() => {
   async function prev() {
     if (audio.currentTime > 3) {
       audio.currentTime = 0
+      return
+    }
+    if (shuffle && queue.length > 1) {
+      let prevIdx = index
+      while (prevIdx === index) prevIdx = Math.floor(Math.random() * queue.length)
+      await playTrackAt(prevIdx)
       return
     }
     if (index > 0) await playTrackAt(index - 1)
@@ -214,14 +256,12 @@ const Player = (() => {
     emit('time', { current: audio.currentTime, duration: audio.duration || 0 })
   })
   audio.addEventListener('play', () => {
-    document.getElementById('waveform')?.classList.remove('paused')
     document.querySelector('.wave-orb')?.classList.add('is-playing')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
     updateMediaSession(current())
     emit('state', { paused: false })
   })
   audio.addEventListener('pause', () => {
-    document.getElementById('waveform')?.classList.add('paused')
     document.querySelector('.wave-orb')?.classList.remove('is-playing')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
     emit('state', { paused: true })
@@ -245,7 +285,6 @@ const Player = (() => {
     }
   })
 
-  buildWaveform()
   wireMediaSessionActions()
 
   return {

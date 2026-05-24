@@ -44,9 +44,27 @@
       <section class="screen screen--active" data-screen="home">
         <div id="gateway-banner" class="status-banner" hidden></div>
         <div class="wave-hero">
-          <button type="button" class="wave-orb" id="btn-wave-play">
-            <span class="wave-orb__glow"></span>
-            <img class="wave-orb__img" src="assets/source-yandex-wave.svg" alt="" />
+          <button type="button" class="wave-orb" id="btn-wave-play" aria-label="Моя волна">
+            <span class="wave-orb__ring wave-orb__ring--1"></span>
+            <span class="wave-orb__ring wave-orb__ring--2"></span>
+            <span class="wave-orb__ring wave-orb__ring--3"></span>
+            <span class="wave-orb__core"><span data-icon="play" data-icon-class="ui-icon lg"></span></span>
+            <div class="wave-fine-lines" aria-hidden="true">
+              <svg class="wave-fine-lines__svg" viewBox="0 0 720 92" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <g class="wave-fine-lines__g wave-fine-lines__g--1">
+                  <path fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/>
+                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/></g>
+                </g>
+                <g class="wave-fine-lines__g wave-fine-lines__g--2">
+                  <path fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.35" d="M0,66 C160,90 320,42 480,66 S800,90 960,66 S1120,42 1280,66 S1440,90 1440,66"/>
+                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.35" d="M0,66 C160,90 320,42 480,66 S800,90 960,66 S1120,42 1280,66 S1440,90 1440,66"/></g>
+                </g>
+                <g class="wave-fine-lines__g wave-fine-lines__g--3">
+                  <path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="1.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/>
+                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="1.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/></g>
+                </g>
+              </svg>
+            </div>
           </button>
           <h1 class="wave-title">Моя волна</h1>
           <p class="wave-sub" id="wave-source-label">Нажми — погрузиться в волну</p>
@@ -65,6 +83,10 @@
       </section>
 
       <section class="screen" data-screen="search">
+        <div class="search-hero safe-top">
+          <h1 class="search-hero__title">Поиск</h1>
+          <p class="search-hero__sub">Яндекс · VK · SoundCloud</p>
+        </div>
         <div class="search-box">
           <span class="search-box__icon" data-icon="search"></span>
           <input type="search" id="search-input" placeholder="Трек, артист..." autocomplete="off" enterkeyhint="search" />
@@ -104,7 +126,9 @@
       </section>
 
       <section class="screen" data-screen="settings">
-        <h1 class="screen-title">Настройки</h1>
+        <div class="screen-head safe-top">
+          <h1 class="screen-title">Настройки</h1>
+        </div>
         <div class="settings-group">
           <label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="http://IP:3950" autocapitalize="off" /></label>
           <label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="Bearer secret" autocomplete="off" /></label>
@@ -133,7 +157,9 @@
         </div>
       </button>
       <div class="mini-controls">
+        <button type="button" class="icon-btn icon-btn--sm" id="mini-prev" data-icon="skip-back" aria-label="Назад"></button>
         <button type="button" class="icon-btn icon-btn--sm" id="mini-play" data-icon="play"></button>
+        <button type="button" class="icon-btn icon-btn--sm" id="mini-next" data-icon="skip-forward" aria-label="Вперёд"></button>
       </div>
     </footer>
 
@@ -158,8 +184,7 @@
         <h2 class="full-title" id="full-title">—</h2>
         <p class="full-artist" id="full-artist">—</p>
       </div>
-      <div class="waveform" id="waveform" aria-hidden="true"></div>
-      <div class="progress-row">
+      <div class="progress-row" id="progress-row">
         <span class="time" id="time-current">0:00</span>
         <input type="range" class="seek" id="seek" min="0" max="1000" value="0" />
         <span class="time" id="time-total">0:00</span>
@@ -171,6 +196,22 @@
         <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
         <button type="button" class="icon-btn" id="full-like" data-icon="heart" aria-label="Like"></button>
       </div>
+    </div>
+  </div>
+
+  <input type="file" id="playlist-cover-input" accept="image/*" hidden />
+
+  <div class="sheet" id="playlist-create-sheet" hidden>
+    <div class="sheet__backdrop" id="playlist-create-close"></div>
+    <div class="sheet__panel safe-bottom">
+      <h2 class="sheet__title">Новый плейлист</h2>
+      <button type="button" class="playlist-cover-pick" id="playlist-cover-pick">
+        <span class="playlist-cover-pick__ph" id="playlist-cover-preview" data-icon="image" data-icon-class="ui-icon lg"></span>
+        <span class="playlist-cover-pick__label">Выбрать обложку</span>
+      </button>
+      <label class="field"><span>Название</span><input type="text" id="playlist-create-name" placeholder="Мой плейлист" maxlength="80" /></label>
+      <button type="button" class="primary-btn" id="playlist-create-save">Создать</button>
+      <button type="button" class="link-btn sheet__cancel" id="playlist-create-cancel">Отмена</button>
     </div>
   </div>
 
@@ -199,7 +240,7 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <audio id="audio" preload="metadata" playsinline webkit-playsinline></audio>
+  <audio id="audio" preload="auto" playsinline webkit-playsinline></audio>
 
   <script src="js/icons.js"></script>
   <script src="js/store.js"></script>
