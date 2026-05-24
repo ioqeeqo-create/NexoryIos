@@ -317,8 +317,11 @@ body[data-screen="settings"] .screen[data-screen="settings"] { padding-top: 0; }
 }
 .card-tile:active { transform: scale(0.96); }
 .card-tile.is-busy { opacity: 0.5; pointer-events: none; }
+.card-tile .track-cover,
 .card-tile__cover {
   width: 100%; aspect-ratio: 1; flex-shrink: 0;
+  height: auto; min-height: 0; max-height: none;
+  border-radius: 0;
   background: #141820; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
 }

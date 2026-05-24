@@ -100,7 +100,7 @@ const UI = (() => {
 
   function cardHtml(track) {
     return `<button type="button" class="card-tile" data-key="${Store.trackKey(track)}">
-      <div class="track-cover card-tile__cover">${coverOnly(track.cover)}</div>
+      <div class="card-tile__cover">${coverOnly(track.cover)}</div>
       <div class="card-tile__meta">
         <div class="card-tile__title">${esc(track.title)}</div>
         <div class="card-tile__sub">${esc(track.artist)}${sourceBadgeInline(track.source)}</div>
