@@ -66,7 +66,11 @@ const Player = (() => {
     try {
       const url = await resolveUrl(track)
       audio.src = url
-      await audio.play()
+      await audio.play().catch((e) => {
+        const msg = String(e?.message || e)
+        if (/not supported/i.test(msg)) throw new Error('Поток не поддерживается на iOS — попробуй другой трек')
+        throw e
+      })
       Store.pushRecent(track)
       if (track.source === 'yandex' && track.yandexRotor) {
         const rotor = Store.get().yandexRotor || {}
@@ -220,7 +224,13 @@ const Player = (() => {
     next,
     prev,
     seek(ratio) {
-      if (audio.duration) audio.currentTime = audio.duration * ratio
+      if (!Number.isFinite(audio.duration) || audio.duration <= 0) return
+      const t = Math.max(0, Math.min(1, ratio)) * audio.duration
+      try {
+        audio.currentTime = t
+      } catch (e) {
+        emit('error', 'Перемотка недоступна для этого трека')
+      }
     },
     toggleShuffle() {
       shuffle = !shuffle

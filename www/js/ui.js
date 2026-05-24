@@ -3,6 +3,7 @@ const UI = (() => {
   let searchSource = 'yandex'
   let popularSource = 'yandex'
   let busy = false
+  let seeking = false
   const trackLists = new WeakMap()
 
   const $ = (sel) => document.querySelector(sel)
@@ -26,10 +27,19 @@ const UI = (() => {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
   }
 
+  function sourceIcon(source) {
+    const map = {
+      yandex: 'assets/source-yandex-music.png',
+      vk: 'assets/source-vk.png',
+      soundcloud: 'assets/source-soundcloud.png',
+    }
+    const src = map[source]
+    if (!src) return '<span class="source-icon source-icon--ph">?</span>'
+    return `<img class="source-icon" src="${src}" alt="" loading="lazy" />`
+  }
+
   function badge(source) {
-    const map = { yandex: ['Я', 'badge-yandex'], vk: ['VK', 'badge-vk'], soundcloud: ['SC', 'badge-sc'] }
-    const [t, c] = map[source] || ['?', '']
-    return `<span class="badge ${c}">${t}</span>`
+    return sourceIcon(source)
   }
 
   function coverBlock(source, url) {
@@ -451,17 +461,50 @@ const UI = (() => {
     $('#full-shuffle')?.addEventListener('click', () => {
       $('#full-shuffle').classList.toggle('is-active', Player.toggleShuffle())
     })
-    $('#seek')?.addEventListener('input', (e) => Player.seek(Number(e.target.value) / 1000))
+    wireSeek()
 
     Player.on('trackchange', ({ track }) => updatePlayerUI(track))
     Player.on('playing', () => openFullPlayer())
     Player.on('state', ({ paused }) => setPlayIcon(paused))
     Player.on('time', ({ current, duration }) => {
-      $('#time-current').textContent = Player.fmt(current)
+      if (!seeking) $('#time-current').textContent = Player.fmt(current)
       $('#time-total').textContent = Player.fmt(duration)
-      if (duration > 0) $('#seek').value = String(Math.floor((current / duration) * 1000))
+      if (!seeking && duration > 0) {
+        $('#seek').value = String(Math.floor((current / duration) * 1000))
+      }
     })
     Player.on('error', (msg) => toast(msg))
+  }
+
+  function wireSeek() {
+    const seek = $('#seek')
+    if (!seek) return
+
+    const applySeek = (commit) => {
+      const ratio = Number(seek.value) / 1000
+      const dur = Player.audio?.duration || 0
+      if (dur > 0) $('#time-current').textContent = Player.fmt(dur * ratio)
+      if (commit) Player.seek(ratio)
+    }
+
+    const startSeek = () => { seeking = true }
+    const endSeek = () => {
+      applySeek(true)
+      seeking = false
+    }
+
+    seek.addEventListener('pointerdown', startSeek)
+    seek.addEventListener('touchstart', startSeek, { passive: true })
+    seek.addEventListener('input', () => {
+      const ratio = Number(seek.value) / 1000
+      const dur = Player.audio?.duration || 0
+      if (dur > 0) $('#time-current').textContent = Player.fmt(dur * ratio)
+      if (seeking) Player.seek(ratio)
+    })
+    seek.addEventListener('change', endSeek)
+    seek.addEventListener('pointerup', endSeek)
+    seek.addEventListener('touchend', endSeek)
+    seek.addEventListener('touchcancel', () => { seeking = false })
   }
 
   function init() {
