@@ -27,6 +27,7 @@ const Store = (() => {
       yandexRotor: null,
       theme: 'dark',
       accentFromCover: false,
+      accentCoverHex: '',
       playerCoverOverride: '',
       playerBgOverride: '',
       bgBlur: 56,

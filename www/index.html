@@ -272,24 +272,28 @@
   <input type="file" id="player-bg-input" accept="image/*" hidden />
 
   <div class="service-sheet" id="service-sheet" hidden>
-    <div class="service-sheet__scroll safe-top safe-bottom">
-      <img class="service-sheet__logo" id="service-sheet-logo" src="" alt="" />
-      <label class="token-field">
-        <span class="token-field__label">Access Token</span>
-        <div class="token-field__wrap">
-          <input type="password" class="token-field__input" id="service-token-input" autocomplete="off" autocapitalize="off" />
-          <button type="button" class="token-field__eye" id="service-token-eye" data-icon="eye" aria-label="Показать"></button>
-        </div>
-      </label>
-      <button type="button" class="token-btn token-btn--save" id="service-token-save">Сохранить и проверить</button>
-      <button type="button" class="token-btn token-btn--clear" id="service-token-clear">Очистить</button>
-      <a class="token-link" id="service-token-help" href="#" target="_blank" rel="noopener">
-        <span data-icon="external-link" data-icon-class="ui-icon"></span>
-        <span id="service-token-help-text">Как получить токен</span>
-      </a>
-      <small class="field-hint token-status" id="service-token-status"></small>
-      <button type="button" class="token-btn token-btn--hide" id="service-sheet-hide">Скрыть</button>
-      <button type="button" class="token-btn token-btn--back" id="service-sheet-back">Назад</button>
+    <div class="service-sheet__scroll">
+      <div class="service-sheet__body">
+        <img class="service-sheet__logo" id="service-sheet-logo" src="" alt="" />
+        <label class="token-field">
+          <span class="token-field__label">Access Token</span>
+          <div class="token-field__wrap">
+            <input type="password" class="token-field__input" id="service-token-input" autocomplete="off" autocapitalize="off" />
+            <button type="button" class="token-field__eye" id="service-token-eye" data-icon="eye" aria-label="Показать"></button>
+          </div>
+        </label>
+        <button type="button" class="token-btn token-btn--save" id="service-token-save">Сохранить и проверить</button>
+        <button type="button" class="token-btn token-btn--clear" id="service-token-clear">Очистить</button>
+        <a class="token-link" id="service-token-help" href="#" target="_blank" rel="noopener">
+          <span data-icon="external-link" data-icon-class="ui-icon"></span>
+          <span id="service-token-help-text">Как получить токен</span>
+        </a>
+        <small class="field-hint token-status" id="service-token-status"></small>
+      </div>
+      <div class="service-sheet__footer">
+        <button type="button" class="token-btn token-btn--hide" id="service-sheet-hide">Скрыть</button>
+        <button type="button" class="token-btn token-btn--back" id="service-sheet-back">Назад</button>
+      </div>
     </div>
   </div>
 

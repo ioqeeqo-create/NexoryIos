@@ -56,14 +56,20 @@ const Theme = (() => {
     document.documentElement.style.setProperty(name, value)
   }
 
-  function applyAccent(hex) {
-    if (!hex) return
+  function notifyAccentChange(hex) {
+    document.documentElement.dispatchEvent(new CustomEvent('nexory-accent', { detail: { hex } }))
+  }
+
+  function applyAccent(hex, { persist = true } = {}) {
+    if (!hex) return null
     const accent2 = shiftHue(hex, 12)
     setVar('--accent', hex)
     setVar('--accent-2', accent2)
     setVar('--accent-glow', hexToRgba(hex, 0.35))
     setVar('--accent-soft', hexToRgba(hex, 0.14))
     setVar('--accent-border', hexToRgba(hex, 0.28))
+    setVar('--accent-fill', hexToRgba(hex, 0.1))
+    setVar('--accent-fill-strong', hexToRgba(hex, 0.18))
 
     const appBg = document.getElementById('app-bg')
     if (appBg) {
@@ -73,6 +79,11 @@ const Theme = (() => {
         'var(--bg)',
       ].join(', ')
     }
+
+    document.body.classList.add('accent-from-cover')
+    if (persist) Store.patch({ accentCoverHex: hex })
+    notifyAccentChange(hex)
+    return hex
   }
 
   function hexToRgba(hex, a) {
@@ -93,6 +104,19 @@ const Theme = (() => {
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
   }
 
+  function applyThemeAccent(t) {
+    setVar('--accent', t.accent)
+    setVar('--accent-2', t.accent2)
+    setVar('--accent-glow', t.accentGlow)
+    setVar('--accent-soft', hexToRgba(t.accent, 0.14))
+    setVar('--accent-border', hexToRgba(t.accent, 0.28))
+    setVar('--accent-fill', hexToRgba(t.accent, 0.1))
+    setVar('--accent-fill-strong', hexToRgba(t.accent, 0.18))
+    const appBg = document.getElementById('app-bg')
+    if (appBg) appBg.style.background = t.appBg
+    notifyAccentChange(t.accent)
+  }
+
   function apply(settings) {
     const s = settings || Store.get()
     const t = THEMES[s.theme] || THEMES.dark
@@ -104,15 +128,12 @@ const Theme = (() => {
     setVar('--bg-card', t.bgCard)
     setVar('--border', t.border)
 
-    if (!s.accentFromCover) {
+    if (s.accentFromCover) {
+      if (s.accentCoverHex) applyAccent(s.accentCoverHex, { persist: false })
+    } else {
       document.body.classList.remove('accent-from-cover')
-      setVar('--accent', t.accent)
-      setVar('--accent-2', t.accent2)
-      setVar('--accent-glow', t.accentGlow)
-      setVar('--accent-soft', hexToRgba(t.accent, 0.14))
-      setVar('--accent-border', hexToRgba(t.accent, 0.28))
-      const appBg = document.getElementById('app-bg')
-      if (appBg) appBg.style.background = t.appBg
+      if (s.accentCoverHex) Store.patch({ accentCoverHex: '' })
+      applyThemeAccent(t)
     }
 
     applyPlayerBg(s)
@@ -135,53 +156,99 @@ const Theme = (() => {
     else bg.style.backgroundImage = ''
   }
 
-  function extractAccentFromUrl(url) {
-    if (!url || !Store.get().accentFromCover) return Promise.resolve(null)
-    const job = ++accentJob
-    return new Promise((resolve) => {
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-      img.onload = () => {
-        if (job !== accentJob) return resolve(null)
-        try {
-          const canvas = document.createElement('canvas')
-          canvas.width = 32
-          canvas.height = 32
-          const ctx = canvas.getContext('2d')
-          ctx.drawImage(img, 0, 0, 32, 32)
-          const data = ctx.getImageData(0, 0, 32, 32).data
-          let r = 0
-          let g = 0
-          let b = 0
-          let n = 0
-          for (let i = 0; i < data.length; i += 4) {
-            const pr = data[i]
-            const pg = data[i + 1]
-            const pb = data[i + 2]
-            const pa = data[i + 3]
-            if (pa < 128) continue
-            const max = Math.max(pr, pg, pb)
-            const min = Math.min(pr, pg, pb)
-            if (max - min < 18) continue
-            if (max < 40) continue
-            r += pr
-            g += pg
-            b += pb
-            n += 1
-          }
-          if (!n) return resolve(null)
-          const hex = `#${[r / n, g / n, b / n].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
-          applyAccent(hex)
-          document.body.classList.add('accent-from-cover')
-          resolve(hex)
-        } catch {
-          resolve(null)
-        }
+  function pickAccentFromImageData(data) {
+    let best = null
+    let bestScore = 0
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      const a = data[i + 3]
+      if (a < 128) continue
+      const max = Math.max(r, g, b)
+      const min = Math.min(r, g, b)
+      const sat = max === 0 ? 0 : (max - min) / max
+      const lum = max / 255
+      if (sat < 0.18 || lum < 0.12 || lum > 0.94) continue
+      const score = sat * (1 - Math.abs(lum - 0.58) * 0.85)
+      if (score > bestScore) {
+        bestScore = score
+        best = [r, g, b]
       }
-      img.onerror = () => resolve(null)
+    }
+    if (!best) return null
+    return `#${best.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
+  }
+
+  function sampleAccentFromImage(img) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 40
+    canvas.height = 40
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, 40, 40)
+    const data = ctx.getImageData(0, 0, 40, 40).data
+    return pickAccentFromImageData(data)
+  }
+
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => reject(new Error('image load failed'))
       img.src = url
     })
   }
 
-  return { apply, applyPlayerBg, setFullBgImage, extractAccentFromUrl, THEMES }
+  async function blobUrlForImage(url) {
+    if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url
+    const res = await fetch(url)
+    if (!res.ok) throw new Error('fetch failed')
+    const blob = await res.blob()
+    return URL.createObjectURL(blob)
+  }
+
+  async function extractAccentFromUrl(url) {
+    if (!url || !Store.get().accentFromCover) return Promise.resolve(null)
+    const job = ++accentJob
+    return new Promise((resolve) => {
+      let blobUrl = null
+      const finish = (hex) => {
+        if (blobUrl?.startsWith('blob:')) URL.revokeObjectURL(blobUrl)
+        if (!hex || job !== accentJob) return resolve(null)
+        applyAccent(hex)
+        resolve(hex)
+      }
+
+      blobUrlForImage(url)
+        .then(async (src) => {
+          blobUrl = src.startsWith('blob:') ? src : null
+          const img = await loadImage(src)
+          if (job !== accentJob) return resolve(null)
+          finish(sampleAccentFromImage(img))
+        })
+        .catch(async () => {
+          try {
+            const img = await loadImage(url)
+            if (job !== accentJob) return resolve(null)
+            finish(sampleAccentFromImage(img))
+          } catch {
+            finish(null)
+          }
+        })
+    })
+  }
+
+  function extractAccentFromElement(imgEl) {
+    if (!imgEl || !imgEl.complete || !imgEl.naturalWidth || !Store.get().accentFromCover) return null
+    try {
+      const hex = sampleAccentFromImage(imgEl)
+      if (!hex) return null
+      applyAccent(hex)
+      return hex
+    } catch {
+      return null
+    }
+  }
+
+  return { apply, applyPlayerBg, setFullBgImage, extractAccentFromUrl, extractAccentFromElement, applyAccent, THEMES }
 })()

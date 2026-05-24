@@ -710,11 +710,16 @@ const UI = (() => {
     applyPlayerVisuals(track)
     if (Store.get().accentFromCover) {
       const accentUrl = getPlayerBgUrl(track) || getPlayerCoverUrl(track)
+      const coverImg = $('#full-cover')
+      const tryRedraw = () => {
+        const d = Player.audio?.duration || 0
+        if (d > 0) Player.drawWaveform((Player.audio?.currentTime || 0) / d)
+      }
       if (accentUrl) {
-        Theme.extractAccentFromUrl(accentUrl).then(() => {
-          const d = Player.audio?.duration || 0
-          if (d > 0) Player.drawWaveform((Player.audio?.currentTime || 0) / d)
-        })
+        Theme.extractAccentFromUrl(accentUrl).then(tryRedraw)
+      } else if (coverImg && !coverImg.hidden) {
+        Theme.extractAccentFromElement(coverImg)
+        tryRedraw()
       }
     }
     highlightPlayingTrack(track)
