@@ -73,7 +73,11 @@ const Api = (() => {
   }
 
   async function resolve(track) {
-    return post('/resolve', { track, tokens: tokens() })
+    return post('/resolve', { track, tokens: tokens(), preferMobile: true })
+  }
+
+  async function importPlaylist({ url, json }) {
+    return post('/playlist/import', { url, json, tokens: tokens() })
   }
 
   async function validateYandex(token) {
@@ -101,11 +105,5 @@ const Api = (() => {
     return post('/yandex/wave/feedback', { token: c.yandexToken, ...payload })
   }
 
-  const POPULAR = {
-    yandex: ['популярное', 'новинки', 'русский рэп', 'phonk'],
-    vk: ['популярное', 'phonk', 'hyperpop', 'инди'],
-    soundcloud: ['phonk', 'drill', 'hyperpop', 'lofi'],
-  }
-
-  return { search, resolve, validateYandex, validateVk, waveFetch, waveFeedback, POPULAR, tokens, health, isConfigured }
+  return { search, resolve, importPlaylist, validateYandex, validateVk, waveFetch, waveFeedback, tokens, health, isConfigured }
 })()

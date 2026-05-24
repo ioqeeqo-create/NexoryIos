@@ -32,7 +32,7 @@
   </div>
 
   <div id="app">
-    <header class="top-bar safe-top">
+    <header class="top-bar safe-top" id="top-bar">
       <div class="top-bar__brand">
         <img class="brand-mark" src="assets/nexory-icon.png" alt="" />
         <span class="brand-pixel">Nexory</span>
@@ -62,15 +62,6 @@
           </div>
           <div class="h-scroll" id="favorites-preview" data-track-list></div>
         </div>
-        <div class="section">
-          <div class="section-head"><h2 class="section-title">Популярное</h2></div>
-          <div class="chip-row" id="popular-chips">
-            <button type="button" class="chip chip--active" data-popular="yandex"><img class="chip-icon" src="assets/source-yandex-music.png" alt="" /><span>Яндекс</span></button>
-            <button type="button" class="chip" data-popular="vk"><img class="chip-icon" src="assets/source-vk.png" alt="" /><span>VK</span></button>
-            <button type="button" class="chip" data-popular="soundcloud"><img class="chip-icon" src="assets/source-soundcloud.png" alt="" /><span>SC</span></button>
-          </div>
-          <div class="v-list" id="popular-list" data-track-list></div>
-        </div>
       </section>
 
       <section class="screen" data-screen="search">
@@ -89,18 +80,27 @@
       </section>
 
       <section class="screen" data-screen="library">
-        <h1 class="screen-title">Библиотека</h1>
-        <div class="lib-actions">
-          <button type="button" class="lib-card" id="btn-create-playlist"><span class="lib-card__icon" data-icon="plus"></span><span>Создать плейлист</span></button>
+        <div class="lib-hero safe-top">
+          <button type="button" class="favorites-card" id="btn-open-likes">
+            <span class="favorites-card__icon" data-icon="heart"></span>
+            <div class="favorites-card__text">
+              <div class="favorites-card__title">Любимые</div>
+              <div class="favorites-card__count" id="likes-count">0 треков</div>
+            </div>
+          </button>
         </div>
-        <div class="section">
-          <h2 class="section-title">Любимые</h2>
-          <div class="v-list v-list--tracks" id="library-likes" data-track-list></div>
+        <button type="button" class="import-row" id="btn-import-open">
+          <span class="import-row__icon" data-icon="download"></span>
+          <div class="import-row__text">
+            <div class="import-row__title">Импортировать по ссылке</div>
+            <div class="import-row__sub">VK / Яндекс или JSON из Nexory на ПК</div>
+          </div>
+        </button>
+        <div class="lib-toolbar">
+          <button type="button" class="lib-tool-btn" id="btn-create-playlist" aria-label="Создать" data-icon="plus"></button>
+          <span class="lib-pill lib-pill--active">Плейлисты</span>
         </div>
-        <div class="section">
-          <h2 class="section-title">Плейлисты</h2>
-          <div id="library-playlists"></div>
-        </div>
+        <div class="playlist-grid" id="library-playlists"></div>
       </section>
 
       <section class="screen" data-screen="settings">
@@ -174,8 +174,32 @@
     </div>
   </div>
 
+  <div class="sheet" id="import-sheet" hidden>
+    <div class="sheet__backdrop" id="import-sheet-close"></div>
+    <div class="sheet__panel safe-bottom">
+      <h2 class="sheet__title">Импорт плейлиста</h2>
+      <p class="sheet__hint">Ссылка VK / Яндекс Музыки или JSON, экспортированный из Nexory на ПК (flow-playlists-v1).</p>
+      <textarea id="import-input" class="import-textarea" rows="4" placeholder="https://music.yandex.ru/... или вставь JSON"></textarea>
+      <button type="button" class="primary-btn" id="btn-import-run">Импортировать</button>
+      <button type="button" class="link-btn sheet__cancel" id="import-sheet-cancel">Отмена</button>
+    </div>
+  </div>
+
+  <div class="playlist-view" id="playlist-view" hidden>
+    <div class="playlist-view__hero safe-top" id="playlist-view-hero">
+      <button type="button" class="playlist-view__back icon-btn" id="playlist-view-back" data-icon="chevron-left" aria-label="Назад"></button>
+      <h1 class="playlist-view__title" id="playlist-view-title">Плейлист</h1>
+      <p class="playlist-view__count" id="playlist-view-count"></p>
+      <div class="playlist-view__actions">
+        <button type="button" class="primary-btn playlist-view__play" id="playlist-view-play">Воспроизвести</button>
+        <button type="button" class="icon-btn playlist-view__shuffle" id="playlist-view-shuffle" data-icon="shuffle" aria-label="Перемешать"></button>
+      </div>
+    </div>
+    <div class="v-list v-list--tracks playlist-view__tracks" id="playlist-view-tracks" data-track-list></div>
+  </div>
+
   <div class="toast" id="toast" hidden></div>
-  <audio id="audio" preload="metadata" playsinline webkit-playsinline crossorigin="anonymous"></audio>
+  <audio id="audio" preload="metadata" playsinline webkit-playsinline></audio>
 
   <script src="js/icons.js"></script>
   <script src="js/store.js"></script>

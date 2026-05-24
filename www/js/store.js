@@ -66,11 +66,33 @@ const Store = (() => {
     return patch({ yandexRotor: meta })
   }
 
-  function addPlaylist(name) {
+  function addPlaylist(name, tracks = []) {
     const s = get()
-    const pl = { id: `pl_${Date.now()}`, name: String(name || 'Плейлист').trim(), tracks: [] }
+    const pl = {
+      id: `pl_${Date.now()}`,
+      name: String(name || 'Плейлист').trim(),
+      tracks: Array.isArray(tracks) ? tracks.map((t) => ({ ...t })) : [],
+    }
     return patch({ playlists: [pl, ...s.playlists] })
   }
 
-  return { get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor, addPlaylist }
+  function importPlaylists(items) {
+    const s = get()
+    const incoming = (Array.isArray(items) ? items : [])
+      .map((pl) => ({
+        id: pl.id || `pl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: String(pl.name || 'Плейлист').trim(),
+        tracks: Array.isArray(pl.tracks) ? pl.tracks.map((t) => ({ ...t })) : [],
+        description: pl.description || '',
+      }))
+      .filter((p) => p.name)
+    if (!incoming.length) return s
+    return patch({ playlists: [...incoming, ...s.playlists] })
+  }
+
+  function getPlaylist(id) {
+    return get().playlists.find((p) => p.id === id) || null
+  }
+
+  return { get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor, addPlaylist, importPlaylists, getPlaylist }
 })()

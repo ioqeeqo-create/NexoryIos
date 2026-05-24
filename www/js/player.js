@@ -45,6 +45,37 @@ const Player = (() => {
     return `${m}:${String(s).padStart(2, '0')}`
   }
 
+  function updateMediaSession(track) {
+    if (!track || !('mediaSession' in navigator)) return
+    const artwork = []
+    if (track.cover) {
+      artwork.push(
+        { src: track.cover, sizes: '96x96', type: 'image/jpeg' },
+        { src: track.cover, sizes: '256x256', type: 'image/jpeg' },
+        { src: track.cover, sizes: '512x512', type: 'image/jpeg' },
+      )
+    }
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: String(track.title || 'Nexory'),
+        artist: String(track.artist || ''),
+        album: playingFrom || 'Nexory',
+        artwork,
+      })
+    } catch {}
+    navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing'
+  }
+
+  function wireMediaSessionActions() {
+    if (!('mediaSession' in navigator)) return
+    try {
+      navigator.mediaSession.setActionHandler('play', () => { audio.play().catch(() => {}) })
+      navigator.mediaSession.setActionHandler('pause', () => { audio.pause() })
+      navigator.mediaSession.setActionHandler('previoustrack', () => { prev().catch(() => {}) })
+      navigator.mediaSession.setActionHandler('nexttrack', () => { next().catch(() => {}) })
+    } catch {}
+  }
+
   async function resolveUrl(track) {
     if (track.url) return track.url
     const out = await Api.resolve(track)
@@ -59,6 +90,7 @@ const Player = (() => {
     const track = queue[index]
     playingFrom = fromLabel || playingFrom
     emit('trackchange', { track, index, queue })
+    updateMediaSession(track)
     const bg = document.getElementById('full-bg')
     if (bg) {
       bg.style.backgroundImage = track.cover ? `url(${track.cover})` : 'none'
@@ -184,11 +216,14 @@ const Player = (() => {
   audio.addEventListener('play', () => {
     document.getElementById('waveform')?.classList.remove('paused')
     document.querySelector('.wave-orb')?.classList.add('is-playing')
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
+    updateMediaSession(current())
     emit('state', { paused: false })
   })
   audio.addEventListener('pause', () => {
     document.getElementById('waveform')?.classList.add('paused')
     document.querySelector('.wave-orb')?.classList.remove('is-playing')
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
     emit('state', { paused: true })
   })
   audio.addEventListener('ended', async () => {
@@ -211,6 +246,7 @@ const Player = (() => {
   })
 
   buildWaveform()
+  wireMediaSessionActions()
 
   return {
     audio,

@@ -1,8 +1,8 @@
 const UI = (() => {
   let toastTimer = null
   let searchSource = 'yandex'
-  let popularSource = 'yandex'
   let busy = false
+  let openPlaylistId = null
   let seeking = false
   const trackLists = new WeakMap()
 
@@ -18,8 +18,10 @@ const UI = (() => {
   }
 
   function showScreen(name) {
+    document.body.dataset.screen = name
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('screen--active', s.dataset.screen === name))
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
+    if (name === 'library') renderLibrary()
     if (name === 'search') setTimeout(() => $('#search-input')?.focus(), 150)
   }
 
@@ -38,13 +40,22 @@ const UI = (() => {
     return `<img class="source-icon" src="${src}" alt="" loading="lazy" />`
   }
 
-  function badge(source) {
-    return sourceIcon(source)
+  function sourceBadge(source) {
+    const map = {
+      yandex: 'assets/source-yandex-music.png',
+      vk: 'assets/source-vk.png',
+      soundcloud: 'assets/source-soundcloud.png',
+    }
+    const src = map[source]
+    if (!src) return ''
+    return `<img class="source-badge" src="${src}" alt="" loading="lazy" />`
   }
 
   function coverBlock(source, url) {
-    if (url) return `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
-    return `<span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
+    const inner = url
+      ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
+      : `<span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
+    return `${inner}${sourceBadge(source)}`
   }
 
   function trackRowHtml(track, idx) {
@@ -54,7 +65,6 @@ const UI = (() => {
         <div class="track-row__title">${esc(track.title)}</div>
         <div class="track-row__artist">${esc(track.artist)}</div>
       </div>
-      ${badge(track.source)}
     </button>`
   }
 
@@ -212,43 +222,101 @@ const UI = (() => {
       favEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Нет лайков</div>'
       bindTrackClicks(favEl, items, 'Любимые')
     }
-    loadPopular()
   }
 
-  async function loadPopular() {
-    const el = $('#popular-list')
-    if (!el) return
-    if (!Api.isConfigured()) {
-      el.innerHTML = '<div class="empty-hint">Настрой gateway</div>'
-      return
+  function playlistCoverHtml(pl) {
+    const first = pl.tracks?.find((t) => t.cover)
+    if (first?.cover) {
+      return `<img src="${esc(first.cover)}" alt="" loading="lazy" />`
     }
-    const queries = Api.POPULAR[popularSource] || Api.POPULAR.yandex
-    const q = queries[Math.floor(Math.random() * queries.length)]
-    el.innerHTML = '<div class="empty-hint">Загрузка…</div>'
-    try {
-      const out = await Api.search(q, popularSource)
-      const tracks = (out.tracks || []).slice(0, 8)
-      el.innerHTML = tracks.length ? tracks.map((t, i) => trackRowHtml(t, i)).join('') : '<div class="empty-hint">Ничего не найдено</div>'
-      bindTrackClicks(el, tracks, `Популярное · ${Player.sourceLabel(popularSource)}`)
-    } catch (e) {
-      el.innerHTML = `<div class="empty-hint">${esc(e.message)}</div>`
+    return '<span data-icon="library" data-icon-class="ui-icon"></span>'
+  }
+
+  function openPlaylistView(pl, opts = {}) {
+    if (!pl) return
+    openPlaylistId = pl.id
+    const view = $('#playlist-view')
+    const hero = $('#playlist-view-hero')
+    const isLikes = opts.isLikes
+    if (hero) {
+      hero.classList.toggle('playlist-view__hero--default', !isLikes)
     }
+    $('#playlist-view-title').textContent = pl.name
+    $('#playlist-view-count').textContent = `${pl.tracks.length} треков`
+    const tracksEl = $('#playlist-view-tracks')
+    if (tracksEl) {
+      tracksEl.innerHTML = pl.tracks.length
+        ? pl.tracks.map((t, i) => trackRowHtml(t, i)).join('')
+        : '<p class="empty-hint">Плейлист пуст</p>'
+      bindTrackClicks(tracksEl, pl.tracks, pl.name)
+    }
+    if (view) view.hidden = false
+    document.body.classList.add('playlist-open')
+    Icons.mount(view)
+  }
+
+  function closePlaylistView() {
+    openPlaylistId = null
+    const view = $('#playlist-view')
+    if (view) view.hidden = true
+    document.body.classList.remove('playlist-open')
   }
 
   function renderLibrary() {
     const s = Store.get()
-    const likesEl = $('#library-likes')
-    if (likesEl) {
-      likesEl.innerHTML = s.likes.length
-        ? s.likes.map((t, i) => trackRowHtml(t, i)).join('')
-        : '<p class="empty-hint">Лайкай треки в плеере</p>'
-      bindTrackClicks(likesEl, s.likes, 'Любимые')
+    const countEl = $('#likes-count')
+    if (countEl) {
+      const n = s.likes.length
+      countEl.textContent = n ? `${n} ${n === 1 ? 'трек' : n < 5 ? 'трека' : 'треков'}` : 'Нет лайков'
     }
     const plEl = $('#library-playlists')
-    if (plEl) {
-      plEl.innerHTML = s.playlists.length
-        ? s.playlists.map((p) => `<div class="playlist-row"><div><div class="playlist-row__name">${esc(p.name)}</div><small>${p.tracks.length} треков</small></div><span>›</span></div>`).join('')
-        : '<div class="empty-hint">Создай плейлист</div>'
+    if (!plEl) return
+    if (!s.playlists.length) {
+      plEl.innerHTML = '<div class="empty-hint">Создай плейлист или импортируй по ссылке</div>'
+      return
+    }
+    plEl.innerHTML = s.playlists.map((p) => `
+      <button type="button" class="playlist-card" data-pl-id="${esc(p.id)}">
+        <div class="playlist-card__cover">${playlistCoverHtml(p)}</div>
+        <div class="playlist-card__name">${esc(p.name)}</div>
+        <div class="playlist-card__count">${p.tracks.length} треков</div>
+      </button>
+    `).join('')
+    Icons.mount(plEl)
+  }
+
+  function openImportSheet(open) {
+    const sheet = $('#import-sheet')
+    if (!sheet) return
+    sheet.hidden = !open
+    if (open) $('#import-input')?.focus()
+  }
+
+  async function runImport() {
+    const raw = String($('#import-input')?.value || '').trim()
+    if (!raw) return toast('Вставь ссылку или JSON')
+    if (!Api.isConfigured()) {
+      toast('Сначала настрой gateway')
+      showSetupGate()
+      return
+    }
+    const isJson = /^[\[{]/.test(raw)
+    toast('Импортируем…')
+    try {
+      const out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
+      if (!out.ok) throw new Error(out.error || 'Импорт не удался')
+      if (Array.isArray(out.playlists)) {
+        Store.importPlaylists(out.playlists)
+        toast(`Импортировано плейлистов: ${out.playlists.length}`)
+      } else {
+        Store.addPlaylist(out.name || 'Импорт', out.tracks || [])
+        toast(`«${out.name || 'Плейлист'}»: ${(out.tracks || []).length} треков`)
+      }
+      openImportSheet(false)
+      $('#import-input').value = ''
+      renderLibrary()
+    } catch (e) {
+      toast(e.message || 'Ошибка импорта')
     }
   }
 
@@ -371,12 +439,46 @@ const UI = (() => {
       }
     })
 
-    $('#popular-chips')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-popular]')
-      if (!btn) return
-      popularSource = btn.dataset.popular
-      document.querySelectorAll('#popular-chips .chip').forEach((c) => c.classList.toggle('chip--active', c === btn))
-      loadPopular()
+    $('#btn-open-likes')?.addEventListener('click', () => {
+      const s = Store.get()
+      openPlaylistView({ id: '__likes', name: 'Любимые', tracks: s.likes }, { isLikes: true })
+    })
+
+    $('#library-playlists')?.addEventListener('click', (e) => {
+      const card = e.target.closest('[data-pl-id]')
+      if (!card) return
+      const pl = Store.getPlaylist(card.dataset.plId)
+      if (pl) openPlaylistView(pl)
+    })
+
+    $('#btn-import-open')?.addEventListener('click', () => openImportSheet(true))
+    $('#import-sheet-close')?.addEventListener('click', () => openImportSheet(false))
+    $('#import-sheet-cancel')?.addEventListener('click', () => openImportSheet(false))
+    $('#btn-import-run')?.addEventListener('click', () => runImport())
+
+    $('#playlist-view-back')?.addEventListener('click', () => closePlaylistView())
+    $('#playlist-view-play')?.addEventListener('click', async () => {
+      const pl = openPlaylistId === '__likes'
+        ? { name: 'Любимые', tracks: Store.get().likes }
+        : Store.getPlaylist(openPlaylistId)
+      if (!pl?.tracks?.length) return toast('Плейлист пуст')
+      try {
+        await Player.playQueue(pl.tracks, 0, pl.name)
+      } catch (e) {
+        toast(e.message)
+      }
+    })
+    $('#playlist-view-shuffle')?.addEventListener('click', async () => {
+      const pl = openPlaylistId === '__likes'
+        ? { name: 'Любимые', tracks: Store.get().likes }
+        : Store.getPlaylist(openPlaylistId)
+      if (!pl?.tracks?.length) return toast('Плейлист пуст')
+      const shuffled = pl.tracks.slice().sort(() => Math.random() - 0.5)
+      try {
+        await Player.playQueue(shuffled, 0, pl.name)
+      } catch (e) {
+        toast(e.message)
+      }
     })
 
     let searchDebounce
@@ -508,7 +610,9 @@ const UI = (() => {
   }
 
   function init() {
+    document.body.dataset.screen = 'home'
     closeFullPlayer()
+    closePlaylistView()
     Icons.mount()
     renderSettingsForm()
     renderSetupGateForm()
