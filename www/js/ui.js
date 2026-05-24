@@ -70,8 +70,8 @@ const UI = (() => {
     if (idx < 0) return
 
     if (!Api.isConfigured()) {
-      toast('Сначала настрой gateway в Настройках')
-      showScreen('settings')
+      toast('Сначала настрой gateway')
+      showSetupGate()
       return
     }
 
@@ -129,11 +129,45 @@ const UI = (() => {
     setFullPlayer(false)
   }
 
+  function hideSetupGate() {
+    const gate = $('#setup-gate')
+    if (gate) gate.hidden = true
+  }
+
+  function showSetupGate() {
+    const gate = $('#setup-gate')
+    if (!gate) return
+    gate.hidden = false
+    renderSetupGateForm()
+  }
+
+  function renderSetupGateForm() {
+    const s = Store.get()
+    const g = (id, val) => { const el = $(id); if (el) el.value = val || '' }
+    g('#gate-gateway', s.gatewayUrl)
+    g('#gate-secret', s.gatewaySecret)
+    g('#gate-yandex', s.yandexToken)
+  }
+
+  function saveFromGate() {
+    Store.patch({
+      gatewayUrl: $('#gate-gateway')?.value.trim() || '',
+      gatewaySecret: $('#gate-secret')?.value.trim() || '',
+      yandexToken: $('#gate-yandex')?.value.trim() || '',
+    })
+    renderSettingsForm()
+  }
+
   function updateSetupGate() {
     const gate = $('#setup-gate')
     if (!gate) return
     const ok = Api.isConfigured()
-    gate.hidden = ok
+    const skipped = sessionStorage.getItem('nexory_setup_skip') === '1'
+    if (ok || skipped) {
+      hideSetupGate()
+    } else {
+      showSetupGate()
+    }
     updateGatewayBanner()
   }
 
@@ -276,7 +310,38 @@ const UI = (() => {
     document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showScreen(t.dataset.tab)))
     document.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => showScreen(b.dataset.goto)))
     $('#btn-search-open')?.addEventListener('click', () => showScreen('search'))
-    $('#setup-gate-btn')?.addEventListener('click', () => showScreen('settings'))
+
+    $('#gate-test')?.addEventListener('click', async () => {
+      saveFromGate()
+      $('#gate-status').textContent = 'Проверяем…'
+      try {
+        await Api.health()
+        $('#gate-status').textContent = '✓ Gateway OK'
+      } catch (e) {
+        $('#gate-status').textContent = e.message
+      }
+    })
+
+    $('#gate-save')?.addEventListener('click', async () => {
+      saveFromGate()
+      if (!Api.isConfigured()) {
+        toast('Укажи Gateway URL и Secret')
+        return
+      }
+      hideSetupGate()
+      updateSetupGate()
+      toast('Сохранено')
+      showScreen('home')
+      renderHome()
+      updateGatewayBanner()
+    })
+
+    $('#gate-skip')?.addEventListener('click', () => {
+      sessionStorage.setItem('nexory_setup_skip', '1')
+      hideSetupGate()
+      showScreen('home')
+      toast('Музыка не будет работать без gateway')
+    })
 
     $('#btn-wave-play')?.addEventListener('click', async () => {
       const orb = $('#btn-wave-play')
@@ -403,6 +468,7 @@ const UI = (() => {
     closeFullPlayer()
     Icons.mount()
     renderSettingsForm()
+    renderSetupGateForm()
     updateSetupGate()
     renderHome()
     renderLibrary()
