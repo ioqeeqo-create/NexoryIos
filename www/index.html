@@ -68,11 +68,6 @@
               </svg>
             </span>
           </button>
-        <p class="wave-sub" id="wave-source-label">Нажми — погрузиться в волну</p>
-        </div>
-        <div class="section">
-          <div class="section-head"><h2 class="section-title">Недавние</h2></div>
-          <div class="h-scroll" id="recent-list" data-track-list></div>
         </div>
         <div class="section section--likes">
           <button type="button" class="home-likes-pill" id="btn-home-likes-play">
@@ -82,6 +77,10 @@
               <span class="home-likes-pill__count" id="home-likes-count">0 треков</span>
             </span>
           </button>
+        </div>
+        <div class="section">
+          <div class="section-head"><h2 class="section-title">Недавние</h2></div>
+          <div class="h-scroll" id="recent-list" data-track-list></div>
         </div>
       </section>
 
@@ -250,7 +249,12 @@
           <button type="button" class="fp-cover-btn fp-cover-btn--add" id="full-add" data-icon="plus" aria-label="Добавить"></button>
         </div>
         <div class="fp-meta">
-          <h2 class="fp-title pixel-text" id="full-title">—</h2>
+          <div class="fp-title-wrap" id="fp-title-wrap">
+            <div class="fp-title-track" id="fp-title-track">
+              <span class="fp-title pixel-text" id="full-title">—</span>
+              <span class="fp-title pixel-text fp-title__dup" id="full-title-dup" aria-hidden="true"></span>
+            </div>
+          </div>
           <p class="fp-artist" id="full-artist">—</p>
         </div>
       </div>

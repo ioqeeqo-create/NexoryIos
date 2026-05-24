@@ -47,9 +47,6 @@ const UI = (() => {
     toastTimer = setTimeout(() => { el.hidden = true }, 3200)
   }
 
-  const SCREEN_ORDER = { home: 0, search: 1, library: 2, settings: 3 }
-  let screenLeaveTimer = null
-
   function showScreen(name) {
     const prev = document.body.dataset.screen || 'home'
     if (prev === name) return
@@ -58,19 +55,9 @@ const UI = (() => {
       Viewport.scheduleResync?.()
     }
 
-    const dir = (SCREEN_ORDER[name] ?? 0) >= (SCREEN_ORDER[prev] ?? 0) ? 'fwd' : 'back'
-    document.body.dataset.screenDir = dir
-
     document.querySelectorAll('.screen').forEach((s) => {
-      const id = s.dataset.screen
-      s.classList.toggle('screen--active', id === name)
-      s.classList.toggle('screen--leaving', id === prev && id !== name)
+      s.classList.toggle('screen--active', s.dataset.screen === name)
     })
-
-    clearTimeout(screenLeaveTimer)
-    screenLeaveTimer = setTimeout(() => {
-      document.querySelectorAll('.screen.screen--leaving').forEach((s) => s.classList.remove('screen--leaving'))
-    }, 340)
 
     document.body.dataset.screen = name
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
@@ -326,30 +313,48 @@ const UI = (() => {
   }
 
   let fpCloseTimer = null
+  let fpOpenTimer = null
 
   function setFullPlayer(open) {
     const fp = $('#full-player')
     if (!fp) return
     clearTimeout(fpCloseTimer)
+    clearTimeout(fpOpenTimer)
     if (open) {
       fp.hidden = false
       fp.classList.remove('is-closing')
       void fp.offsetWidth
       fp.classList.add('is-opening')
       document.body.classList.add('player-open')
-      requestAnimationFrame(() => fp.classList.remove('is-opening'))
+      fpOpenTimer = setTimeout(() => fp.classList.remove('is-opening'), 440)
     } else if (!fp.hidden) {
+      fp.classList.remove('is-opening')
       fp.classList.add('is-closing')
       document.body.classList.remove('player-open')
       fpCloseTimer = setTimeout(() => {
         fp.hidden = true
         fp.classList.remove('is-closing')
         syncShellLayout()
-      }, 300)
+      }, 360)
       syncShellLayout()
       return
     }
     syncShellLayout()
+  }
+
+  function setupMarqueeTitle(title) {
+    const wrap = $('#fp-title-wrap')
+    const track = $('#fp-title-track')
+    const el = $('#full-title')
+    const dup = $('#full-title-dup')
+    if (!wrap || !track || !el) return
+    const text = String(title || '—')
+    el.textContent = text
+    if (dup) dup.textContent = text
+    requestAnimationFrame(() => {
+      const overflow = track.scrollWidth > wrap.clientWidth + 4
+      wrap.classList.toggle('is-scrolling', overflow)
+    })
   }
 
   function openPickPlaylistSheet(track) {
@@ -390,6 +395,8 @@ const UI = (() => {
   function openFullPlayer() {
     setFullPlayer(true)
     Icons.mount($('#full-player'))
+    const t = Player.current()
+    if (t) setupMarqueeTitle(t.title)
     requestAnimationFrame(() => {
       Player.buildWaveform()
       const d = Player.audio?.duration || 0
@@ -523,12 +530,16 @@ const UI = (() => {
       const cover = pl.coverData || pl.tracks?.find((t) => t.cover)?.cover || ''
       if (cover && !isLikes) {
         heroBg.style.backgroundImage = `url(${cover})`
-        heroBg.style.backgroundPosition = 'center 42%'
+        heroBg.style.backgroundPosition = 'center 32%'
         heroBg.style.backgroundSize = 'cover'
+        heroBg.style.filter = 'none'
+        heroBg.style.transform = 'scale(1.02)'
       } else {
         heroBg.style.backgroundImage = ''
         heroBg.style.backgroundPosition = ''
         heroBg.style.backgroundSize = ''
+        heroBg.style.filter = ''
+        heroBg.style.transform = ''
       }
     }
     $('#playlist-view-title').textContent = pl.name
@@ -766,7 +777,7 @@ const UI = (() => {
     $('#mini-title').textContent = track.title
     $('#mini-artist').textContent = track.artist
     setCover($('#mini-cover-wrap'), $('#mini-cover'), track, { playerOnly: true })
-    $('#full-title').textContent = track.title
+    setupMarqueeTitle(track.title)
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from || 'Nexory'
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
