@@ -1033,6 +1033,50 @@ body.player-open .mini-player { display: none !important; }
 .fp-header__pill .ui-icon { width: 16px; height: 16px; opacity: 0.85; flex-shrink: 0; stroke: rgba(255,255,255,0.8); }
 body.accent-from-cover .fp-header__pill .ui-icon { stroke: var(--accent); }
 .fp-cover-block { margin-bottom: 10px; flex-shrink: 0; }
+.full-player--lyrics .fp-cover-block { display: none; }
+.full-player--lyrics .fp-stack { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.fp-lyrics-view {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  margin: 0 -4px 8px;
+}
+.fp-lyrics-view[hidden] { display: none !important; }
+.fp-lyrics-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 8vh 20px 12vh;
+  text-align: center;
+}
+.fp-lyrics-scroll::-webkit-scrollbar { width: 3px; }
+.fp-lyrics-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+.lyrics-loading, .lyrics-empty {
+  color: rgba(255,255,255,0.45); font-size: 14px; padding: 24px 12px; text-align: center;
+}
+.lyrics-spacer { height: 28vh; min-height: 80px; pointer-events: none; }
+.lyrics-line {
+  font-size: 22px; line-height: 1.55; font-weight: 600;
+  color: rgba(255,255,255,0.28);
+  padding: 10px 0; cursor: pointer;
+  transition: color 0.45s ease, opacity 0.45s ease, filter 0.5s ease, transform 0.45s ease;
+  opacity: 0; filter: blur(6px); transform: translateY(8px);
+}
+.lyrics-line.is-visible { opacity: 1; filter: blur(0); transform: none; }
+.lyrics-line.past, .lyrics-line.future {
+  color: rgba(255,255,255,0.32); font-size: 17px; font-weight: 500;
+  filter: blur(3px); opacity: 0.55;
+}
+.lyrics-line.active {
+  color: #fff; font-size: clamp(26px, 7vw, 34px); font-weight: 700;
+  filter: none; opacity: 1; transform: scale(1.02);
+  text-shadow: 0 2px 24px rgba(0,0,0,0.35);
+}
+.lyrics-plain {
+  font-size: 15px; line-height: 1.85; color: rgba(255,255,255,0.62);
+  white-space: pre-wrap; text-align: left; max-width: 520px; margin: 0 auto;
+}
+#full-lyrics-btn.is-active {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.35);
+}
+body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
 .full-cover-wrap {
   position: relative; width: min(300px, 84vw); aspect-ratio: 1;
   margin: 0 auto 16px; border-radius: 22px; overflow: hidden;

@@ -86,6 +86,7 @@ const Store = (() => {
     if (t.source === 'soundcloud') {
       if (!t.scClientId && get().scClientId) t.scClientId = get().scClientId
       if (t.sc_transcoding && !t.scTranscoding) t.scTranscoding = t.sc_transcoding
+      if (!t.scTranscoding) delete t.url
     }
     return t
   }

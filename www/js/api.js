@@ -176,18 +176,39 @@ const Api = (() => {
   }
 
   async function waveFetch(opts = {}) {
-    return withHybrid(
-      () => DirectApi.waveFetch(opts),
-      '/yandex/wave/fetch',
-      {
-        token: cfg().yandexToken,
-        mode: opts.mode || 'default',
-        resetSession: !!opts.resetSession,
-        radioSessionId: opts.radioSessionId || cfg().yandexRotor?.radioSessionId,
-        batchAnchorId: opts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
-      },
-      TIMEOUT.wave,
-    )
+    const mode = apiMode()
+    const hasYm = Boolean(String(cfg().yandexToken || '').trim())
+    if (hasYm && mode !== 'gateway') {
+      try {
+        const out = await DirectApi.waveFetch(opts)
+        if (out?.ok) return out
+        if (mode === 'direct') throw new Error(out?.error || 'Волна недоступна')
+      } catch (e) {
+        if (mode === 'direct' || !hasGateway()) throw e
+      }
+    }
+    if (!hasGateway()) {
+      throw new Error('Нужен токен Яндекса в настройках')
+    }
+    try {
+      return await post(
+        '/yandex/wave/fetch',
+        {
+          token: cfg().yandexToken,
+          mode: opts.mode || 'default',
+          resetSession: !!opts.resetSession,
+          radioSessionId: opts.radioSessionId || cfg().yandexRotor?.radioSessionId,
+          batchAnchorId: opts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
+        },
+        TIMEOUT.wave,
+      )
+    } catch (e) {
+      if (hasYm && /404|not found/i.test(String(e.message || e))) {
+        const out = await DirectApi.waveFetch(opts)
+        if (out?.ok) return out
+      }
+      throw e
+    }
   }
 
   async function waveFeedback(payload) {

@@ -448,6 +448,7 @@ const UI = (() => {
   }
 
   function closeFullPlayer() {
+    Lyrics.setOpen(false)
     setFullPlayer(false)
   }
 
@@ -1445,6 +1446,7 @@ const UI = (() => {
       openFullPlayer()
     })
     $('#full-close')?.addEventListener('click', () => closeFullPlayer())
+    $('#full-lyrics-btn')?.addEventListener('click', () => Lyrics.toggle())
     $('#full-player')?.addEventListener('click', (e) => {
       if (e.target.id === 'full-player' || e.target.id === 'full-bg') closeFullPlayer()
     })
@@ -1485,7 +1487,10 @@ const UI = (() => {
     })
     wireSeek()
 
-    Player.on('trackchange', ({ track }) => updatePlayerUI(track))
+    Player.on('trackchange', ({ track }) => {
+      updatePlayerUI(track)
+      if (Lyrics.isOpen() && track) Lyrics.load(track, Player.audio?.duration || 0)
+    })
     Player.on('playing', ({ track }) => {
       $('#btn-wave-play')?.classList.add('is-playing')
       highlightPlayingTrack(track)
@@ -1501,6 +1506,7 @@ const UI = (() => {
         const ratio = current / duration
         if (!seeking) $('#seek').value = String(Math.floor(ratio * 1000))
         updateWaveformProgress(ratio)
+        Lyrics.sync(current)
       }
     })
     Player.on('error', (msg) => toast(msg))

@@ -1,77 +1,51 @@
 # Gateway Nexory на Timeweb Cloud
 
-Панель сервера: [Timeweb Cloud — сервер 7700595](https://timeweb.cloud/my/servers/7700595)
+Панель: [Timeweb Cloud — сервер 7700595](https://timeweb.cloud/my/servers/7700595)
 
-Приложение работает **гибридно**:
-- **С телефона** (режим «Авто»): Яндекс, VK, волна — без ПК в Wi‑Fi.
-- **Через gateway на VPS**: импорт плейлистов по ссылке, запасной поиск/SC, если прямой запрос не прошёл.
+Репозиторий: **https://github.com/ioqeeqo-create/NexoryND.git**  
+Корень проекта после clone: `/opt/nexory` (там же `server/`, `packages/`, `package.json`).
 
-## 1. Подключение по SSH
+---
 
-В панели Timeweb возьми **IP**, **логин** (обычно `root`) и пароль или SSH-ключ.
+## На VPS — скопируй блок целиком
 
-```bash
-ssh root@ВАШ_IP
-```
-
-## 2. Node.js 20
+Подставь только **IP** в `ssh root@IP` (если логин не root — замени).
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-node -v
-```
-
-## 3. Код gateway на сервер
-
-С локального ПК (из папки `flow_fixed`):
-
-```bash
-scp -r server packages root@ВАШ_IP:/opt/nexory-gateway/
-```
-
-На сервере структура:
-
-```
-/opt/nexory-gateway/
-  server/flow-mobile-gateway.js
-  packages/flow-core/...
-```
-
-Установи зависимости в `server` (если есть `package.json` в корне flow_fixed — скопируй и `npm ci --omit=dev` там, где лежит `node_modules` для gateway). Минимально gateway тянет `express`, `cors`, `axios` из корня проекта NexoryND.
-
-Проще: склонировать весь репозиторий NexoryND на VPS и запускать из `flow_fixed`:
-
-```bash
+# 1. Клон (если папки ещё нет)
 cd /opt
-git clone https://github.com/ВАШ_ЮЗЕР/NexoryND.git nexory
-cd nexory/flow_fixed
+rm -rf nexory
+git clone https://github.com/ioqeeqo-create/NexoryND.git nexory
+cd /opt/nexory
+
+# 2. Зависимости (express, axios, cors)
 npm ci --omit=dev
+
+# 3. Секрет — сохрани вывод, он нужен в приложении
+export FLOW_MOBILE_GATEWAY_SECRET="$(openssl rand -hex 32)"
+echo "SECRET=$FLOW_MOBILE_GATEWAY_SECRET"
+
+# 4. Запуск (тест)
+export FLOW_MOBILE_GATEWAY_PORT=3950
+node server/flow-mobile-gateway.js
 ```
 
-## 4. Секрет и переменные
+В **другом** SSH-окне проверка:
 
 ```bash
-nano /opt/nexory/flow_fixed/server/.env
+curl -s http://127.0.0.1:3950/health
 ```
 
-```env
+Должно быть: `{"ok":true,...}`
+
+Останови тест (`Ctrl+C` в первом окне) и поставь systemd:
+
+```bash
+cat > /opt/nexory/server/.env << EOF
 FLOW_MOBILE_GATEWAY_PORT=3950
-FLOW_MOBILE_GATEWAY_SECRET=сгенерируй_длинную_случайную_строку_32+
-# опционально SoundCloud на сервере:
-# SC_CLIENT_ID=...
-# SC_CLIENT_ID_FALLBACKS=id1,id2
-```
+FLOW_MOBILE_GATEWAY_SECRET=ВСТАВЬ_СЮДА_ТОТ_ЖЕ_SECRET
+EOF
 
-Сгенерировать секрет:
-
-```bash
-openssl rand -hex 32
-```
-
-## 5. systemd
-
-```bash
 cat > /etc/systemd/system/nexory-gateway.service << 'EOF'
 [Unit]
 Description=Nexory Mobile Gateway
@@ -79,8 +53,8 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/nexory/flow_fixed
-EnvironmentFile=/opt/nexory/flow_fixed/server/.env
+WorkingDirectory=/opt/nexory
+EnvironmentFile=/opt/nexory/server/.env
 ExecStart=/usr/bin/node server/flow-mobile-gateway.js
 Restart=on-failure
 RestartSec=5
@@ -95,55 +69,39 @@ systemctl start nexory-gateway
 systemctl status nexory-gateway
 ```
 
-Проверка:
+Открой порт **3950** в файрволе Timeweb (или nginx + HTTPS на 443).
 
-```bash
-curl -s http://127.0.0.1:3950/health
-```
+---
 
-Должно быть `{"ok":true,...}`.
+## В iPhone (Nexory)
 
-## 6. HTTPS (рекомендуется)
+| Поле | Пример |
+|------|--------|
+| Режим API | Авто |
+| Gateway URL | `http://IP_СЕРВЕРА:3950` |
+| Gateway Secret | тот же, что в `.env` |
 
-В Timeweb можно повесить домен на IP и выпустить Let's Encrypt, либо nginx:
+---
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name music.твой-домен.ru;
+## Частые ошибки
 
-    ssl_certificate     /etc/letsencrypt/live/music.твой-домен.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/music.твой-домен.ru/privkey.pem;
+| Ошибка | Причина |
+|--------|---------|
+| `твой: No such file or directory` | В команду попал текст из инструкции (`твой`, `ВАШ_IP`) — используй реальный IP |
+| `nexory/flow_fixed: No such file` | Неверный путь; нужно `cd /opt/nexory` |
+| `Cannot find module '/opt/server/...'` | Запуск из `/opt` вместо `/opt/nexory` |
+| `FLOW_MOBILE_GATEWAY_SECRET` | Переменная не задана — gateway не стартует |
 
-    location / {
-        proxy_pass http://127.0.0.1:3950;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-В приложении Nexory iOS:
-- **Gateway URL**: `https://music.твой-домен.ru` (без `/mobile` — путь добавляет само приложение)
-- **Gateway Secret**: тот же, что в `.env`
-- **Режим API**: «Авто»
-
-Открой порт **3950** только если не используешь nginx (в файрволе Timeweb).
-
-## 7. Настройка в iPhone
-
-1. Настройки → Подключение → **Авто**.
-2. Gateway URL + Secret с VPS.
-3. Яндекс OAuth (и при желании VK, SC Client ID).
-4. «Проверить gateway» → ✓.
-
-ПК в локальной сети **не нужен**, если VPS доступен из интернета.
+---
 
 ## Обновление
 
 ```bash
-cd /opt/nexory && git pull
-cd flow_fixed && npm ci --omit=dev
-systemctl restart nexory-gateway
+cd /opt/nexory && git pull && npm ci --omit=dev && systemctl restart nexory-gateway
 ```
+
+## Волна (HTTP 404)
+
+Если «Моя волна» даёт **HTTP 404** — на VPS старая сборка gateway **без** `/mobile/v1/yandex/wave/*`.  
+Обнови репозиторий (`git pull`) и перезапусти `nexory-gateway`.  
+В приложении режим **Авто** + токен Яндекса: волна пойдёт **напрямую с телефона**, даже без wave-роутов на VPS.
