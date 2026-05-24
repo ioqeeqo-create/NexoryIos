@@ -89,14 +89,15 @@ const Player = (() => {
     const bw = w / bars
     const barW = Math.max(1.5, bw * 0.42)
     const centerY = h / 2
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ec4899'
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--wave-played').trim() || '#ffffff'
+    const unplayed = getComputedStyle(document.documentElement).getPropertyValue('--wave-unplayed').trim() || 'rgba(255,255,255,0.24)'
     for (let i = 0; i < bars; i++) {
       const norm = waveformHeights[i]
       const totalH = Math.max(3, norm * (h - 8))
       const x = i * bw + (bw - barW) * 0.5
       const y = centerY - totalH / 2
       const played = (i + 0.5) / bars <= waveformRatio
-      ctx.fillStyle = played ? accent : 'rgba(255,255,255,0.24)'
+      ctx.fillStyle = played ? accent : unplayed
       ctx.beginPath()
       if (typeof ctx.roundRect === 'function') {
         ctx.roundRect(x, y, barW, totalH, barW / 2)

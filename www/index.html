@@ -232,11 +232,12 @@
       <div class="fp-header">
         <button type="button" class="icon-btn fp-header__btn" id="full-close" data-icon="x" aria-label="Закрыть"></button>
         <div class="fp-header__pill" id="full-pill">
-          <span data-icon="library" data-icon-class="ui-icon"></span>
+          <span data-icon="audio-lines" data-icon-class="ui-icon"></span>
           <span id="full-from">—</span>
         </div>
         <button type="button" class="icon-btn fp-header__btn fp-header__btn--ghost" id="full-more" data-icon="ellipsis" aria-label="Ещё"></button>
       </div>
+      <div class="fp-stack">
       <div class="fp-cover-block">
         <div class="full-cover-wrap" id="full-cover-wrap">
           <span class="full-cover-ph" data-icon="music-2" data-icon-class="ui-icon lg cover-ph"></span>
@@ -257,12 +258,25 @@
         </div>
         <input type="range" class="seek seek--wave" id="seek" min="0" max="1000" value="0" />
       </div>
+      </div>
       <div class="fp-controls-panel">
         <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
         <button type="button" class="icon-btn icon-btn--lg" id="full-prev" data-icon="skip-back"></button>
         <button type="button" class="icon-btn icon-btn--xl" id="full-play" data-icon="play"></button>
         <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
         <button type="button" class="icon-btn" id="full-repeat" data-icon="repeat" aria-label="Repeat"></button>
+      </div>
+      <div class="fp-bottom-bar">
+        <button type="button" class="fp-bottom-btn" id="fp-comments" data-icon="message-circle" aria-label="Комментарии"></button>
+        <button type="button" class="fp-bottom-btn" id="fp-visualizer" data-icon="audio-lines" aria-label="Визуализатор">
+          <span class="fp-bottom-btn__badge">ON</span>
+        </button>
+        <button type="button" class="fp-bottom-btn" id="fp-speed" data-icon="gauge" aria-label="Скорость">
+          <span class="fp-bottom-btn__badge" id="fp-speed-badge">1x</span>
+        </button>
+        <button type="button" class="fp-bottom-btn" id="fp-queue" data-icon="list" aria-label="Очередь">
+          <span class="fp-bottom-btn__badge" id="fp-queue-badge">0</span>
+        </button>
       </div>
     </div>
   </div>

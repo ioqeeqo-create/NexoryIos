@@ -350,6 +350,8 @@ const UI = (() => {
   function openFullPlayer() {
     setFullPlayer(true)
     Icons.mount($('#full-player'))
+    const queueBadge = $('#fp-queue-badge')
+    if (queueBadge) queueBadge.textContent = String(Player.queue()?.length || 0)
     requestAnimationFrame(() => {
       Player.buildWaveform()
       const d = Player.audio?.duration || 0
@@ -705,6 +707,8 @@ const UI = (() => {
     $('#full-title').textContent = track.title
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from || 'Nexory'
+    const queueBadge = $('#fp-queue-badge')
+    if (queueBadge) queueBadge.textContent = String(Player.queue()?.length || 0)
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
     setCover($('#full-cover-wrap'), $('#full-cover'), track, { playerOnly: true })
     applyPlayerVisuals(track)
