@@ -66,7 +66,10 @@ const UI = (() => {
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
     if (name === 'library') renderLibrary()
     if (name === 'settings') renderSettingsForm()
-    if (name === 'search') setTimeout(() => $('#search-input')?.focus(), 150)
+    if (name === 'search') {
+      renderSearchSourceButton()
+      setTimeout(() => $('#search-input')?.focus(), 150)
+    }
   }
 
   function esc(s) {
@@ -206,6 +209,65 @@ const UI = (() => {
       </div>
       <span class="pl-track-row__dur">${dur}</span>
     </button>`
+  }
+
+  function getSearchSources() {
+    if (typeof NexoryConfig !== 'undefined' && NexoryConfig.SEARCH_SOURCES?.length) {
+      return NexoryConfig.SEARCH_SOURCES
+    }
+    return [
+      { id: 'yandex', label: 'Яндекс', icon: 'assets/source-yandex-music.png' },
+      { id: 'vk', label: 'VK', icon: 'assets/source-vk.png' },
+      { id: 'soundcloud', label: 'SoundCloud', icon: 'assets/source-soundcloud.png' },
+    ]
+  }
+
+  function getSearchSourceMeta(id) {
+    return getSearchSources().find((s) => s.id === id) || getSearchSources()[0]
+  }
+
+  function renderSearchSourceButton() {
+    const btn = $('#search-source-btn')
+    if (!btn) return
+    const meta = getSearchSourceMeta(searchSource)
+    btn.innerHTML = `<img class="search-source-btn__icon" src="${esc(meta.icon)}" alt="" />`
+    btn.dataset.source = meta.id
+    btn.setAttribute('aria-label', `Источник: ${meta.label}`)
+    const sub = document.querySelector('.search-hero__sub')
+    if (sub) sub.textContent = meta.label
+  }
+
+  function renderSearchSourcePicker() {
+    const el = $('#search-source-picker')
+    if (!el) return
+    el.innerHTML = getSearchSources()
+      .map((s) => {
+        const active = s.id === searchSource ? ' source-picker__item--active' : ''
+        return `<button type="button" class="source-picker__item${active}" data-source="${esc(s.id)}" role="option">
+        <img src="${esc(s.icon)}" alt="" />
+        <span>${esc(s.label)}</span>
+      </button>`
+      })
+      .join('')
+  }
+
+  function openSearchSourceSheet() {
+    renderSearchSourcePicker()
+    const sheet = $('#search-source-sheet')
+    if (sheet) sheet.hidden = false
+  }
+
+  function closeSearchSourceSheet() {
+    const sheet = $('#search-source-sheet')
+    if (sheet) sheet.hidden = true
+  }
+
+  function setSearchSource(id) {
+    if (!getSearchSources().some((s) => s.id === id)) return
+    searchSource = id
+    renderSearchSourceButton()
+    closeSearchSourceSheet()
+    runSearch($('#search-input')?.value || '')
   }
 
   function renderWaveMoods() {
@@ -1260,11 +1322,18 @@ const UI = (() => {
   }
 
   function saveGatewayFromForm() {
+    const s = Store.get()
+    const urlRaw = String($('#cfg-gateway')?.value || s.gatewayUrl || '').trim().replace(/\/+$/, '')
+    const secretRaw = String($('#cfg-secret')?.value ?? s.gatewaySecret ?? '').trim()
     Store.patch({
       apiMode: $('#cfg-api-mode')?.value || 'auto',
-      gatewayUrl: $('#cfg-gateway').value.trim().replace(/\/+$/, ''),
-      gatewaySecret: $('#cfg-secret').value.trim(),
+      gatewayUrl: urlRaw,
+      gatewaySecret: secretRaw,
     })
+    const gUrl = $('#cfg-gateway')
+    const gSec = $('#cfg-secret')
+    if (gUrl) gUrl.value = urlRaw
+    if (gSec) gSec.value = secretRaw
     updateSetupGate()
   }
 
@@ -1532,13 +1601,14 @@ const UI = (() => {
       $('#search-clear').hidden = true
       runSearch('')
     })
-    $('#search-source-chips')?.addEventListener('click', (e) => {
+    $('#search-source-btn')?.addEventListener('click', openSearchSourceSheet)
+    $('#search-source-picker')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-source]')
       if (!btn) return
-      searchSource = btn.dataset.source
-      document.querySelectorAll('#search-source-chips .chip').forEach((c) => c.classList.toggle('chip--active', c === btn))
-      runSearch($('#search-input').value)
+      setSearchSource(btn.dataset.source)
     })
+    $('#search-source-backdrop')?.addEventListener('click', closeSearchSourceSheet)
+    $('#search-source-cancel')?.addEventListener('click', closeSearchSourceSheet)
 
     document.querySelectorAll('[data-settings-pane]').forEach((btn) => {
       btn.addEventListener('click', () => showSettingsPane(btn.dataset.settingsPane))
@@ -1700,33 +1770,7 @@ const UI = (() => {
 
     $('#btn-test-gateway')?.addEventListener('click', () => testServerConnection())
 
-    $('#cfg-gateway-copy')?.addEventListener('click', async () => {
-      const url = String($('#cfg-gateway')?.value || '').trim()
-      if (!url) return toast('URL пустой')
-      try {
-        await navigator.clipboard.writeText(url)
-        toast('URL скопирован')
-      } catch {
-        toast('Не удалось скопировать')
-      }
-    })
-
-    let secretVisible = false
-    $('#cfg-secret-eye')?.addEventListener('click', () => {
-      const input = $('#cfg-secret')
-      if (!input) return
-      secretVisible = !secretVisible
-      input.type = secretVisible ? 'text' : 'password'
-      const btn = $('#cfg-secret-eye')
-      if (btn) {
-        btn.dataset.icon = secretVisible ? 'eye-off' : 'eye'
-        btn.innerHTML = Icons.svg(btn.dataset.icon, 'ui-icon')
-      }
-    })
-
     $('#cfg-api-mode')?.addEventListener('change', saveGatewayFromForm)
-    $('#cfg-gateway')?.addEventListener('change', saveGatewayFromForm)
-    $('#cfg-secret')?.addEventListener('change', saveGatewayFromForm)
 
     $('#btn-create-playlist')?.addEventListener('click', () => openPlaylistCreateSheet(true))
     $('#playlist-create-close')?.addEventListener('click', () => openPlaylistCreateSheet(false))
@@ -1904,6 +1948,7 @@ const UI = (() => {
     updateSetupGate()
     renderHome()
     renderLibrary()
+    renderSearchSourceButton()
     wireEvents()
     bindSwipeClosers()
     setPlayIcon(true)
