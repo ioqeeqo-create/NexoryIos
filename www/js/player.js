@@ -227,7 +227,20 @@ const Player = (() => {
       }
       emit('playing', { track })
     } catch (e) {
-      emit('error', e.message || String(e))
+      // SoundCloud links occasionally expire quickly; retry once with fresh resolve.
+      if (track?.source === 'soundcloud' && !track.__scRetried) {
+        track.__scRetried = true
+        delete track.url
+        try {
+          return await playTrackAt(i, fromLabel)
+        } catch (_) {}
+      }
+      const msg = String(e?.message || e)
+      if (track?.source === 'soundcloud' && /Поток недоступен|not supported|Таймаут/i.test(msg)) {
+        emit('error', 'SC поток недоступен. Проверь SC Client ID в настройках и попробуй другой трек.')
+        throw e
+      }
+      emit('error', msg)
       throw e
     }
   }

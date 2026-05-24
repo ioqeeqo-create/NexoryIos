@@ -565,7 +565,7 @@ body.accent-from-cover .wave-row.is-playing .wave-row__play .ui-icon { fill: #11
 }
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; color: var(--text-dim); font-size: 13px; font-weight: 500; }
-.field input, .field textarea {
+.field input, .field textarea, .field select {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
   color: var(--text); padding: 12px; font-family: var(--font); font-size: 15px;
 }
@@ -719,6 +719,7 @@ body.playlist-open .tab-bar { opacity: 0; pointer-events: none; transform: trans
   position: fixed; inset: 0; z-index: 120; background: #050508;
   display: flex; flex-direction: column; max-width: 480px; margin: 0 auto;
   animation: playlist-in 0.34s var(--ease-out) both;
+  transition: transform 0.22s var(--ease-out), opacity 0.22s var(--ease-out);
 }
 .playlist-view.is-closing {
   animation: playlist-out 0.3s var(--ease-out) forwards;
@@ -736,7 +737,7 @@ body.playlist-open .tab-bar { opacity: 0; pointer-events: none; transform: trans
 .pl-view-hero {
   position: relative; flex-shrink: 0;
   min-height: min(62vh, 520px);
-  padding-bottom: 36px; overflow: hidden;
+  padding-bottom: 18px; overflow: hidden;
   display: flex; flex-direction: column;
 }
 .pl-view-hero__bg {
@@ -804,16 +805,28 @@ body.playlist-open .tab-bar { opacity: 0; pointer-events: none; transform: trans
   flex-shrink: 0;
 }
 .pl-view-body {
-  flex: 1; min-height: 44vh; margin-top: -44px; position: relative; z-index: 3;
+  flex: 1; min-height: 44vh; margin-top: -6px; position: relative; z-index: 3;
   background: #050508;
-  border-radius: 28px 28px 0 0;
+  display: flex; flex-direction: column;
   overflow: hidden;
-  border-top: 1px solid rgba(255,255,255,0.08);
   pointer-events: auto;
 }
+.pl-view-body__curve {
+  flex-shrink: 0;
+  height: 32px;
+  margin-top: -30px;
+  line-height: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 -1px 0 rgba(255,255,255,0.06));
+}
+.pl-view-body__curve svg {
+  display: block;
+  width: 100%;
+  height: 32px;
+}
 .pl-view-tracks {
-  height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: 8px 8px calc(var(--tab-h) + var(--mini-h) + 12px);
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 4px 8px calc(var(--tab-h) + var(--mini-h) + 12px);
   pointer-events: auto;
 }
 .pl-track-row {
@@ -968,6 +981,7 @@ body.player-open .mini-player { display: none !important; }
   min-height: 0; overflow: hidden;
   padding: calc(8px + var(--safe-top)) 18px calc(10px + var(--safe-bottom));
   background: transparent;
+  transition: transform 0.2s var(--ease-out), opacity 0.2s var(--ease-out);
 }
 .full-player.is-opening .full-player__sheet {
   animation: fp-sheet-in 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1055,11 +1069,11 @@ body.accent-from-cover .fp-header__pill .ui-icon { stroke: var(--accent); }
   display: inline-block; white-space: nowrap; will-change: transform;
 }
 .scroll-title-wrap.is-scrolling .scroll-title {
-  animation: scroll-title-run 11s ease-in-out infinite alternate;
+  animation: scroll-title-run 18s linear infinite;
 }
 @keyframes scroll-title-run {
-  from { transform: translateX(0); }
-  to { transform: translateX(var(--scroll-shift, 0)); }
+  0%, 14% { transform: translateX(0); }
+  100% { transform: translateX(var(--scroll-shift, 0)); }
 }
 .fp-artist { margin: 0; color: var(--text-dim); font-size: 14px; }
 body.accent-from-cover .fp-artist { color: var(--accent); opacity: 0.92; }

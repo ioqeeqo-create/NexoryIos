@@ -451,6 +451,91 @@ const UI = (() => {
     setFullPlayer(false)
   }
 
+  function bindSwipeClosers() {
+    const plView = $('#playlist-view')
+    if (plView && !plView.dataset.swipeBound) {
+      plView.dataset.swipeBound = '1'
+      let active = false
+      let startX = 0
+      let startY = 0
+      let dx = 0
+      let dy = 0
+      plView.addEventListener('pointerdown', (e) => {
+        if (plView.hidden) return
+        if (e.clientX > 48) return
+        active = true
+        startX = e.clientX
+        startY = e.clientY
+        dx = 0
+        dy = 0
+        plView.setPointerCapture?.(e.pointerId)
+      })
+      plView.addEventListener('pointermove', (e) => {
+        if (!active) return
+        dx = e.clientX - startX
+        dy = e.clientY - startY
+        if (dx <= 0 || Math.abs(dx) < Math.abs(dy)) return
+        const shift = Math.min(dx, 160)
+        plView.style.transform = `translateX(${shift}px)`
+        plView.style.opacity = String(Math.max(0.65, 1 - shift / 360))
+      })
+      const finishPlaylistSwipe = (e) => {
+        if (!active) return
+        active = false
+        plView.releasePointerCapture?.(e.pointerId)
+        const commit = dx > 96 && dx > Math.abs(dy)
+        plView.style.transform = ''
+        plView.style.opacity = ''
+        if (commit) closePlaylistView()
+      }
+      plView.addEventListener('pointerup', finishPlaylistSwipe)
+      plView.addEventListener('pointercancel', finishPlaylistSwipe)
+    }
+
+    const full = $('#full-player')
+    const fullSheet = full?.querySelector('.full-player__sheet')
+    if (full && fullSheet && !full.dataset.swipeBound) {
+      full.dataset.swipeBound = '1'
+      let active = false
+      let startX = 0
+      let startY = 0
+      let dx = 0
+      let dy = 0
+      fullSheet.addEventListener('pointerdown', (e) => {
+        if (full.hidden) return
+        if (e.target.closest('button, input, .pick-playlist-list, #progress-row')) return
+        active = true
+        startX = e.clientX
+        startY = e.clientY
+        dx = 0
+        dy = 0
+        fullSheet.setPointerCapture?.(e.pointerId)
+        full.classList.add('is-dragging')
+      })
+      fullSheet.addEventListener('pointermove', (e) => {
+        if (!active) return
+        dx = e.clientX - startX
+        dy = e.clientY - startY
+        if (dy <= 0 || dy < Math.abs(dx)) return
+        const shift = Math.min(dy, 220)
+        fullSheet.style.transform = `translateY(${shift}px)`
+        fullSheet.style.opacity = String(Math.max(0.62, 1 - shift / 420))
+      })
+      const finishFullSwipe = (e) => {
+        if (!active) return
+        active = false
+        fullSheet.releasePointerCapture?.(e.pointerId)
+        const commit = dy > 120 && dy > Math.abs(dx)
+        fullSheet.style.transform = ''
+        fullSheet.style.opacity = ''
+        full.classList.remove('is-dragging')
+        if (commit) closeFullPlayer()
+      }
+      fullSheet.addEventListener('pointerup', finishFullSwipe)
+      fullSheet.addEventListener('pointercancel', finishFullSwipe)
+    }
+  }
+
   function hideSetupGate() {
     const gate = $('#setup-gate')
     if (gate) gate.hidden = true
@@ -466,16 +551,20 @@ const UI = (() => {
   function renderSetupGateForm() {
     const s = Store.get()
     const g = (id, val) => { const el = $(id); if (el) el.value = val || '' }
+    g('#gate-api-mode', s.apiMode || 'auto')
     g('#gate-gateway', s.gatewayUrl)
     g('#gate-secret', s.gatewaySecret)
     g('#gate-yandex', s.yandexToken)
+    g('#gate-vk', s.vkToken)
   }
 
   function saveFromGate() {
     Store.patch({
-      gatewayUrl: $('#gate-gateway')?.value.trim() || '',
+      apiMode: $('#gate-api-mode')?.value || 'auto',
+      gatewayUrl: $('#gate-gateway')?.value.trim().replace(/\/+$/, '') || '',
       gatewaySecret: $('#gate-secret')?.value.trim() || '',
       yandexToken: $('#gate-yandex')?.value.trim() || '',
+      vkToken: $('#gate-vk')?.value.trim() || '',
     })
     renderSettingsForm()
   }
@@ -497,6 +586,12 @@ const UI = (() => {
     const banner = $('#gateway-banner')
     if (!banner) return
     if (!Api.isConfigured()) {
+      banner.hidden = false
+      banner.innerHTML = 'Подключи Яндекс/VK или gateway на VPS.<br><button type="button" id="banner-settings">Настройки</button>'
+      $('#banner-settings')?.addEventListener('click', () => showScreen('settings'), { once: true })
+      return
+    }
+    if (!Api.hasGateway()) {
       banner.hidden = true
       return
     }
@@ -778,6 +873,8 @@ const UI = (() => {
 
   function renderSettingsForm() {
     const s = Store.get()
+    const modeEl = $('#cfg-api-mode')
+    if (modeEl) modeEl.value = s.apiMode || 'auto'
     $('#cfg-gateway').value = s.gatewayUrl || ''
     $('#cfg-secret').value = s.gatewaySecret || ''
     $('#cfg-accent-cover').checked = !!s.accentFromCover
@@ -869,6 +966,7 @@ const UI = (() => {
 
   function saveGatewayFromForm() {
     Store.patch({
+      apiMode: $('#cfg-api-mode')?.value || 'auto',
       gatewayUrl: $('#cfg-gateway').value.trim().replace(/\/+$/, ''),
       gatewaySecret: $('#cfg-secret').value.trim(),
     })
@@ -932,7 +1030,7 @@ const UI = (() => {
     const status = $('#search-status')
     const results = $('#search-results')
     if (!q.trim()) { status.textContent = ''; results.innerHTML = ''; return }
-    if (!Api.isConfigured()) { status.textContent = 'Настрой gateway'; return }
+    if (!Api.isConfigured()) { status.textContent = 'Подключи сервисы в настройках'; return }
     status.textContent = 'Ищем…'
     try {
       const out = await Api.search(q.trim(), searchSource)
@@ -975,7 +1073,7 @@ const UI = (() => {
     $('#gate-save')?.addEventListener('click', async () => {
       saveFromGate()
       if (!Api.isConfigured()) {
-        toast('Укажи Gateway URL и Secret')
+        toast('Укажи токены Яндекс/VK или gateway на VPS')
         return
       }
       hideSetupGate()
@@ -990,7 +1088,7 @@ const UI = (() => {
       sessionStorage.setItem('nexory_setup_skip', '1')
       hideSetupGate()
       showScreen('home')
-      toast('Музыка не будет работать без gateway')
+      toast('Без токенов музыка не заработает')
     })
 
     $('#btn-wave-play')?.addEventListener('click', async () => {
@@ -1284,6 +1382,7 @@ const UI = (() => {
       }
     })
 
+    $('#cfg-api-mode')?.addEventListener('change', saveGatewayFromForm)
     $('#cfg-gateway')?.addEventListener('change', saveGatewayFromForm)
     $('#cfg-secret')?.addEventListener('change', saveGatewayFromForm)
 
@@ -1454,6 +1553,7 @@ const UI = (() => {
     renderHome()
     renderLibrary()
     wireEvents()
+    bindSwipeClosers()
     setPlayIcon(true)
     updateGatewayBanner()
   }

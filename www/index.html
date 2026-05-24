@@ -20,12 +20,20 @@
     <div class="setup-gate__scroll safe-top safe-bottom">
       <img class="setup-gate__logo" src="assets/nexory-icon.png" alt="Nexory" />
       <h1 class="setup-gate__title">Nexory</h1>
-      <p class="setup-gate__text">Gateway на ПК + токены. IP компа в Wi‑Fi, не localhost.</p>
-      <label class="field"><span>Gateway URL</span><input type="url" id="gate-gateway" placeholder="http://192.168.0.5:3950" autocapitalize="off" autocomplete="off" /></label>
-      <label class="field"><span>Gateway Secret</span><input type="password" id="gate-secret" placeholder="секрет" autocomplete="off" /></label>
+      <p class="setup-gate__text">Гибрид: токены Яндекс/VK — поиск и волна с телефона. Gateway на VPS (Timeweb) — импорт и SoundCloud.</p>
+      <label class="field"><span>Режим API</span>
+        <select id="gate-api-mode">
+          <option value="auto">Авто (сначала с телефона)</option>
+          <option value="direct">Только с телефона</option>
+          <option value="gateway">Только gateway</option>
+        </select>
+      </label>
+      <label class="field"><span>Gateway URL</span><input type="url" id="gate-gateway" placeholder="https://music.example.com" autocapitalize="off" autocomplete="off" /></label>
+      <label class="field"><span>Gateway Secret</span><input type="password" id="gate-secret" placeholder="секрет с VPS" autocomplete="off" /></label>
       <button type="button" class="secondary-btn" id="gate-test">Проверить gateway</button>
       <small class="field-hint" id="gate-status"></small>
-      <label class="field"><span>Яндекс OAuth (для волны)</span><textarea id="gate-yandex" rows="2" placeholder="OAuth токен"></textarea></label>
+      <label class="field"><span>Яндекс OAuth</span><textarea id="gate-yandex" rows="2" placeholder="OAuth токен"></textarea></label>
+      <label class="field"><span>VK token</span><input type="password" id="gate-vk" placeholder="опционально" autocomplete="off" /></label>
       <button type="button" class="primary-btn" id="gate-save">Сохранить и продолжить</button>
       <button type="button" class="link-btn setup-gate__skip" id="gate-skip">Пропустить — смотреть UI</button>
     </div>
@@ -176,9 +184,17 @@
 
         <div id="settings-services" class="settings-pane" hidden>
           <div class="settings-group">
-            <h3 class="settings-label">Gateway</h3>
-            <label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="http://IP:3950" autocapitalize="off" /></label>
-            <label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="Bearer secret" autocomplete="off" /></label>
+            <h3 class="settings-label">Подключение</h3>
+            <label class="field"><span>Режим API</span>
+              <select id="cfg-api-mode">
+                <option value="auto">Авто — с телефона, при сбое gateway</option>
+                <option value="direct">Только с телефона</option>
+                <option value="gateway">Только gateway (VPS)</option>
+              </select>
+            </label>
+            <p class="field-hint">Авто: Яндекс/VK/SC без ПК в Wi‑Fi. Импорт плейлистов по ссылке — только через gateway.</p>
+            <label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="https://твой-сервер:3950" autocapitalize="off" /></label>
+            <label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="FLOW_MOBILE_GATEWAY_SECRET" autocomplete="off" /></label>
             <button type="button" class="secondary-btn" id="btn-test-gateway">Проверить gateway</button>
             <small class="field-hint" id="gateway-status"></small>
           </div>
@@ -351,6 +367,11 @@
       </div>
     </div>
     <div class="pl-view-body">
+      <div class="pl-view-body__curve" aria-hidden="true">
+        <svg viewBox="0 0 390 32" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,0 Q195,30 390,0 L390,32 L0,32 Z" fill="#050508"/>
+        </svg>
+      </div>
       <div class="pl-view-tracks" id="playlist-view-tracks" data-track-list></div>
     </div>
   </div>
@@ -396,6 +417,7 @@
   <script src="js/viewport.js"></script>
   <script src="js/store.js"></script>
   <script src="js/theme.js"></script>
+  <script src="js/direct-api.js"></script>
   <script src="js/api.js"></script>
   <script src="js/player.js"></script>
   <script src="js/ui.js"></script>

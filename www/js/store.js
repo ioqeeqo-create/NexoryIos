@@ -15,6 +15,7 @@ const Store = (() => {
 
   function defaults() {
     return {
+      apiMode: 'auto',
       gatewayUrl: '',
       gatewaySecret: '',
       yandexToken: '',
