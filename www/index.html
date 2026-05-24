@@ -50,8 +50,14 @@
 
     <main id="screens">
       <section class="screen screen--active" data-screen="home">
+        <div class="home-decor" aria-hidden="true">
+          <span class="home-decor__orb home-decor__orb--1"></span>
+          <span class="home-decor__orb home-decor__orb--2"></span>
+          <span class="home-decor__orb home-decor__orb--3"></span>
+        </div>
         <div id="gateway-banner" class="status-banner" hidden></div>
         <div class="home-hero">
+          <div class="home-wave-shell">
           <button type="button" class="wave-row" id="btn-wave-play" aria-label="Моя волна">
             <div class="wave-row__main">
               <span class="wave-row__play"><span data-icon="play" data-icon-class="ui-icon"></span></span>
@@ -77,6 +83,7 @@
             </span>
           </button>
           <div class="wave-moods" id="wave-moods" role="group" aria-label="Настроение волны"></div>
+          </div>
         </div>
         <div class="section section--likes">
           <button type="button" class="home-likes-pill" id="btn-home-likes-play">
@@ -152,8 +159,8 @@
           </div>
           <label class="toggle-row">
             <div class="toggle-row__text">
-              <span class="toggle-row__label">Акцентный цвет из обложки</span>
-              <span class="toggle-row__hint">Интерфейс подстраивается под обложку трека</span>
+              <span class="toggle-row__label">Тема из обложки</span>
+              <span class="toggle-row__hint">Фон, акценты и карточки под цвета обложки трека</span>
             </div>
             <input type="checkbox" class="toggle-row__input" id="cfg-accent-cover" />
           </label>

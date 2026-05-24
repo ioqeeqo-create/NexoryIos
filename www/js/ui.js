@@ -215,7 +215,9 @@ const UI = (() => {
     el.innerHTML = NexoryConfig.WAVE_MOODS.map((m) => {
       const active = m.id === mood ? ' wave-mood--active' : ''
       const icon = m.icon || 'audio-lines'
-      return `<button type="button" class="wave-mood${active}" data-wave-mood="${esc(m.id)}">
+      const tint = m.tint ? `--mood-tint:${m.tint};` : ''
+      const border = m.border ? `--mood-border:${m.border};` : ''
+      return `<button type="button" class="wave-mood${active}" data-wave-mood="${esc(m.id)}" data-mood="${esc(m.id)}" style="${tint}${border}">
         <span class="wave-mood__icon" data-icon="${esc(icon)}" data-icon-class="ui-icon"></span>
         <span class="wave-mood__label">${esc(m.label)}</span>
       </button>`

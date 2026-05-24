@@ -4,12 +4,12 @@ const NexoryConfig = {
   DEFAULT_SERVER_SECRET:
     'd7e68022ac41dd20db61c45f6ed54222c0bd56e5313f15b50263ef3358c70dca',
   WAVE_MOODS: [
-    { id: 'default', label: 'Обычная', icon: 'smile' },
-    { id: 'sad', label: 'Грустная', icon: 'frown' },
-    { id: 'happy', label: 'Весёлая', icon: 'sparkles' },
-    { id: 'energetic', label: 'Энергичная', icon: 'zap' },
-    { id: 'calm', label: 'Спокойная', icon: 'leaf' },
-    { id: 'romantic', label: 'Романтика', icon: 'heart' },
+    { id: 'default', label: 'Обычная', icon: 'smile', tint: 'rgba(236, 72, 153, 0.14)', border: 'rgba(236, 72, 153, 0.28)' },
+    { id: 'sad', label: 'Грустная', icon: 'frown', tint: 'rgba(96, 165, 250, 0.16)', border: 'rgba(96, 165, 250, 0.32)' },
+    { id: 'happy', label: 'Весёлая', icon: 'sparkles', tint: 'rgba(250, 204, 21, 0.16)', border: 'rgba(250, 204, 21, 0.34)' },
+    { id: 'energetic', label: 'Энергичная', icon: 'zap', tint: 'rgba(251, 146, 60, 0.16)', border: 'rgba(251, 146, 60, 0.34)' },
+    { id: 'calm', label: 'Спокойная', icon: 'leaf', tint: 'rgba(52, 211, 153, 0.14)', border: 'rgba(52, 211, 153, 0.3)' },
+    { id: 'romantic', label: 'Романтика', icon: 'heart', tint: 'rgba(244, 114, 182, 0.16)', border: 'rgba(244, 114, 182, 0.32)' },
   ],
   THEME_CARDS: [
     { id: 'dark', label: 'Тёмная', swatch: 'linear-gradient(145deg,#1e293b 0%,#0f172a 55%,#020617 100%)' },

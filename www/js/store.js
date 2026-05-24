@@ -30,6 +30,7 @@ const Store = (() => {
       theme: 'dark',
       accentFromCover: false,
       accentCoverHex: '',
+      accentCoverPalette: null,
       playerCoverOverride: '',
       playerBgOverride: '',
       playerBgPreset: '',
