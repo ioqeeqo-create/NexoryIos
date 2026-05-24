@@ -103,8 +103,11 @@ const Player = (() => {
       emit('error', 'Трек ещё не загружен')
       return
     }
-    if (audio.paused) await audio.play()
-    else audio.pause()
+    if (audio.paused) {
+      await audio.play().catch((e) => {
+        emit('error', String(e?.message || e))
+      })
+    } else audio.pause()
     emit('state', { paused: audio.paused })
   }
 
