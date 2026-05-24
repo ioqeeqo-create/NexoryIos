@@ -103,13 +103,58 @@ const UI = (() => {
     return `${coverOnly(url)}${sourceBadgeCorner(source)}`
   }
 
+  function trackDurationSec(track) {
+    if (!track) return 0
+    const ms = Number(track.durationMs ?? track.duration_ms)
+    if (Number.isFinite(ms) && ms > 0) return ms / 1000
+    const d = Number(track.duration)
+    if (Number.isFinite(d) && d > 0) return d > 36000 ? d / 1000 : d
+    const len = Number(track.length)
+    if (Number.isFinite(len) && len > 0) return len
+    const cur = Player.current()
+    if (cur && Store.trackKey(cur) === Store.trackKey(track)) {
+      const ad = Number(Player.audio?.duration)
+      if (ad > 0) return ad
+    }
+    return 0
+  }
+
+  function trackDurationLabel(track) {
+    const sec = trackDurationSec(track)
+    return sec > 0 ? Player.fmt(sec) : ''
+  }
+
+  function setupScrollTitles(root) {
+    const scope = root && root.querySelectorAll ? root : document
+    const wraps = root?.classList?.contains('scroll-title-wrap')
+      ? [root]
+      : [...scope.querySelectorAll('.scroll-title-wrap')]
+    wraps.forEach((wrap) => {
+      const inner = wrap.querySelector('.scroll-title')
+      if (!inner) return
+      requestAnimationFrame(() => {
+        const overflow = inner.scrollWidth > wrap.clientWidth + 2
+        wrap.classList.toggle('is-scrolling', overflow)
+        if (overflow) {
+          inner.style.setProperty('--scroll-shift', `${wrap.clientWidth - inner.scrollWidth}px`)
+        } else {
+          inner.style.removeProperty('--scroll-shift')
+        }
+      })
+    })
+  }
+
   function trackRowHtml(track, idx) {
+    const dur = trackDurationLabel(track)
     return `<button type="button" class="track-row" data-idx="${idx ?? ''}" data-key="${Store.trackKey(track)}">
       <div class="track-cover">${coverBlock(track.source, track.cover)}</div>
       <div class="track-row__meta">
-        <div class="track-row__title">${esc(track.title)}</div>
+        <div class="scroll-title-wrap track-row__title-wrap">
+          <div class="track-row__title scroll-title">${esc(track.title)}</div>
+        </div>
         <div class="track-row__artist">${esc(track.artist)}</div>
       </div>
+      ${dur ? `<span class="track-row__dur">${dur}</span>` : '<span class="track-row__dur track-row__dur--empty"></span>'}
     </button>`
   }
 
@@ -117,7 +162,9 @@ const UI = (() => {
     return `<button type="button" class="card-tile" data-key="${Store.trackKey(track)}">
       <div class="card-tile__cover">${coverBlock(track.source, track.cover)}</div>
       <div class="card-tile__meta">
-        <div class="card-tile__title">${esc(track.title)}</div>
+        <div class="scroll-title-wrap card-tile__title-wrap">
+          <div class="card-tile__title scroll-title">${esc(track.title)}</div>
+        </div>
         <div class="card-tile__sub">${esc(track.artist)}</div>
       </div>
     </button>`
@@ -145,17 +192,16 @@ const UI = (() => {
   }
 
   function playlistTrackRowHtml(track, idx) {
-    const durSec = Number(track.durationMs) > 0
-      ? track.durationMs / 1000
-      : (Number(track.duration) > 0 ? track.duration : 0)
-    const dur = durSec > 0 ? Player.fmt(durSec) : '—'
+    const dur = trackDurationLabel(track)
     return `<button type="button" class="pl-track-row track-row" data-idx="${idx ?? ''}" data-key="${Store.trackKey(track)}">
       <div class="pl-track-row__cover">${coverBlock(track.source, track.cover)}</div>
       <div class="pl-track-row__meta">
-        <div class="pl-track-row__title">${esc(track.title)}</div>
+        <div class="scroll-title-wrap pl-track-row__title-wrap">
+          <div class="pl-track-row__title scroll-title">${esc(track.title)}</div>
+        </div>
         <div class="pl-track-row__artist">${esc(track.artist)}</div>
       </div>
-      <span class="pl-track-row__dur">${dur}</span>
+      ${dur ? `<span class="pl-track-row__dur">${dur}</span>` : '<span class="pl-track-row__dur pl-track-row__dur--empty"></span>'}
     </button>`
   }
 
@@ -343,18 +389,9 @@ const UI = (() => {
   }
 
   function setupMarqueeTitle(title) {
-    const wrap = $('#fp-title-wrap')
-    const track = $('#fp-title-track')
     const el = $('#full-title')
-    const dup = $('#full-title-dup')
-    if (!wrap || !track || !el) return
-    const text = String(title || '—')
-    el.textContent = text
-    if (dup) dup.textContent = text
-    requestAnimationFrame(() => {
-      const overflow = track.scrollWidth > wrap.clientWidth + 4
-      wrap.classList.toggle('is-scrolling', overflow)
-    })
+    if (el) el.textContent = String(title || '—')
+    setupScrollTitles($('#fp-title-wrap'))
   }
 
   function openPickPlaylistSheet(track) {
@@ -493,6 +530,7 @@ const UI = (() => {
       const items = s.recent.slice(0, 12)
       recentEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Включи волну или найди трек</div>'
       bindTrackClicks(recentEl, items, 'Недавние')
+      setupScrollTitles(recentEl)
     }
     const likesCovers = $('#home-likes-covers')
     const likesCount = $('#home-likes-count')
@@ -551,6 +589,7 @@ const UI = (() => {
         : '<p class="empty-hint">Плейлист пуст</p>'
       bindTrackClicks(tracksEl, pl.tracks, pl.name)
       highlightPlayingTrack(Player.current())
+      setupScrollTitles(tracksEl)
     }
     if (view) {
       view.hidden = false
@@ -568,14 +607,14 @@ const UI = (() => {
       document.body.classList.remove('playlist-open')
       return
     }
+    document.body.classList.remove('playlist-open')
     view.classList.add('is-closing')
     setTimeout(() => {
       openPlaylistId = null
       view.hidden = true
       view.classList.remove('is-closing')
-      document.body.classList.remove('playlist-open')
       syncShellLayout()
-    }, 280)
+    }, 300)
   }
 
   function renderLibrary() {
@@ -778,6 +817,7 @@ const UI = (() => {
     $('#mini-artist').textContent = track.artist
     setCover($('#mini-cover-wrap'), $('#mini-cover'), track, { playerOnly: true })
     setupMarqueeTitle(track.title)
+    setupScrollTitles($('.mini-title-wrap'))
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from || 'Nexory'
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
@@ -826,6 +866,7 @@ const UI = (() => {
       status.textContent = tracks.length ? `${tracks.length} результатов` : out.error || 'Пусто'
       results.innerHTML = tracks.map((t, i) => trackRowHtml(t, i)).join('')
       bindTrackClicks(results, tracks, `Поиск · ${Player.sourceLabel(searchSource)}`)
+      setupScrollTitles(results)
     } catch (e) {
       status.textContent = e.message
       results.innerHTML = ''
