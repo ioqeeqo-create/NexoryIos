@@ -11,6 +11,7 @@ const UI = (() => {
   let plPressTimer = null
   let plPressMoved = false
   let plLongPressHandled = false
+  let pickPlaylistTrack = null
   const trackLists = new WeakMap()
 
   const SERVICE_META = {
@@ -108,9 +109,10 @@ const UI = (() => {
   }
 
   function cardHtml(track) {
-    return `<button type="button" class="card-tile" data-key="${Store.trackKey(track)}">
-      <div class="card-tile__cover">${coverBlock(track.source, track.cover)}</div>
-      <div class="card-tile__meta">
+    const badge = sourceBadgeCorner(track.source)
+    return `<button type="button" class="card-tile card-tile--square" data-key="${Store.trackKey(track)}">
+      <div class="card-tile__square">
+        ${badge}
         <div class="card-tile__title">${esc(track.title)}</div>
         <div class="card-tile__sub">${esc(track.artist)}</div>
       </div>
@@ -316,6 +318,7 @@ const UI = (() => {
 
   function openPickPlaylistSheet(track) {
     if (!track) return
+    pickPlaylistTrack = track
     const sheet = $('#pick-playlist-sheet')
     const list = $('#pick-playlist-list')
     const playlists = Store.get().playlists
@@ -345,13 +348,12 @@ const UI = (() => {
       sheet.hidden = true
       delete sheet.dataset.trackKey
     }
+    pickPlaylistTrack = null
   }
 
   function openFullPlayer() {
     setFullPlayer(true)
     Icons.mount($('#full-player'))
-    const queueBadge = $('#fp-queue-badge')
-    if (queueBadge) queueBadge.textContent = String(Player.queue()?.length || 0)
     requestAnimationFrame(() => {
       Player.buildWaveform()
       const d = Player.audio?.duration || 0
@@ -465,8 +467,12 @@ const UI = (() => {
       const cover = pl.coverData || pl.tracks?.find((t) => t.cover)?.cover || ''
       if (cover && !isLikes) {
         heroBg.style.backgroundImage = `url(${cover})`
+        heroBg.style.backgroundPosition = 'center 42%'
+        heroBg.style.backgroundSize = 'cover'
       } else {
         heroBg.style.backgroundImage = ''
+        heroBg.style.backgroundPosition = ''
+        heroBg.style.backgroundSize = ''
       }
     }
     $('#playlist-view-title').textContent = pl.name
@@ -707,8 +713,6 @@ const UI = (() => {
     $('#full-title').textContent = track.title
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from || 'Nexory'
-    const queueBadge = $('#fp-queue-badge')
-    if (queueBadge) queueBadge.textContent = String(Player.queue()?.length || 0)
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
     setCover($('#full-cover-wrap'), $('#full-cover'), track, { playerOnly: true })
     applyPlayerVisuals(track)
@@ -1121,6 +1125,25 @@ const UI = (() => {
       renderHome()
       renderLibrary()
     })
+    $('#full-add')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const t = Player.current()
+      if (!t) {
+        toast('Сначала включи трек')
+        return
+      }
+      openPickPlaylistSheet(t)
+    })
+    $('#pick-playlist-close')?.addEventListener('click', () => closePickPlaylistSheet())
+    $('#pick-playlist-cancel')?.addEventListener('click', () => closePickPlaylistSheet())
+    $('#pick-playlist-list')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pick-pl]')
+      if (!btn || !pickPlaylistTrack) return
+      Store.addTrackToPlaylist(btn.dataset.pickPl, pickPlaylistTrack)
+      closePickPlaylistSheet()
+      renderLibrary()
+      toast('Добавлено в плейлист')
+    })
     $('#full-shuffle')?.addEventListener('click', () => {
       $('#full-shuffle').classList.toggle('is-active', Player.toggleShuffle())
     })
@@ -1149,45 +1172,61 @@ const UI = (() => {
 
   function wireSeek() {
     const seek = $('#seek')
-    const row = $('#progress-row')
-    if (!seek) return
+    const scrubEl = $('#progress-row')
+    if (!seek || !scrubEl) return
 
-    const applySeek = (commit) => {
-      const ratio = Number(seek.value) / 1000
+    let scrubbing = false
+
+    const setRatio = (ratio, commit) => {
+      const r = Math.max(0, Math.min(1, ratio))
+      seek.value = String(Math.floor(r * 1000))
       const dur = Player.audio?.duration || 0
-      if (dur > 0) $('#time-current').textContent = Player.fmt(dur * ratio)
-      updateWaveformProgress(ratio)
-      if (commit) Player.seek(ratio)
+      if (dur > 0) $('#time-current').textContent = Player.fmt(dur * r)
+      updateWaveformProgress(r)
+      if (commit) Player.seek(r)
     }
 
-    const startSeek = (e) => {
-      e.stopPropagation()
+    const ratioFromEvent = (e) => {
+      const rect = scrubEl.getBoundingClientRect()
+      const clientX = e.touches?.[0]?.clientX ?? e.clientX
+      return (clientX - rect.left) / rect.width
+    }
+
+    const onDown = (e) => {
+      if (e.target.closest('button')) return
+      scrubbing = true
       seeking = true
+      setRatio(ratioFromEvent(e), false)
+      scrubEl.setPointerCapture?.(e.pointerId)
+      e.preventDefault()
     }
-    const endSeek = (e) => {
-      e?.stopPropagation?.()
-      applySeek(true)
+
+    const onMove = (e) => {
+      if (!scrubbing) return
+      setRatio(ratioFromEvent(e), false)
+      e.preventDefault()
+    }
+
+    const onUp = (e) => {
+      if (!scrubbing) return
+      scrubbing = false
+      setRatio(ratioFromEvent(e), true)
       seeking = false
+      scrubEl.releasePointerCapture?.(e.pointerId)
     }
 
-    row?.addEventListener('click', (e) => e.stopPropagation())
-    row?.addEventListener('pointerdown', (e) => e.stopPropagation())
-    row?.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true })
+    scrubEl.addEventListener('pointerdown', onDown)
+    scrubEl.addEventListener('pointermove', onMove)
+    scrubEl.addEventListener('pointerup', onUp)
+    scrubEl.addEventListener('pointercancel', onUp)
 
-    seek.addEventListener('pointerdown', startSeek)
-    seek.addEventListener('touchstart', startSeek, { passive: false })
-    seek.addEventListener('input', (e) => {
-      e.stopPropagation()
-      const ratio = Number(seek.value) / 1000
-      const dur = Player.audio?.duration || 0
-      if (dur > 0) $('#time-current').textContent = Player.fmt(dur * ratio)
-      updateWaveformProgress(ratio)
-      if (seeking) Player.seek(ratio)
+    seek.addEventListener('input', () => {
+      if (!scrubbing) setRatio(Number(seek.value) / 1000, false)
     })
-    seek.addEventListener('change', endSeek)
-    seek.addEventListener('pointerup', endSeek)
-    seek.addEventListener('touchend', endSeek)
-    seek.addEventListener('touchcancel', () => { seeking = false })
+    seek.addEventListener('change', () => {
+      setRatio(Number(seek.value) / 1000, true)
+      seeking = false
+    })
   }
 
   function init() {
