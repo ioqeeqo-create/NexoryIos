@@ -212,10 +212,78 @@ const UI = (() => {
     const el = $('#wave-moods')
     if (!el || typeof NexoryConfig === 'undefined') return
     const mood = Store.get().waveMood || 'default'
-    el.innerHTML = NexoryConfig.WAVE_MOODS.map(
-      (m) =>
-        `<button type="button" class="wave-mood${m.id === mood ? ' wave-mood--active' : ''}" data-wave-mood="${esc(m.id)}">${esc(m.label)}</button>`,
-    ).join('')
+    el.innerHTML = NexoryConfig.WAVE_MOODS.map((m) => {
+      const active = m.id === mood ? ' wave-mood--active' : ''
+      const icon = m.icon || 'audio-lines'
+      return `<button type="button" class="wave-mood${active}" data-wave-mood="${esc(m.id)}">
+        <span class="wave-mood__icon" data-icon="${esc(icon)}" data-icon-class="ui-icon"></span>
+        <span class="wave-mood__label">${esc(m.label)}</span>
+      </button>`
+    }).join('')
+    Icons.mount(el)
+  }
+
+  function renderThemeCards() {
+    const el = $('#theme-grid')
+    if (!el || typeof NexoryConfig === 'undefined') return
+    const theme = Store.get().theme || 'dark'
+    el.innerHTML = NexoryConfig.THEME_CARDS.map((t) => {
+      const active = t.id === theme ? ' theme-card--active' : ''
+      return `<button type="button" class="theme-card${active}" data-theme="${esc(t.id)}">
+        <span class="theme-card__swatch" style="background:${t.swatch}"></span>
+        <span class="theme-card__label">${esc(t.label)}</span>
+        <span class="theme-card__check" data-icon="check" data-icon-class="ui-icon"></span>
+      </button>`
+    }).join('')
+    Icons.mount(el)
+  }
+
+  function renderBgPresets() {
+    const el = $('#bg-presets')
+    if (!el || typeof NexoryConfig === 'undefined') return
+    const preset = Store.get().playerBgPreset || ''
+    el.innerHTML = NexoryConfig.BG_PRESETS.map((p) => {
+      const active = p.id === preset ? ' bg-preset--active' : ''
+      return `<button type="button" class="bg-preset${active}" data-bg-preset="${esc(p.id)}" style="background:${p.css}" title="${esc(p.label)}"></button>`
+    }).join('')
+  }
+
+  function setServerStatus(state, detail = '') {
+    const okCard = $('#gateway-status-card')
+    const errCard = $('#gateway-status-error')
+    const okText = $('#gateway-status-text')
+    const errText = $('#gateway-status-error-text')
+    if (state === 'ok') {
+      if (okCard) okCard.hidden = false
+      if (errCard) errCard.hidden = true
+      if (okText) okText.textContent = detail || 'Ответ получен'
+    } else if (state === 'error') {
+      if (okCard) okCard.hidden = true
+      if (errCard) errCard.hidden = false
+      if (errText) errText.textContent = detail || 'Сервер не отвечает'
+    } else {
+      if (okCard) okCard.hidden = true
+      if (errCard) errCard.hidden = true
+    }
+  }
+
+  async function testServerConnection(statusEl) {
+    saveGatewayFromForm()
+    setServerStatus('idle')
+    const t0 = performance.now()
+    try {
+      await Api.health()
+      const ms = Math.round(performance.now() - t0)
+      setServerStatus('ok', `Ответ получен · ${ms} ms`)
+      if (statusEl) statusEl.textContent = ''
+      updateGatewayBanner()
+      return true
+    } catch (e) {
+      const msg = String(e?.message || e)
+      setServerStatus('error', msg)
+      if (statusEl) statusEl.textContent = msg
+      return false
+    }
   }
 
   function setWaveMood(id) {
@@ -494,8 +562,16 @@ const UI = (() => {
 
   function applyPlayerVisuals(track) {
     if (!track) return
-    const bgUrl = getPlayerBgUrl(track)
-    Theme.setFullBgImage(bgUrl)
+    const s = Store.get()
+    const bg = document.getElementById('full-bg')
+    const preset = NexoryConfig?.BG_PRESETS?.find((p) => p.id === s.playerBgPreset)
+    if (preset && bg) {
+      bg.style.backgroundImage = 'none'
+      bg.style.background = preset.css
+    } else {
+      if (bg) bg.style.background = ''
+      Theme.setFullBgImage(getPlayerBgUrl(track))
+    }
     Theme.applyPlayerBg()
   }
 
@@ -1094,17 +1170,22 @@ const UI = (() => {
     $('#cfg-bg-brightness').value = String(s.bgBrightness ?? 45)
     $('#cfg-blur-val').textContent = String(s.bgBlur ?? 56)
     $('#cfg-bright-val').textContent = String(s.bgBrightness ?? 45)
-    document.querySelectorAll('.theme-chip').forEach((btn) => {
-      btn.classList.toggle('theme-chip--active', btn.dataset.theme === (s.theme || 'dark'))
-    })
+    renderThemeCards()
+    renderBgPresets()
     const preview = $('#player-cover-preview')
+    const ph = preview?.querySelector('.player-cover-preview__ph')
     if (preview) {
       if (s.playerCoverOverride) {
-        preview.hidden = false
         preview.style.backgroundImage = `url(${s.playerCoverOverride})`
+        preview.classList.add('has-image')
+        if (ph) ph.hidden = true
       } else {
-        preview.hidden = true
         preview.style.backgroundImage = ''
+        preview.classList.remove('has-image')
+        if (ph) {
+          ph.hidden = false
+          Icons.mount(ph)
+        }
       }
     }
     const bgPreview = $('#player-bg-preview')
@@ -1272,14 +1353,10 @@ const UI = (() => {
     $('#btn-search-open')?.addEventListener('click', () => showScreen('search'))
 
     $('#gate-test')?.addEventListener('click', async () => {
-      saveFromGate()
-      $('#gate-status').textContent = 'Проверяем…'
-      try {
-        await Api.health()
-        $('#gate-status').textContent = '✓ Сервер OK'
-      } catch (e) {
-        $('#gate-status').textContent = e.message
-      }
+      const el = $('#gate-status')
+      if (el) el.textContent = 'Проверяем…'
+      const ok = await testServerConnection(el)
+      if (ok && el) el.textContent = '✓ Сервер доступен'
     })
 
     $('#gate-save')?.addEventListener('click', async () => {
@@ -1472,6 +1549,16 @@ const UI = (() => {
       renderSettingsForm()
     })
 
+    $('#bg-presets')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bg-preset]')
+      if (!btn) return
+      saveCustomization({ playerBgPreset: btn.dataset.bgPreset, playerBgOverride: '' })
+      renderSettingsForm()
+      const track = Player.current()
+      if (track) applyPlayerVisuals(track)
+      toast('Фон плеера обновлён')
+    })
+
     $('#cfg-accent-cover')?.addEventListener('change', (e) => {
       saveCustomization({ accentFromCover: e.target.checked })
       const track = Player.current()
@@ -1504,10 +1591,10 @@ const UI = (() => {
 
     $('#cfg-player-bg-pick')?.addEventListener('click', () => $('#player-bg-input')?.click())
     $('#cfg-player-bg-clear')?.addEventListener('click', () => {
-      saveCustomization({ playerBgOverride: '' })
+      saveCustomization({ playerBgOverride: '', playerBgPreset: '' })
       renderSettingsForm()
       const track = Player.current()
-      if (track) updatePlayerUI(track)
+      if (track) applyPlayerVisuals(track)
       toast('Фон сброшен')
     })
 
@@ -1531,10 +1618,10 @@ const UI = (() => {
       if (!file) return
       const reader = new FileReader()
       reader.onload = () => {
-        saveCustomization({ playerBgOverride: String(reader.result || '') })
+        saveCustomization({ playerBgOverride: String(reader.result || ''), playerBgPreset: '' })
         renderSettingsForm()
         const track = Player.current()
-        if (track) updatePlayerUI(track)
+        if (track) applyPlayerVisuals(track)
         toast('Фон обновлён')
       }
       reader.readAsDataURL(file)
@@ -1609,14 +1696,29 @@ const UI = (() => {
       }
     })
 
-    $('#btn-test-gateway')?.addEventListener('click', async () => {
-      saveGatewayFromForm()
-      $('#gateway-status').textContent = 'Проверяем…'
+    $('#btn-test-gateway')?.addEventListener('click', () => testServerConnection())
+
+    $('#cfg-gateway-copy')?.addEventListener('click', async () => {
+      const url = String($('#cfg-gateway')?.value || '').trim()
+      if (!url) return toast('URL пустой')
       try {
-        await Api.health()
-        $('#gateway-status').textContent = '✓ Сервер OK'
-      } catch (e) {
-        $('#gateway-status').textContent = e.message
+        await navigator.clipboard.writeText(url)
+        toast('URL скопирован')
+      } catch {
+        toast('Не удалось скопировать')
+      }
+    })
+
+    let secretVisible = false
+    $('#cfg-secret-eye')?.addEventListener('click', () => {
+      const input = $('#cfg-secret')
+      if (!input) return
+      secretVisible = !secretVisible
+      input.type = secretVisible ? 'text' : 'password'
+      const btn = $('#cfg-secret-eye')
+      if (btn) {
+        btn.dataset.icon = secretVisible ? 'eye-off' : 'eye'
+        btn.innerHTML = Icons.svg(btn.dataset.icon, 'ui-icon')
       }
     })
 

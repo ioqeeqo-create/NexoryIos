@@ -148,28 +148,33 @@
         <div id="settings-custom" class="settings-pane">
           <div class="settings-group">
             <h3 class="settings-label">Тема</h3>
-            <div class="theme-grid" id="theme-grid">
-              <button type="button" class="theme-chip" data-theme="dark">Тёмная</button>
-              <button type="button" class="theme-chip" data-theme="light">Светлая</button>
-              <button type="button" class="theme-chip" data-theme="amoled">AMOLED</button>
-              <button type="button" class="theme-chip" data-theme="rose">Розовая</button>
-            </div>
+            <div class="theme-cards" id="theme-grid"></div>
           </div>
           <label class="toggle-row">
-            <span class="toggle-row__label">Акцентный цвет из обложки</span>
+            <div class="toggle-row__text">
+              <span class="toggle-row__label">Акцентный цвет из обложки</span>
+              <span class="toggle-row__hint">Интерфейс подстраивается под обложку трека</span>
+            </div>
             <input type="checkbox" class="toggle-row__input" id="cfg-accent-cover" />
           </label>
           <div class="settings-group">
             <h3 class="settings-label">Обложка трека</h3>
             <p class="settings-hint">Квадратная обложка в mini и full player</p>
-            <button type="button" class="secondary-btn" id="cfg-player-cover-pick">Выбрать обложку</button>
-            <button type="button" class="link-btn settings-clear-link" id="cfg-player-cover-clear">Сбросить обложку</button>
-            <div class="player-cover-preview" id="player-cover-preview" hidden></div>
+            <div class="settings-media-row">
+              <div class="player-cover-preview player-cover-preview--lg" id="player-cover-preview">
+                <span class="player-cover-preview__ph" data-icon="image" data-icon-class="ui-icon lg"></span>
+              </div>
+              <div class="settings-media-actions">
+                <button type="button" class="secondary-btn" id="cfg-player-cover-pick">Выбрать обложку</button>
+                <button type="button" class="link-btn settings-clear-link" id="cfg-player-cover-clear">Сбросить</button>
+              </div>
+            </div>
           </div>
           <div class="settings-group">
             <h3 class="settings-label">Фон плеера</h3>
             <p class="settings-hint">Размытый фон full player (отдельно от обложки)</p>
-            <button type="button" class="secondary-btn" id="cfg-player-bg-pick">Выбрать фон</button>
+            <div class="bg-presets" id="bg-presets"></div>
+            <button type="button" class="secondary-btn" id="cfg-player-bg-pick">Своё фото</button>
             <button type="button" class="link-btn settings-clear-link" id="cfg-player-bg-clear">Сбросить фон</button>
             <div class="player-cover-preview player-bg-preview" id="player-bg-preview" hidden></div>
           </div>
@@ -193,11 +198,39 @@
                 <option value="gateway">Только gateway (VPS)</option>
               </select>
             </label>
-            <p class="field-hint">Авто: Яндекс/VK/SC без ПК в Wi‑Fi. Импорт плейлистов по ссылке — только через gateway.</p>
-            <label class="field"><span>Сервер URL</span><input type="url" id="cfg-gateway" placeholder="http://85.239.34.229" autocapitalize="off" /></label>
-            <label class="field"><span>Секрет сервера</span><input type="password" id="cfg-secret" placeholder="секрет с VPS" autocomplete="off" /></label>
-            <button type="button" class="secondary-btn" id="btn-test-gateway">Проверить сервер</button>
-            <small class="field-hint" id="gateway-status"></small>
+            <p class="field-hint">Авто: Яндекс/VK/SC с телефона. Импорт плейлистов — через сервер.</p>
+          </div>
+          <div class="settings-group settings-group--server">
+            <h3 class="settings-label">Сервер Gateway</h3>
+            <p class="settings-hint">VPS для импорта, SoundCloud и текстов песен</p>
+            <label class="field">
+              <span>URL сервера</span>
+              <div class="field-input-row">
+                <input type="url" id="cfg-gateway" placeholder="http://85.239.34.229" autocapitalize="off" autocomplete="off" />
+                <button type="button" class="icon-btn field-input-row__btn" id="cfg-gateway-copy" data-icon="copy" aria-label="Копировать URL"></button>
+              </div>
+            </label>
+            <label class="field">
+              <span>Секрет сервера</span>
+              <div class="field-input-row">
+                <input type="password" id="cfg-secret" placeholder="секрет с VPS" autocomplete="off" />
+                <button type="button" class="icon-btn field-input-row__btn" id="cfg-secret-eye" data-icon="eye" aria-label="Показать секрет"></button>
+              </div>
+            </label>
+            <button type="button" class="primary-btn settings-test-btn" id="btn-test-gateway">Проверить сервер</button>
+            <div class="server-status" id="gateway-status-card" hidden>
+              <span class="server-status__icon" data-icon="check"></span>
+              <div class="server-status__body">
+                <div class="server-status__title" id="gateway-status-title">Сервер доступен</div>
+                <div class="server-status__sub" id="gateway-status-text">—</div>
+              </div>
+            </div>
+            <div class="server-status server-status--error" id="gateway-status-error" hidden>
+              <div class="server-status__body">
+                <div class="server-status__title">Нет связи</div>
+                <div class="server-status__sub" id="gateway-status-error-text">—</div>
+              </div>
+            </div>
           </div>
           <div class="settings-group">
             <h3 class="settings-label">Подключение сервисов</h3>

@@ -32,6 +32,7 @@ const Store = (() => {
       accentCoverHex: '',
       playerCoverOverride: '',
       playerBgOverride: '',
+      playerBgPreset: '',
       bgBlur: 56,
       bgBrightness: 45,
     }
