@@ -70,8 +70,8 @@ const Api = (() => {
       body: JSON.stringify(body),
     }, ms)
     const data = await r.json().catch(() => ({}))
-    if (!r.ok && !data.error) throw new Error(data.error || `HTTP ${r.status}`)
-    if (data.error && data.ok === false) throw new Error(data.error)
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`)
+    if (data.ok === false && data.error) throw new Error(data.error)
     return data
   }
 

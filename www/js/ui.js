@@ -128,6 +128,7 @@ const UI = (() => {
       return
     }
 
+    Player.primeAudio()
     busy = true
     if (el) el.classList.add('is-busy')
     toast('Загружаем…')
@@ -148,6 +149,14 @@ const UI = (() => {
   function getPlayerCoverUrl(track) {
     const override = Store.get().playerCoverOverride
     if (override) return override
+    return track?.cover || ''
+  }
+
+  function getPlayerBgUrl(track) {
+    const override = Store.get().playerBgOverride
+    if (override) return override
+    const coverOverride = Store.get().playerCoverOverride
+    if (coverOverride) return coverOverride
     return track?.cover || ''
   }
 
@@ -174,10 +183,9 @@ const UI = (() => {
 
   function applyPlayerVisuals(track) {
     if (!track) return
-    const url = getPlayerCoverUrl(track)
-    Theme.setFullBgImage(url)
+    const bgUrl = getPlayerBgUrl(track)
+    Theme.setFullBgImage(bgUrl)
     Theme.applyPlayerBg()
-    if (Store.get().accentFromCover && url) Theme.extractAccentFromUrl(url)
   }
 
   function setFullPlayer(open) {
@@ -419,6 +427,16 @@ const UI = (() => {
         preview.style.backgroundImage = ''
       }
     }
+    const bgPreview = $('#player-bg-preview')
+    if (bgPreview) {
+      if (s.playerBgOverride) {
+        bgPreview.hidden = false
+        bgPreview.style.backgroundImage = `url(${s.playerBgOverride})`
+      } else {
+        bgPreview.hidden = true
+        bgPreview.style.backgroundImage = ''
+      }
+    }
     updateServiceStates()
     Theme.apply(s)
   }
@@ -506,6 +524,10 @@ const UI = (() => {
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
     setCover($('#full-cover-wrap'), $('#full-cover'), track, { playerOnly: true })
     applyPlayerVisuals(track)
+    if (Store.get().accentFromCover) {
+      const accentUrl = getPlayerBgUrl(track) || getPlayerCoverUrl(track)
+      if (accentUrl) Theme.extractAccentFromUrl(accentUrl)
+    }
   }
 
   function setPlayIcon(paused) {
@@ -589,6 +611,7 @@ const UI = (() => {
     $('#btn-wave-play')?.addEventListener('click', async () => {
       const row = $('#btn-wave-play')
       if (busy) return
+      Player.primeAudio()
       try {
         if (!Api.isConfigured()) throw new Error('Настрой gateway в настройках')
         if (!Store.get().yandexToken) throw new Error('Добавь Яндекс OAuth')
@@ -627,6 +650,7 @@ const UI = (() => {
         ? { name: 'Любимые', tracks: Store.get().likes }
         : Store.getPlaylist(openPlaylistId)
       if (!pl?.tracks?.length) return toast('Плейлист пуст')
+      Player.primeAudio()
       try {
         await Player.playQueue(pl.tracks, 0, pl.name)
       } catch (e) {
@@ -701,6 +725,15 @@ const UI = (() => {
       toast('Обложка сброшена')
     })
 
+    $('#cfg-player-bg-pick')?.addEventListener('click', () => $('#player-bg-input')?.click())
+    $('#cfg-player-bg-clear')?.addEventListener('click', () => {
+      saveCustomization({ playerBgOverride: '' })
+      renderSettingsForm()
+      const track = Player.current()
+      if (track) updatePlayerUI(track)
+      toast('Фон сброшен')
+    })
+
     $('#player-cover-input')?.addEventListener('change', (e) => {
       const file = e.target.files?.[0]
       if (!file) return
@@ -710,7 +743,22 @@ const UI = (() => {
         renderSettingsForm()
         const track = Player.current()
         if (track) updatePlayerUI(track)
-        toast('Обложка плеера обновлена')
+        toast('Обложка обновлена')
+      }
+      reader.readAsDataURL(file)
+      e.target.value = ''
+    })
+
+    $('#player-bg-input')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        saveCustomization({ playerBgOverride: String(reader.result || '') })
+        renderSettingsForm()
+        const track = Player.current()
+        if (track) updatePlayerUI(track)
+        toast('Фон обновлён')
       }
       reader.readAsDataURL(file)
       e.target.value = ''

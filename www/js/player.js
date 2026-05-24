@@ -7,6 +7,26 @@ const Player = (() => {
   let waveMode = false
   let waveLoading = false
   let listeners = new Set()
+  let audioPrimed = false
+
+  function primeAudio() {
+    if (audioPrimed || !audio) return
+    try {
+      audio.muted = true
+      const p = audio.play()
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          audio.pause()
+          audio.muted = false
+          audioPrimed = true
+        }).catch(() => { audio.muted = false })
+      } else {
+        audio.muted = false
+      }
+    } catch {
+      audio.muted = false
+    }
+  }
 
   function on(ev, fn) {
     listeners.add({ ev, fn })
@@ -116,10 +136,6 @@ const Player = (() => {
     playingFrom = fromLabel || playingFrom
     emit('trackchange', { track, index, queue })
     updateMediaSession(track)
-    const bg = document.getElementById('full-bg')
-    if (bg) {
-      bg.style.backgroundImage = track.cover ? `url(${track.cover})` : 'none'
-    }
     try {
       const url = await resolveUrl(track)
       audio.pause()
@@ -130,6 +146,7 @@ const Player = (() => {
       await audio.play().catch((e) => {
         const msg = String(e?.message || e)
         if (/not supported/i.test(msg)) throw new Error('Поток не поддерживается на iOS — попробуй другой трек')
+        if (/interact|gesture|denied|permission/i.test(msg)) throw new Error('Нажми play ещё раз — iOS заблокировал автозапуск')
         throw e
       })
       Store.pushRecent(track)
@@ -256,13 +273,13 @@ const Player = (() => {
     emit('time', { current: audio.currentTime, duration: audio.duration || 0 })
   })
   audio.addEventListener('play', () => {
-    document.querySelector('.wave-orb')?.classList.add('is-playing')
+    document.querySelector('.wave-row')?.classList.add('is-playing')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
     updateMediaSession(current())
     emit('state', { paused: false })
   })
   audio.addEventListener('pause', () => {
-    document.querySelector('.wave-orb')?.classList.remove('is-playing')
+    document.querySelector('.wave-row')?.classList.remove('is-playing')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
     emit('state', { paused: true })
   })
@@ -316,5 +333,6 @@ const Player = (() => {
     },
     playTrackAt,
     isShuffle: () => shuffle,
+    primeAudio,
   }
 })()

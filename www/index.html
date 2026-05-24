@@ -146,11 +146,18 @@
             <input type="checkbox" class="toggle-row__input" id="cfg-accent-cover" />
           </label>
           <div class="settings-group">
-            <h3 class="settings-label">Обложка плеера</h3>
-            <p class="settings-hint">Меняет обложку и фон только у играющего трека</p>
-            <button type="button" class="secondary-btn" id="cfg-player-cover-pick">Выбрать из галереи</button>
+            <h3 class="settings-label">Обложка трека</h3>
+            <p class="settings-hint">Квадратная обложка в mini и full player</p>
+            <button type="button" class="secondary-btn" id="cfg-player-cover-pick">Выбрать обложку</button>
             <button type="button" class="link-btn settings-clear-link" id="cfg-player-cover-clear">Сбросить обложку</button>
             <div class="player-cover-preview" id="player-cover-preview" hidden></div>
+          </div>
+          <div class="settings-group">
+            <h3 class="settings-label">Фон плеера</h3>
+            <p class="settings-hint">Размытый фон full player (отдельно от обложки)</p>
+            <button type="button" class="secondary-btn" id="cfg-player-bg-pick">Выбрать фон</button>
+            <button type="button" class="link-btn settings-clear-link" id="cfg-player-bg-clear">Сбросить фон</button>
+            <div class="player-cover-preview player-bg-preview" id="player-bg-preview" hidden></div>
           </div>
           <label class="slider-field">
             <span class="slider-field__head"><span>Размытие фона</span><span id="cfg-blur-val">56</span></span>
@@ -219,35 +226,42 @@
 
   <div class="full-player" id="full-player" hidden>
     <div class="full-player__bg" id="full-bg"></div>
-    <div class="full-player__content safe-top safe-bottom">
-      <button type="button" class="full-player__close" id="full-close" data-icon="chevron-down"></button>
-      <p class="full-player__source" id="full-from"></p>
-      <div class="full-cover-wrap" id="full-cover-wrap">
-        <span class="full-cover-ph" data-icon="music-2" data-icon-class="ui-icon lg cover-ph"></span>
-        <img class="full-cover" id="full-cover" alt="" hidden />
+    <div class="full-player__content">
+      <div class="full-player__top">
+        <button type="button" class="full-player__close" id="full-close" data-icon="chevron-down"></button>
+        <p class="full-player__source" id="full-from"></p>
       </div>
-      <div class="full-cover-dots" aria-hidden="true"><span></span><span></span></div>
-      <div class="full-meta">
-        <h2 class="full-title" id="full-title">—</h2>
-        <p class="full-artist" id="full-artist">—</p>
+      <div class="full-player__mid">
+        <div class="full-cover-wrap" id="full-cover-wrap">
+          <span class="full-cover-ph" data-icon="music-2" data-icon-class="ui-icon lg cover-ph"></span>
+          <img class="full-cover" id="full-cover" alt="" hidden />
+        </div>
+        <div class="full-cover-dots" aria-hidden="true"><span></span><span></span></div>
+        <div class="full-meta">
+          <h2 class="full-title" id="full-title">—</h2>
+          <p class="full-artist" id="full-artist">—</p>
+        </div>
       </div>
-      <div class="progress-row" id="progress-row">
-        <span class="time" id="time-current">0:00</span>
-        <input type="range" class="seek" id="seek" min="0" max="1000" value="0" />
-        <span class="time" id="time-total">0:00</span>
-      </div>
-      <div class="full-controls">
-        <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
-        <button type="button" class="icon-btn icon-btn--lg" id="full-prev" data-icon="skip-back"></button>
-        <button type="button" class="icon-btn icon-btn--xl" id="full-play" data-icon="play"></button>
-        <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
-        <button type="button" class="icon-btn" id="full-like" data-icon="heart" aria-label="Like"></button>
+      <div class="full-player__bottom">
+        <div class="progress-row" id="progress-row">
+          <span class="time" id="time-current">0:00</span>
+          <input type="range" class="seek" id="seek" min="0" max="1000" value="0" />
+          <span class="time" id="time-total">0:00</span>
+        </div>
+        <div class="full-controls">
+          <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
+          <button type="button" class="icon-btn icon-btn--lg" id="full-prev" data-icon="skip-back"></button>
+          <button type="button" class="icon-btn icon-btn--xl" id="full-play" data-icon="play"></button>
+          <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
+          <button type="button" class="icon-btn" id="full-like" data-icon="heart" aria-label="Like"></button>
+        </div>
       </div>
     </div>
   </div>
 
   <input type="file" id="playlist-cover-input" accept="image/*" hidden />
   <input type="file" id="player-cover-input" accept="image/*" hidden />
+  <input type="file" id="player-bg-input" accept="image/*" hidden />
 
   <div class="service-sheet" id="service-sheet" hidden>
     <div class="service-sheet__scroll safe-top safe-bottom">

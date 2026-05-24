@@ -28,6 +28,7 @@ const Store = (() => {
       theme: 'dark',
       accentFromCover: false,
       playerCoverOverride: '',
+      playerBgOverride: '',
       bgBlur: 56,
       bgBrightness: 45,
     }
