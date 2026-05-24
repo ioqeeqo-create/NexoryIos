@@ -86,6 +86,13 @@ const Store = (() => {
     if (t.source === 'soundcloud') {
       if (!t.scClientId && get().scClientId) t.scClientId = get().scClientId
       if (t.sc_transcoding && !t.scTranscoding) t.scTranscoding = t.sc_transcoding
+      const link = String(t.url || t.permalink_url || t.permalink || t.id || '')
+      const num =
+        (/^\d+$/.test(String(t.id)) ? String(t.id) : null) ||
+        (link.match(/soundcloud\.com\/tracks\/(\d+)/i) || [])[1] ||
+        (link.match(/api-v2\.soundcloud\.com\/tracks\/(\d+)/i) || [])[1] ||
+        (String(t.id).match(/(\d{6,})/) || [])[1]
+      if (num) t.id = num
       if (!t.scTranscoding) delete t.url
     }
     return t

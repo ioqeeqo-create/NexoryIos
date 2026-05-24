@@ -130,7 +130,8 @@ const Api = (() => {
   async function resolve(track) {
     const src = String(track?.source || '').toLowerCase()
     const mode = apiMode()
-    if (src === 'soundcloud' && hasGateway() && mode !== 'direct') {
+    const preferGateway = hasGateway() && mode !== 'direct' && (src === 'soundcloud' || src === 'yandex')
+    if (preferGateway) {
       try {
         const gw = await post(
           '/resolve',
@@ -178,37 +179,59 @@ const Api = (() => {
   async function waveFetch(opts = {}) {
     const mode = apiMode()
     const hasYm = Boolean(String(cfg().yandexToken || '').trim())
-    if (hasYm && mode !== 'gateway') {
+    if (hasGateway() && mode !== 'direct') {
       try {
-        const out = await DirectApi.waveFetch(opts)
+        const out = await post(
+          '/yandex/wave/fetch',
+          {
+            token: cfg().yandexToken,
+            mode: opts.mode || 'default',
+            resetSession: !!opts.resetSession,
+            radioSessionId: opts.radioSessionId || cfg().yandexRotor?.radioSessionId,
+            batchAnchorId: opts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
+          },
+          TIMEOUT.wave,
+        )
         if (out?.ok) return out
-        if (mode === 'direct') throw new Error(out?.error || 'Волна недоступна')
+        if (mode === 'gateway') throw new Error(out?.error || 'Волна недоступна')
       } catch (e) {
-        if (mode === 'direct' || !hasGateway()) throw e
+        if (mode === 'gateway' || !hasYm) throw e
       }
     }
-    if (!hasGateway()) {
+    if (!hasYm) {
       throw new Error('Нужен токен Яндекса в настройках')
     }
     try {
-      return await post(
-        '/yandex/wave/fetch',
-        {
-          token: cfg().yandexToken,
-          mode: opts.mode || 'default',
-          resetSession: !!opts.resetSession,
-          radioSessionId: opts.radioSessionId || cfg().yandexRotor?.radioSessionId,
-          batchAnchorId: opts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
-        },
-        TIMEOUT.wave,
-      )
+      return await DirectApi.waveFetch(opts)
     } catch (e) {
-      if (hasYm && /404|not found/i.test(String(e.message || e))) {
-        const out = await DirectApi.waveFetch(opts)
-        if (out?.ok) return out
+      if (hasGateway() && /404|not found|unauthorized/i.test(String(e.message || e))) {
+        return post(
+          '/yandex/wave/fetch',
+          {
+            token: cfg().yandexToken,
+            mode: opts.mode || 'default',
+            resetSession: !!opts.resetSession,
+            radioSessionId: opts.radioSessionId || cfg().yandexRotor?.radioSessionId,
+            batchAnchorId: opts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
+          },
+          TIMEOUT.wave,
+        )
       }
       throw e
     }
+  }
+
+  async function fetchLyrics(track, duration = 0) {
+    if (hasGateway()) {
+      try {
+        const out = await post('/lyrics', { track, duration, tokens: tokens() }, TIMEOUT.default)
+        if (out.ok && (out.synced || out.plain)) return out
+        if (apiMode() === 'gateway') return out
+      } catch (e) {
+        if (apiMode() === 'gateway') throw e
+      }
+    }
+    return { ok: false }
   }
 
   async function waveFeedback(payload) {
@@ -228,6 +251,7 @@ const Api = (() => {
     validateVk,
     waveFetch,
     waveFeedback,
+    fetchLyrics,
     tokens,
     health,
     isConfigured,

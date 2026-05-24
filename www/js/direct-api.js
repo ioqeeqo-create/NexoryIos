@@ -393,7 +393,7 @@ const DirectApi = (() => {
 
   async function fetchScTrackTranscoding(trackId, clientId) {
     const cid = String(clientId || '').trim()
-    const id = String(trackId || '').trim()
+    const id = String(trackId || '').replace(/\D/g, '') || String(trackId || '').trim()
     if (!cid || !id) return null
     const r = await fetchJson(`https://api-v2.soundcloud.com/tracks/${encodeURIComponent(id)}?client_id=${encodeURIComponent(cid)}`, {
       headers: {

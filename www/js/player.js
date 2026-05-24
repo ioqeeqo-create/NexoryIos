@@ -119,6 +119,22 @@ const Player = (() => {
     return `${m}:${String(s).padStart(2, '0')}`
   }
 
+  function friendlyStreamError(track, rawMsg = '') {
+    const msg = String(rawMsg || '').trim()
+    const code = audio?.error?.code
+    if (/load failed/i.test(msg) || code === 2 || code === 4) {
+      if (track?.source === 'yandex') {
+        return 'Яндекс: поток не открылся. Проверь токен и gateway на VPS'
+      }
+      if (track?.source === 'soundcloud') {
+        return 'SoundCloud: поток не открылся. Обнови VPS (git pull) и Client ID'
+      }
+      return 'Поток не загрузился — попробуй другой трек'
+    }
+    if (/not supported/i.test(msg) || code === 4) return 'Поток не поддерживается на iOS'
+    return msg || 'Поток недоступен'
+  }
+
   function updateMediaSession(track) {
     if (!track || !('mediaSession' in navigator)) return
     const artwork = []
@@ -167,7 +183,12 @@ const Player = (() => {
         fn(val)
       }
       const onReady = () => finish(resolve)
-      const onErr = () => finish(reject, new Error('Поток недоступен — попробуй другой трек'))
+      const onErr = () => {
+        const code = audio.error?.code
+        const hint =
+          code === 2 ? 'сеть' : code === 3 ? 'декодер' : code === 4 ? 'формат' : 'источник'
+        finish(reject, new Error(`Поток недоступен (${hint})`))
+      }
       const timer = setTimeout(() => finish(reject, new Error('Таймаут загрузки трека')), timeoutMs)
       audio.addEventListener('canplay', onReady, { once: true })
       audio.addEventListener('loadedmetadata', onReady, { once: true })
@@ -227,22 +248,20 @@ const Player = (() => {
       }
       emit('playing', { track })
     } catch (e) {
-      // SoundCloud links occasionally expire quickly; retry once with fresh resolve.
-      if (track?.source === 'soundcloud' && !track.__scRetried) {
-        track.__scRetried = true
+      const needRetry =
+        (track?.source === 'soundcloud' || track?.source === 'yandex') &&
+        !track.__streamRetried
+      if (needRetry) {
+        track.__streamRetried = true
         delete track.url
-        delete track.scTranscoding
+        if (track.source === 'soundcloud') delete track.scTranscoding
         try {
           return await playTrackAt(i, fromLabel)
         } catch (_) {}
       }
-      const msg = String(e?.message || e)
-      if (track?.source === 'soundcloud' && /Поток недоступен|not supported|Таймаут/i.test(msg)) {
-        emit('error', 'SC поток недоступен. Проверь SC Client ID в настройках и попробуй другой трек.')
-        throw e
-      }
+      const msg = friendlyStreamError(track, e?.message || e)
       emit('error', msg)
-      throw e
+      throw new Error(msg)
     }
   }
 
