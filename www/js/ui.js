@@ -460,19 +460,39 @@ const UI = (() => {
     }
   }
 
+  function likesCoversHtml(tracks) {
+    const slice = tracks.slice(0, 3)
+    if (!slice.length) {
+      return '<span class="home-likes-pill__ph"><span data-icon="heart" data-icon-class="ui-icon"></span></span>'
+    }
+    return slice.map((t, i) => (
+      `<span class="home-likes-pill__cover home-likes-pill__cover--${i + 1}">${coverOnly(t.cover)}</span>`
+    )).join('')
+  }
+
+  function formatTrackCount(n) {
+    if (!n) return '0 треков'
+    const mod10 = n % 10
+    const mod100 = n % 100
+    if (mod10 === 1 && mod100 !== 11) return `${n} трек`
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${n} трека`
+    return `${n} треков`
+  }
+
   function renderHome() {
     const s = Store.get()
     const recentEl = $('#recent-list')
-    const favEl = $('#favorites-preview')
     if (recentEl) {
       const items = s.recent.slice(0, 12)
       recentEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Включи волну или найди трек</div>'
       bindTrackClicks(recentEl, items, 'Недавние')
     }
-    if (favEl) {
-      const items = s.likes.slice(0, 12)
-      favEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Нет лайков</div>'
-      bindTrackClicks(favEl, items, 'Любимые')
+    const likesCovers = $('#home-likes-covers')
+    const likesCount = $('#home-likes-count')
+    if (likesCount) likesCount.textContent = formatTrackCount(s.likes.length)
+    if (likesCovers) {
+      likesCovers.innerHTML = likesCoversHtml(s.likes)
+      Icons.mount(likesCovers)
     }
     highlightPlayingTrack(Player.current())
   }
@@ -869,6 +889,30 @@ const UI = (() => {
     $('#btn-open-likes')?.addEventListener('click', () => {
       const s = Store.get()
       openPlaylistView({ id: '__likes', name: 'Любимые', tracks: s.likes }, { isLikes: true })
+    })
+
+    $('#btn-home-likes-play')?.addEventListener('click', async () => {
+      const likes = Store.get().likes
+      if (!likes.length) {
+        toast('Добавь треки в любимые')
+        return
+      }
+      if (busy) return
+      Player.primeAudio()
+      if (!Api.isConfigured()) {
+        toast('Сначала настрой gateway')
+        showSetupGate()
+        return
+      }
+      busy = true
+      toast('Включаем любимые…')
+      try {
+        await Player.playQueue(likes, 0, 'Любимые')
+      } catch (e) {
+        toast(e.message || 'Ошибка воспроизведения')
+      } finally {
+        busy = false
+      }
     })
 
     $('#library-playlists')?.addEventListener('click', (e) => {

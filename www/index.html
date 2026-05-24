@@ -74,12 +74,14 @@
           <div class="section-head"><h2 class="section-title">Недавние</h2></div>
           <div class="h-scroll" id="recent-list" data-track-list></div>
         </div>
-        <div class="section">
-          <div class="section-head">
-            <h2 class="section-title">Любимые</h2>
-            <button type="button" class="link-btn" data-goto="library">Все</button>
-          </div>
-          <div class="h-scroll" id="favorites-preview" data-track-list></div>
+        <div class="section section--likes">
+          <button type="button" class="home-likes-pill" id="btn-home-likes-play">
+            <span class="home-likes-pill__covers" id="home-likes-covers"></span>
+            <span class="home-likes-pill__meta">
+              <span class="home-likes-pill__title">Любимые</span>
+              <span class="home-likes-pill__count" id="home-likes-count">0 треков</span>
+            </span>
+          </button>
         </div>
       </section>
 
@@ -211,11 +213,11 @@
           <span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>
         </div>
         <div class="mini-meta">
-          <div class="mini-title" id="mini-title">—</div>
+          <div class="mini-title pixel-text" id="mini-title">—</div>
           <div class="mini-artist" id="mini-artist">—</div>
         </div>
       </button>
-      <div class="mini-controls">
+      <div class="mini-controls" aria-label="Управление">
         <button type="button" class="icon-btn icon-btn--sm" id="mini-prev" data-icon="skip-back" aria-label="Назад"></button>
         <button type="button" class="icon-btn icon-btn--sm" id="mini-play" data-icon="play"></button>
         <button type="button" class="icon-btn icon-btn--sm" id="mini-next" data-icon="skip-forward" aria-label="Вперёд"></button>
@@ -248,7 +250,7 @@
           <button type="button" class="fp-cover-btn fp-cover-btn--add" id="full-add" data-icon="plus" aria-label="Добавить"></button>
         </div>
         <div class="fp-meta">
-          <h2 class="fp-title" id="full-title">—</h2>
+          <h2 class="fp-title pixel-text" id="full-title">—</h2>
           <p class="fp-artist" id="full-artist">—</p>
         </div>
       </div>
