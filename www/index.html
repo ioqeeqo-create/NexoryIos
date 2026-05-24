@@ -32,7 +32,7 @@
   </div>
 
   <div id="app">
-    <header class="top-bar safe-top" id="top-bar">
+    <header class="top-bar" id="top-bar">
       <div class="top-bar__brand">
         <img class="brand-mark" src="assets/nexory-icon.png" alt="" />
         <span class="brand-pixel">Nexory</span>
@@ -182,17 +182,17 @@
           <div class="settings-group">
             <h3 class="settings-label">Подключение сервисов</h3>
             <button type="button" class="service-row" data-service-open="yandex">
-              <img class="service-row__logo" src="assets/source-yandex-wave.svg" alt="" />
+              <img class="service-row__logo" src="assets/source-yandex-music.png" alt="" />
               <span class="service-row__text"><span class="service-row__name">Яндекс Музыка</span><span class="service-row__state" id="svc-yandex-state">Не настроено</span></span>
               <span data-icon="chevron-right" data-icon-class="ui-icon service-row__chev"></span>
             </button>
             <button type="button" class="service-row" data-service-open="vk">
-              <img class="service-row__logo service-row__logo--vk" src="assets/source-vk.svg" alt="" />
+              <img class="service-row__logo service-row__logo--vk" src="assets/source-vk.png" alt="" />
               <span class="service-row__text"><span class="service-row__name">VKontakte</span><span class="service-row__state" id="svc-vk-state">Не настроено</span></span>
               <span data-icon="chevron-right" data-icon-class="ui-icon service-row__chev"></span>
             </button>
             <button type="button" class="service-row" data-service-open="soundcloud">
-              <img class="service-row__logo" src="assets/flow-mark.svg" alt="" />
+              <img class="service-row__logo" src="assets/source-soundcloud.png" alt="" />
               <span class="service-row__text"><span class="service-row__name">SoundCloud</span><span class="service-row__state" id="svc-sc-state">Опционально</span></span>
               <span data-icon="chevron-right" data-icon-class="ui-icon service-row__chev"></span>
             </button>
@@ -228,35 +228,41 @@
 
   <div class="full-player" id="full-player" hidden>
     <div class="full-player__bg" id="full-bg"></div>
-    <div class="full-player__content">
-      <div class="full-player__top">
-        <button type="button" class="full-player__close" id="full-close" data-icon="chevron-down"></button>
-        <p class="full-player__source" id="full-from"></p>
+    <div class="full-player__sheet">
+      <div class="fp-header">
+        <button type="button" class="icon-btn fp-header__btn" id="full-close" data-icon="x" aria-label="Закрыть"></button>
+        <div class="fp-header__pill" id="full-pill">
+          <span data-icon="library" data-icon-class="ui-icon"></span>
+          <span id="full-from">—</span>
+        </div>
+        <button type="button" class="icon-btn fp-header__btn fp-header__btn--ghost" id="full-more" data-icon="ellipsis" aria-label="Ещё"></button>
       </div>
-      <div class="full-player__mid">
+      <div class="fp-cover-block">
         <div class="full-cover-wrap" id="full-cover-wrap">
           <span class="full-cover-ph" data-icon="music-2" data-icon-class="ui-icon lg cover-ph"></span>
           <img class="full-cover" id="full-cover" alt="" hidden />
+          <button type="button" class="fp-cover-btn fp-cover-btn--like" id="full-like" data-icon="heart" aria-label="Like"></button>
+          <button type="button" class="fp-cover-btn fp-cover-btn--add" id="full-add" data-icon="plus" aria-label="Добавить"></button>
         </div>
-        <div class="full-cover-dots" aria-hidden="true"><span></span><span></span></div>
-        <div class="full-meta">
-          <h2 class="full-title" id="full-title">—</h2>
-          <p class="full-artist" id="full-artist">—</p>
+        <div class="fp-meta">
+          <h2 class="fp-title" id="full-title">—</h2>
+          <p class="fp-artist" id="full-artist">—</p>
         </div>
       </div>
-      <div class="full-player__bottom">
-        <div class="progress-row" id="progress-row">
+      <div class="fp-wave-block" id="progress-row">
+        <div class="waveform" id="waveform" aria-hidden="true"></div>
+        <div class="fp-times">
           <span class="time" id="time-current">0:00</span>
-          <input type="range" class="seek" id="seek" min="0" max="1000" value="0" />
           <span class="time" id="time-total">0:00</span>
         </div>
-        <div class="full-controls">
-          <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
-          <button type="button" class="icon-btn icon-btn--lg" id="full-prev" data-icon="skip-back"></button>
-          <button type="button" class="icon-btn icon-btn--xl" id="full-play" data-icon="play"></button>
-          <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
-          <button type="button" class="icon-btn" id="full-like" data-icon="heart" aria-label="Like"></button>
-        </div>
+        <input type="range" class="seek seek--wave" id="seek" min="0" max="1000" value="0" />
+      </div>
+      <div class="fp-controls-panel">
+        <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
+        <button type="button" class="icon-btn icon-btn--lg" id="full-prev" data-icon="skip-back"></button>
+        <button type="button" class="icon-btn icon-btn--xl" id="full-play" data-icon="play"></button>
+        <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
+        <button type="button" class="icon-btn" id="full-repeat" data-icon="repeat" aria-label="Repeat"></button>
       </div>
     </div>
   </div>
@@ -323,6 +329,27 @@
       </div>
     </div>
     <div class="v-list v-list--tracks playlist-view__tracks" id="playlist-view-tracks" data-track-list></div>
+  </div>
+
+  <div class="sheet" id="playlist-actions-sheet" hidden>
+    <div class="sheet__backdrop" id="playlist-actions-close"></div>
+    <div class="sheet__panel sheet__panel--actions safe-bottom">
+      <div class="pl-actions-head">
+        <div class="pl-actions-head__meta">
+          <div class="pl-actions-head__name" id="pl-actions-name">—</div>
+          <div class="pl-actions-head__count" id="pl-actions-count">0 треков</div>
+        </div>
+        <div class="pl-actions-head__icon" id="pl-actions-icon" data-icon="library" data-icon-class="ui-icon"></div>
+      </div>
+      <div class="pl-actions-group">
+        <button type="button" class="pl-action" id="pl-action-play"><span data-icon="play" data-icon-class="ui-icon"></span><span>Воспроизвести</span></button>
+        <button type="button" class="pl-action" id="pl-action-shuffle"><span data-icon="shuffle" data-icon-class="ui-icon"></span><span>Перемешать</span></button>
+        <button type="button" class="pl-action" id="pl-action-wave"><span data-icon="audio-lines" data-icon-class="ui-icon"></span><span>Волна по плейлисту</span></button>
+      </div>
+      <div class="pl-actions-group">
+        <button type="button" class="pl-action pl-action--danger" id="pl-action-delete"><span data-icon="trash-2" data-icon-class="ui-icon"></span><span>Удалить</span></button>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast" hidden></div>

@@ -47,6 +47,17 @@ const Player = (() => {
     return { yandex: 'Яндекс Музыка', vk: 'VK Музыка', soundcloud: 'SoundCloud' }[src] || src
   }
 
+  function buildWaveform() {
+    const el = document.getElementById('waveform')
+    if (!el || el.childElementCount) return
+    for (let i = 0; i < 32; i++) {
+      const bar = document.createElement('span')
+      bar.style.height = `${20 + Math.random() * 80}%`
+      bar.style.animationDelay = `${(i * 0.04).toFixed(2)}s`
+      el.appendChild(bar)
+    }
+  }
+
   function fmt(sec) {
     if (!Number.isFinite(sec) || sec < 0) return '0:00'
     const m = Math.floor(sec / 60)
@@ -274,12 +285,14 @@ const Player = (() => {
   })
   audio.addEventListener('play', () => {
     document.querySelector('.wave-row')?.classList.add('is-playing')
+    document.getElementById('waveform')?.classList.remove('paused')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
     updateMediaSession(current())
     emit('state', { paused: false })
   })
   audio.addEventListener('pause', () => {
     document.querySelector('.wave-row')?.classList.remove('is-playing')
+    document.getElementById('waveform')?.classList.add('paused')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
     emit('state', { paused: true })
   })
@@ -303,6 +316,7 @@ const Player = (() => {
   })
 
   wireMediaSessionActions()
+  buildWaveform()
 
   return {
     audio,
@@ -334,5 +348,6 @@ const Player = (() => {
     playTrackAt,
     isShuffle: () => shuffle,
     primeAudio,
+    buildWaveform,
   }
 })()

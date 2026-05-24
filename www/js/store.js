@@ -114,5 +114,10 @@ const Store = (() => {
     return patch({ playlists })
   }
 
-  return { get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor, addPlaylist, importPlaylists, getPlaylist, updatePlaylist }
+  function deletePlaylist(id) {
+    const s = get()
+    return patch({ playlists: s.playlists.filter((p) => p.id !== id) })
+  }
+
+  return { get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor, addPlaylist, importPlaylists, getPlaylist, updatePlaylist, deletePlaylist }
 })()

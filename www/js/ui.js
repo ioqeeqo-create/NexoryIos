@@ -7,23 +7,27 @@ const UI = (() => {
   let seeking = false
   let openServiceId = null
   let tokenVisible = false
+  let actionsPlaylistId = null
+  let plPressTimer = null
+  let plPressMoved = false
+  let plLongPressHandled = false
   const trackLists = new WeakMap()
 
   const SERVICE_META = {
     yandex: {
-      logo: 'assets/source-yandex-wave.svg',
+      logo: 'assets/source-yandex-music.png',
       storeKey: 'yandexToken',
       helpUrl: 'https://telegra.ph/Kak-podklyuchit-YAndeks-Muzyku-vo-Flow-05-03',
       helpText: 'Как получить токен Яндекс',
     },
     vk: {
-      logo: 'assets/source-vk.svg',
+      logo: 'assets/source-vk.png',
       storeKey: 'vkToken',
       helpUrl: 'https://telegra.ph/Kak-podklyuchit-VKontakte-vo-Flow-05-04',
       helpText: 'Получить токен VK',
     },
     soundcloud: {
-      logo: 'assets/flow-mark.svg',
+      logo: 'assets/source-soundcloud.png',
       storeKey: 'scClientId',
       helpUrl: '',
       helpText: '',
@@ -66,7 +70,7 @@ const UI = (() => {
     return `<img class="source-icon" src="${src}" alt="" loading="lazy" />`
   }
 
-  function sourceBadgeInline(source) {
+  function sourceBadgeCorner(source) {
     const map = {
       yandex: 'assets/source-yandex-music.png',
       vk: 'assets/source-vk.png',
@@ -74,7 +78,7 @@ const UI = (() => {
     }
     const src = map[source]
     if (!src) return ''
-    return `<span class="track-source-inline"><img src="${src}" alt="" loading="lazy" /></span>`
+    return `<span class="source-badge-corner"><img src="${src}" alt="" loading="lazy" /></span>`
   }
 
   function coverOnly(url) {
@@ -85,7 +89,7 @@ const UI = (() => {
   }
 
   function coverBlock(source, url) {
-    return coverOnly(url)
+    return `${coverOnly(url)}${sourceBadgeCorner(source)}`
   }
 
   function trackRowHtml(track, idx) {
@@ -93,19 +97,115 @@ const UI = (() => {
       <div class="track-cover">${coverBlock(track.source, track.cover)}</div>
       <div class="track-row__meta">
         <div class="track-row__title">${esc(track.title)}</div>
-        <div class="track-row__artist">${esc(track.artist)}${sourceBadgeInline(track.source)}</div>
+        <div class="track-row__artist">${esc(track.artist)}</div>
       </div>
     </button>`
   }
 
   function cardHtml(track) {
     return `<button type="button" class="card-tile" data-key="${Store.trackKey(track)}">
-      <div class="card-tile__cover">${coverOnly(track.cover)}</div>
+      <div class="card-tile__cover">${coverBlock(track.source, track.cover)}</div>
       <div class="card-tile__meta">
         <div class="card-tile__title">${esc(track.title)}</div>
-        <div class="card-tile__sub">${esc(track.artist)}${sourceBadgeInline(track.source)}</div>
+        <div class="card-tile__sub">${esc(track.artist)}</div>
       </div>
     </button>`
+  }
+
+  function highlightPlayingTrack(track) {
+    const key = track ? Store.trackKey(track) : ''
+    document.querySelectorAll('.card-tile, .track-row').forEach((el) => {
+      el.classList.toggle('is-playing', !!key && el.dataset.key === key)
+    })
+    const from = Player.playingFrom() || ''
+    const waveBtn = $('#btn-wave-play')
+    if (waveBtn) {
+      waveBtn.classList.toggle('is-playing', !!track && (from.includes('волна') || from.includes('Моя волна')))
+    }
+  }
+
+  function updateWaveformProgress(ratio) {
+    const wf = $('#waveform')
+    if (!wf) return
+    const bars = wf.children
+    if (!bars.length) return
+    const r = Math.max(0, Math.min(1, ratio))
+    for (let i = 0; i < bars.length; i++) {
+      bars[i].classList.toggle('played', (i + 0.5) / bars.length <= r)
+    }
+  }
+
+  function getActionsPlaylist() {
+    if (!actionsPlaylistId) return null
+    return Store.getPlaylist(actionsPlaylistId)
+  }
+
+  function openPlaylistActionsSheet(pl) {
+    if (!pl || pl.id === '__likes') return
+    actionsPlaylistId = pl.id
+    const sheet = $('#playlist-actions-sheet')
+    if (!sheet) return
+    $('#pl-actions-name').textContent = pl.name
+    $('#pl-actions-count').textContent = `${pl.tracks.length} треков`
+    const icon = $('#pl-actions-icon')
+    if (icon) {
+      if (pl.coverData) {
+        icon.innerHTML = `<img src="${esc(pl.coverData)}" alt="" />`
+      } else {
+        icon.dataset.icon = 'library'
+        icon.innerHTML = Icons.svg('library', 'ui-icon')
+      }
+    }
+    sheet.hidden = false
+    Icons.mount(sheet)
+  }
+
+  function closePlaylistActionsSheet() {
+    actionsPlaylistId = null
+    const sheet = $('#playlist-actions-sheet')
+    if (sheet) sheet.hidden = true
+  }
+
+  async function playActionsPlaylist(shuffleMode = false) {
+    const pl = getActionsPlaylist()
+    if (!pl?.tracks?.length) return toast('Плейлист пуст')
+    closePlaylistActionsSheet()
+    Player.primeAudio()
+    try {
+      const tracks = shuffleMode ? pl.tracks.slice().sort(() => Math.random() - 0.5) : pl.tracks
+      const label = shuffleMode ? `${pl.name} · shuffle` : pl.name
+      await Player.playQueue(tracks, 0, label, { shuffle: shuffleMode })
+    } catch (e) {
+      toast(e.message)
+    }
+  }
+
+  function bindPlaylistLongPress(container) {
+    if (!container || container.dataset.plPressBound) return
+    container.dataset.plPressBound = '1'
+    container.addEventListener('pointerdown', (e) => {
+      const card = e.target.closest('[data-pl-id]')
+      if (!card) return
+      plPressMoved = false
+      clearTimeout(plPressTimer)
+      const id = card.dataset.plId
+      plPressTimer = setTimeout(() => {
+        if (plPressMoved) return
+        const pl = Store.getPlaylist(id)
+        if (pl) {
+          plLongPressHandled = true
+          if (navigator.vibrate) navigator.vibrate(12)
+          openPlaylistActionsSheet(pl)
+        }
+      }, 480)
+    })
+    container.addEventListener('pointermove', () => { plPressMoved = true; clearTimeout(plPressTimer) })
+    container.addEventListener('pointerup', () => {
+      clearTimeout(plPressTimer)
+      setTimeout(() => { plLongPressHandled = false }, 320)
+    })
+    container.addEventListener('pointercancel', () => clearTimeout(plPressTimer))
+    container.addEventListener('pointerleave', () => clearTimeout(plPressTimer))
   }
 
   function registerTrackList(container, tracks, playAllFrom) {
@@ -199,6 +299,7 @@ const UI = (() => {
 
   function openFullPlayer() {
     setFullPlayer(true)
+    Icons.mount($('#full-player'))
   }
 
   function closeFullPlayer() {
@@ -278,6 +379,7 @@ const UI = (() => {
       favEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Нет лайков</div>'
       bindTrackClicks(favEl, items, 'Любимые')
     }
+    highlightPlayingTrack(Player.current())
   }
 
   function playlistCoverHtml(pl) {
@@ -308,17 +410,30 @@ const UI = (() => {
         ? pl.tracks.map((t, i) => trackRowHtml(t, i)).join('')
         : '<p class="empty-hint">Плейлист пуст</p>'
       bindTrackClicks(tracksEl, pl.tracks, pl.name)
+      highlightPlayingTrack(Player.current())
     }
-    if (view) view.hidden = false
+    if (view) {
+      view.hidden = false
+      view.classList.remove('is-closing')
+    }
     document.body.classList.add('playlist-open')
     Icons.mount(view)
   }
 
   function closePlaylistView() {
-    openPlaylistId = null
     const view = $('#playlist-view')
-    if (view) view.hidden = true
-    document.body.classList.remove('playlist-open')
+    if (!view || view.hidden) {
+      openPlaylistId = null
+      document.body.classList.remove('playlist-open')
+      return
+    }
+    view.classList.add('is-closing')
+    setTimeout(() => {
+      openPlaylistId = null
+      view.hidden = true
+      view.classList.remove('is-closing')
+      document.body.classList.remove('playlist-open')
+    }, 280)
   }
 
   function renderLibrary() {
@@ -342,6 +457,7 @@ const UI = (() => {
       </button>
     `).join('')
     Icons.mount(plEl)
+    bindPlaylistLongPress(plEl)
   }
 
   function openPlaylistCreateSheet(open) {
@@ -520,7 +636,7 @@ const UI = (() => {
     setCover($('#mini-cover-wrap'), $('#mini-cover'), track, { playerOnly: true })
     $('#full-title').textContent = track.title
     $('#full-artist').textContent = track.artist
-    $('#full-from').textContent = from ? `Играет из ${from}` : ''
+    $('#full-from').textContent = from || 'Nexory'
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
     setCover($('#full-cover-wrap'), $('#full-cover'), track, { playerOnly: true })
     applyPlayerVisuals(track)
@@ -528,6 +644,7 @@ const UI = (() => {
       const accentUrl = getPlayerBgUrl(track) || getPlayerCoverUrl(track)
       if (accentUrl) Theme.extractAccentFromUrl(accentUrl)
     }
+    highlightPlayingTrack(track)
   }
 
   function setPlayIcon(paused) {
@@ -635,6 +752,7 @@ const UI = (() => {
     $('#library-playlists')?.addEventListener('click', (e) => {
       const card = e.target.closest('[data-pl-id]')
       if (!card) return
+      if (plLongPressHandled) return
       const pl = Store.getPlaylist(card.dataset.plId)
       if (pl) openPlaylistView(pl)
     })
@@ -645,6 +763,26 @@ const UI = (() => {
     $('#btn-import-run')?.addEventListener('click', () => runImport())
 
     $('#playlist-view-back')?.addEventListener('click', () => closePlaylistView())
+
+    $('#playlist-actions-close')?.addEventListener('click', () => closePlaylistActionsSheet())
+    $('#pl-action-play')?.addEventListener('click', () => playActionsPlaylist(false))
+    $('#pl-action-shuffle')?.addEventListener('click', () => playActionsPlaylist(true))
+    $('#pl-action-wave')?.addEventListener('click', async () => {
+      const pl = getActionsPlaylist()
+      if (!pl?.tracks?.length) return toast('Плейлист пуст')
+      closePlaylistActionsSheet()
+      toast('Волна по плейлисту скоро')
+    })
+    $('#pl-action-delete')?.addEventListener('click', () => {
+      const pl = getActionsPlaylist()
+      if (!pl) return
+      Store.deletePlaylist(pl.id)
+      closePlaylistActionsSheet()
+      if (openPlaylistId === pl.id) closePlaylistView()
+      renderLibrary()
+      toast('Плейлист удалён')
+    })
+
     $('#playlist-view-play')?.addEventListener('click', async () => {
       const pl = openPlaylistId === '__likes'
         ? { name: 'Любимые', tracks: Store.get().likes }
@@ -902,9 +1040,9 @@ const UI = (() => {
     wireSeek()
 
     Player.on('trackchange', ({ track }) => updatePlayerUI(track))
-    Player.on('playing', () => {
+    Player.on('playing', ({ track }) => {
       $('#btn-wave-play')?.classList.add('is-playing')
-      openFullPlayer()
+      highlightPlayingTrack(track)
     })
     Player.on('state', ({ paused }) => {
       setPlayIcon(paused)
@@ -913,8 +1051,10 @@ const UI = (() => {
     Player.on('time', ({ current, duration }) => {
       if (!seeking) $('#time-current').textContent = Player.fmt(current)
       $('#time-total').textContent = Player.fmt(duration)
-      if (!seeking && duration > 0) {
-        $('#seek').value = String(Math.floor((current / duration) * 1000))
+      if (duration > 0) {
+        const ratio = current / duration
+        if (!seeking) $('#seek').value = String(Math.floor(ratio * 1000))
+        updateWaveformProgress(ratio)
       }
     })
     Player.on('error', (msg) => toast(msg))
@@ -929,6 +1069,7 @@ const UI = (() => {
       const ratio = Number(seek.value) / 1000
       const dur = Player.audio?.duration || 0
       if (dur > 0) $('#time-current').textContent = Player.fmt(dur * ratio)
+      updateWaveformProgress(ratio)
       if (commit) Player.seek(ratio)
     }
 
@@ -953,6 +1094,7 @@ const UI = (() => {
       const ratio = Number(seek.value) / 1000
       const dur = Player.audio?.duration || 0
       if (dur > 0) $('#time-current').textContent = Player.fmt(dur * ratio)
+      updateWaveformProgress(ratio)
       if (seeking) Player.seek(ratio)
     })
     seek.addEventListener('change', endSeek)
@@ -965,7 +1107,9 @@ const UI = (() => {
     document.body.dataset.screen = 'home'
     closeFullPlayer()
     closePlaylistView()
+    closePlaylistActionsSheet()
     closeServiceSheet()
+    Player.buildWaveform()
     Icons.mount()
     showSettingsPane('custom')
     Theme.apply(Store.get())
