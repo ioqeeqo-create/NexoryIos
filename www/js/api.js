@@ -91,7 +91,12 @@ const Api = (() => {
       body: JSON.stringify(body),
     }, ms)
     const data = await r.json().catch(() => ({}))
-    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`)
+    if (!r.ok) {
+      if (r.status === 401 && String(data.error || '').toLowerCase() === 'unauthorized') {
+        throw new Error('Неверный Gateway Secret — сверь с /opt/nexory/server/.env на VPS')
+      }
+      throw new Error(data.error || `HTTP ${r.status}`)
+    }
     if (data.ok === false && data.error) throw new Error(data.error)
     return data
   }
