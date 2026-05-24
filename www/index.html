@@ -43,7 +43,8 @@
     <main id="screens">
       <section class="screen screen--active" data-screen="home">
         <div id="gateway-banner" class="status-banner" hidden></div>
-        <button type="button" class="wave-row" id="btn-wave-play" aria-label="Моя волна">
+        <div class="home-hero">
+          <button type="button" class="wave-row" id="btn-wave-play" aria-label="Моя волна">
           <span class="wave-row__play"><span data-icon="play" data-icon-class="ui-icon"></span></span>
           <span class="wave-row__body">
             <span class="wave-row__title">Моя волна</span>
@@ -66,6 +67,7 @@
           </span>
         </button>
         <p class="wave-sub" id="wave-source-label">Нажми — погрузиться в волну</p>
+        </div>
         <div class="section">
           <div class="section-head"><h2 class="section-title">Недавние</h2></div>
           <div class="h-scroll" id="recent-list" data-track-list></div>
