@@ -125,15 +125,7 @@ const UI = (() => {
   }
 
   function updateWaveformProgress(ratio) {
-    const wf = $('#waveform')
-    if (!wf) return
-    const bars = wf.children
-    if (!bars.length) return
-    const r = Math.max(0, Math.min(1, ratio))
-    for (let i = 0; i < bars.length; i++) {
-      const played = (i + 0.5) / bars.length <= r
-      bars[i].classList.toggle('played', played)
-    }
+    Player.drawWaveform(ratio)
   }
 
   function syncShellLayout() {
@@ -353,6 +345,11 @@ const UI = (() => {
   function openFullPlayer() {
     setFullPlayer(true)
     Icons.mount($('#full-player'))
+    requestAnimationFrame(() => {
+      Player.buildWaveform()
+      const d = Player.audio?.duration || 0
+      if (d > 0) Player.drawWaveform((Player.audio?.currentTime || 0) / d)
+    })
   }
 
   function closeFullPlayer() {
@@ -708,7 +705,12 @@ const UI = (() => {
     applyPlayerVisuals(track)
     if (Store.get().accentFromCover) {
       const accentUrl = getPlayerBgUrl(track) || getPlayerCoverUrl(track)
-      if (accentUrl) Theme.extractAccentFromUrl(accentUrl)
+      if (accentUrl) {
+        Theme.extractAccentFromUrl(accentUrl).then(() => {
+          const d = Player.audio?.duration || 0
+          if (d > 0) Player.drawWaveform((Player.audio?.currentTime || 0) / d)
+        })
+      }
     }
     highlightPlayingTrack(track)
   }

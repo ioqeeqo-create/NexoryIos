@@ -48,20 +48,63 @@ const Player = (() => {
   }
 
   let waveformHeights = []
+  let waveformRatio = 0
 
   function buildWaveform() {
     const el = document.getElementById('waveform')
     if (!el) return
     if (!waveformHeights.length) {
-      waveformHeights = Array.from({ length: 48 }, () => 0.12 + Math.random() * 0.88)
+      waveformHeights = Array.from({ length: 72 }, (_, i) => {
+        const t = i * 0.19
+        const wave = Math.abs(Math.sin(t)) * 0.62 + Math.abs(Math.sin(t * 2.4 + 0.6)) * 0.22
+        return 0.12 + wave * 0.76
+      })
     }
-    if (el.childElementCount === waveformHeights.length) return
-    el.innerHTML = ''
-    waveformHeights.forEach((h) => {
-      const bar = document.createElement('span')
-      bar.style.setProperty('--bar-h', h.toFixed(3))
-      el.appendChild(bar)
-    })
+    if (el.querySelector('canvas')) {
+      drawWaveform(waveformRatio)
+      return
+    }
+    el.innerHTML = '<canvas class="waveform-canvas" id="waveform-canvas" aria-hidden="true"></canvas>'
+    drawWaveform(waveformRatio)
+  }
+
+  function drawWaveform(ratio = 0) {
+    waveformRatio = Math.max(0, Math.min(1, ratio))
+    const canvas = document.getElementById('waveform-canvas')
+    const wrap = document.getElementById('waveform')
+    if (!canvas || !wrap) return
+    const dpr = window.devicePixelRatio || 1
+    const w = wrap.clientWidth
+    const h = wrap.clientHeight
+    if (w <= 0 || h <= 0) return
+    canvas.width = Math.floor(w * dpr)
+    canvas.height = Math.floor(h * dpr)
+    canvas.style.width = `${w}px`
+    canvas.style.height = `${h}px`
+    const ctx = canvas.getContext('2d')
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, w, h)
+    const bars = waveformHeights.length
+    const pad = 0
+    const bw = w / bars
+    const barW = Math.max(1.5, bw * 0.42)
+    const centerY = h / 2
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ec4899'
+    for (let i = 0; i < bars; i++) {
+      const norm = waveformHeights[i]
+      const totalH = Math.max(3, norm * (h - 8))
+      const x = i * bw + (bw - barW) * 0.5
+      const y = centerY - totalH / 2
+      const played = (i + 0.5) / bars <= waveformRatio
+      ctx.fillStyle = played ? accent : 'rgba(255,255,255,0.24)'
+      ctx.beginPath()
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, barW, totalH, barW / 2)
+      } else {
+        ctx.rect(x, y, barW, totalH)
+      }
+      ctx.fill()
+    }
   }
 
   function getWaveformHeights() {
@@ -359,6 +402,7 @@ const Player = (() => {
     isShuffle: () => shuffle,
     primeAudio,
     buildWaveform,
+    drawWaveform,
     getWaveformHeights,
   }
 })()

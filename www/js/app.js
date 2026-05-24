@@ -7,6 +7,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   try {
     Icons.mount()
+    Viewport.bind()
+    Viewport.onResize(() => {
+      if (typeof Player?.drawWaveform === 'function') {
+        const d = Player.audio?.duration || 0
+        const ratio = d > 0 ? (Player.audio?.currentTime || 0) / d : 0
+        Player.drawWaveform(ratio)
+      }
+    })
     UI.init()
     setTimeout(finishSplash, 1100)
   } catch (e) {
