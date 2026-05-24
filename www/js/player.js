@@ -47,15 +47,25 @@ const Player = (() => {
     return { yandex: 'Яндекс Музыка', vk: 'VK Музыка', soundcloud: 'SoundCloud' }[src] || src
   }
 
+  let waveformHeights = []
+
   function buildWaveform() {
     const el = document.getElementById('waveform')
-    if (!el || el.childElementCount) return
-    for (let i = 0; i < 32; i++) {
-      const bar = document.createElement('span')
-      bar.style.height = `${20 + Math.random() * 80}%`
-      bar.style.animationDelay = `${(i * 0.04).toFixed(2)}s`
-      el.appendChild(bar)
+    if (!el) return
+    if (!waveformHeights.length) {
+      waveformHeights = Array.from({ length: 48 }, () => 0.12 + Math.random() * 0.88)
     }
+    if (el.childElementCount === waveformHeights.length) return
+    el.innerHTML = ''
+    waveformHeights.forEach((h) => {
+      const bar = document.createElement('span')
+      bar.style.setProperty('--bar-h', h.toFixed(3))
+      el.appendChild(bar)
+    })
+  }
+
+  function getWaveformHeights() {
+    return waveformHeights
   }
 
   function fmt(sec) {
@@ -349,5 +359,6 @@ const Player = (() => {
     isShuffle: () => shuffle,
     primeAudio,
     buildWaveform,
+    getWaveformHeights,
   }
 })()

@@ -319,16 +319,37 @@
   </div>
 
   <div class="playlist-view" id="playlist-view" hidden>
-    <div class="playlist-view__hero safe-top" id="playlist-view-hero">
-      <button type="button" class="playlist-view__back icon-btn" id="playlist-view-back" data-icon="chevron-left" aria-label="Назад"></button>
-      <h1 class="playlist-view__title" id="playlist-view-title">Плейлист</h1>
-      <p class="playlist-view__count" id="playlist-view-count"></p>
-      <div class="playlist-view__actions">
-        <button type="button" class="primary-btn playlist-view__play" id="playlist-view-play">Воспроизвести</button>
-        <button type="button" class="icon-btn playlist-view__shuffle" id="playlist-view-shuffle" data-icon="shuffle" aria-label="Перемешать"></button>
+    <div class="pl-view-hero" id="playlist-view-hero">
+      <div class="pl-view-hero__bg" id="pl-view-hero-bg"></div>
+      <div class="pl-view-hero__shade"></div>
+      <div class="pl-view-hero__top safe-top">
+        <button type="button" class="icon-btn pl-view-back" id="playlist-view-back" data-icon="chevron-left" aria-label="Назад"></button>
+      </div>
+      <div class="pl-view-hero__content">
+        <h1 class="pl-view-title" id="playlist-view-title">Плейлист</h1>
+        <p class="pl-view-count" id="playlist-view-count"></p>
+        <div class="pl-view-actions">
+          <button type="button" class="pl-view-play" id="playlist-view-play">
+            <span data-icon="play" data-icon-class="ui-icon"></span>
+            <span>Воспроизвести</span>
+          </button>
+          <button type="button" class="icon-btn pl-view-shuffle" id="playlist-view-shuffle" data-icon="shuffle" aria-label="Перемешать"></button>
+        </div>
       </div>
     </div>
-    <div class="v-list v-list--tracks playlist-view__tracks" id="playlist-view-tracks" data-track-list></div>
+    <div class="pl-view-body">
+      <div class="pl-view-tracks" id="playlist-view-tracks" data-track-list></div>
+    </div>
+  </div>
+
+  <div class="sheet" id="pick-playlist-sheet" hidden>
+    <div class="sheet__backdrop" id="pick-playlist-close"></div>
+    <div class="sheet__panel safe-bottom">
+      <h2 class="sheet__title">Добавить в плейлист</h2>
+      <p class="sheet__hint" id="pick-playlist-track">—</p>
+      <div class="pick-playlist-list" id="pick-playlist-list"></div>
+      <button type="button" class="link-btn sheet__cancel" id="pick-playlist-cancel">Отмена</button>
+    </div>
   </div>
 
   <div class="sheet" id="playlist-actions-sheet" hidden>

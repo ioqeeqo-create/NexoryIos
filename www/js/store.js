@@ -119,5 +119,20 @@ const Store = (() => {
     return patch({ playlists: s.playlists.filter((p) => p.id !== id) })
   }
 
-  return { get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor, addPlaylist, importPlaylists, getPlaylist, updatePlaylist, deletePlaylist }
+  function addTrackToPlaylist(playlistId, track) {
+    if (!track) return get()
+    const s = get()
+    const k = trackKey(track)
+    const playlists = s.playlists.map((p) => {
+      if (p.id !== playlistId) return p
+      if (p.tracks.some((t) => trackKey(t) === k)) return p
+      return { ...p, tracks: [...p.tracks, { ...track }] }
+    })
+    return patch({ playlists })
+  }
+
+  return {
+    get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor,
+    addPlaylist, importPlaylists, getPlaylist, updatePlaylist, deletePlaylist, addTrackToPlaylist,
+  }
 })()

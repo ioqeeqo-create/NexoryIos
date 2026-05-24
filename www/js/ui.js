@@ -131,8 +131,29 @@ const UI = (() => {
     if (!bars.length) return
     const r = Math.max(0, Math.min(1, ratio))
     for (let i = 0; i < bars.length; i++) {
-      bars[i].classList.toggle('played', (i + 0.5) / bars.length <= r)
+      const played = (i + 0.5) / bars.length <= r
+      bars[i].classList.toggle('played', played)
     }
+  }
+
+  function syncShellLayout() {
+    const hasMini = $('#mini-player') && !$('#mini-player').hidden
+    document.body.classList.toggle('has-mini', !!hasMini)
+  }
+
+  function playlistTrackRowHtml(track, idx) {
+    const durSec = Number(track.durationMs) > 0
+      ? track.durationMs / 1000
+      : (Number(track.duration) > 0 ? track.duration : 0)
+    const dur = durSec > 0 ? Player.fmt(durSec) : '—'
+    return `<button type="button" class="pl-track-row track-row" data-idx="${idx ?? ''}" data-key="${Store.trackKey(track)}">
+      <div class="pl-track-row__cover">${coverBlock(track.source, track.cover)}</div>
+      <div class="pl-track-row__meta">
+        <div class="pl-track-row__title">${esc(track.title)}</div>
+        <div class="pl-track-row__artist">${esc(track.artist)}</div>
+      </div>
+      <span class="pl-track-row__dur">${dur}</span>
+    </button>`
   }
 
   function getActionsPlaylist() {
@@ -290,11 +311,43 @@ const UI = (() => {
 
   function setFullPlayer(open) {
     const fp = $('#full-player')
-    const tab = $('#tab-bar')
     if (!fp) return
     fp.hidden = !open
     document.body.classList.toggle('player-open', open)
-    if (tab) tab.hidden = open
+    syncShellLayout()
+  }
+
+  function openPickPlaylistSheet(track) {
+    if (!track) return
+    const sheet = $('#pick-playlist-sheet')
+    const list = $('#pick-playlist-list')
+    const playlists = Store.get().playlists
+    $('#pick-playlist-track').textContent = `${track.title} — ${track.artist}`
+    if (!list) return
+    if (!playlists.length) {
+      list.innerHTML = '<p class="empty-hint">Создай плейлист в библиотеке</p>'
+    } else {
+      list.innerHTML = playlists.map((p) => `
+        <button type="button" class="pick-playlist-item" data-pick-pl="${esc(p.id)}">
+          <span class="pick-playlist-item__cover">${playlistCoverHtml(p)}</span>
+          <span>
+            <div class="pick-playlist-item__name">${esc(p.name)}</div>
+            <div class="pick-playlist-item__count">${p.tracks.length} треков</div>
+          </span>
+        </button>
+      `).join('')
+      Icons.mount(list)
+    }
+    sheet.dataset.trackKey = Store.trackKey(track)
+    sheet.hidden = false
+  }
+
+  function closePickPlaylistSheet() {
+    const sheet = $('#pick-playlist-sheet')
+    if (sheet) {
+      sheet.hidden = true
+      delete sheet.dataset.trackKey
+    }
   }
 
   function openFullPlayer() {
@@ -398,16 +451,26 @@ const UI = (() => {
     openPlaylistId = pl.id
     const view = $('#playlist-view')
     const hero = $('#playlist-view-hero')
+    const heroBg = $('#pl-view-hero-bg')
     const isLikes = opts.isLikes
     if (hero) {
-      hero.classList.toggle('playlist-view__hero--default', !isLikes)
+      hero.classList.toggle('pl-view-hero--likes', !!isLikes)
+      hero.classList.toggle('pl-view-hero--default', !isLikes && !pl.coverData && !pl.tracks?.find((t) => t.cover))
+    }
+    if (heroBg) {
+      const cover = pl.coverData || pl.tracks?.find((t) => t.cover)?.cover || ''
+      if (cover && !isLikes) {
+        heroBg.style.backgroundImage = `url(${cover})`
+      } else {
+        heroBg.style.backgroundImage = ''
+      }
     }
     $('#playlist-view-title').textContent = pl.name
     $('#playlist-view-count').textContent = `${pl.tracks.length} треков`
     const tracksEl = $('#playlist-view-tracks')
     if (tracksEl) {
       tracksEl.innerHTML = pl.tracks.length
-        ? pl.tracks.map((t, i) => trackRowHtml(t, i)).join('')
+        ? pl.tracks.map((t, i) => playlistTrackRowHtml(t, i)).join('')
         : '<p class="empty-hint">Плейлист пуст</p>'
       bindTrackClicks(tracksEl, pl.tracks, pl.name)
       highlightPlayingTrack(Player.current())
@@ -417,6 +480,7 @@ const UI = (() => {
       view.classList.remove('is-closing')
     }
     document.body.classList.add('playlist-open')
+    syncShellLayout()
     Icons.mount(view)
   }
 
@@ -433,6 +497,7 @@ const UI = (() => {
       view.hidden = true
       view.classList.remove('is-closing')
       document.body.classList.remove('playlist-open')
+      syncShellLayout()
     }, 280)
   }
 
@@ -631,6 +696,7 @@ const UI = (() => {
     if (!track) return
     const from = Player.playingFrom()
     $('#mini-player').hidden = false
+    syncShellLayout()
     $('#mini-title').textContent = track.title
     $('#mini-artist').textContent = track.artist
     setCover($('#mini-cover-wrap'), $('#mini-cover'), track, { playerOnly: true })
@@ -841,7 +907,12 @@ const UI = (() => {
     $('#cfg-accent-cover')?.addEventListener('change', (e) => {
       saveCustomization({ accentFromCover: e.target.checked })
       const track = Player.current()
-      if (track && e.target.checked) applyPlayerVisuals(track)
+      if (e.target.checked && track) {
+        const accentUrl = getPlayerBgUrl(track) || getPlayerCoverUrl(track)
+        if (accentUrl) Theme.extractAccentFromUrl(accentUrl)
+      } else {
+        Theme.apply(Store.get())
+      }
     })
 
     $('#cfg-bg-blur')?.addEventListener('input', (e) => {
@@ -1108,8 +1179,10 @@ const UI = (() => {
     closeFullPlayer()
     closePlaylistView()
     closePlaylistActionsSheet()
+    closePickPlaylistSheet()
     closeServiceSheet()
     Player.buildWaveform()
+    syncShellLayout()
     Icons.mount()
     showSettingsPane('custom')
     Theme.apply(Store.get())

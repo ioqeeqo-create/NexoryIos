@@ -58,9 +58,21 @@ const Theme = (() => {
 
   function applyAccent(hex) {
     if (!hex) return
+    const accent2 = shiftHue(hex, 12)
     setVar('--accent', hex)
-    setVar('--accent-2', shiftHue(hex, 12))
+    setVar('--accent-2', accent2)
     setVar('--accent-glow', hexToRgba(hex, 0.35))
+    setVar('--accent-soft', hexToRgba(hex, 0.14))
+    setVar('--accent-border', hexToRgba(hex, 0.28))
+
+    const appBg = document.getElementById('app-bg')
+    if (appBg) {
+      appBg.style.background = [
+        `radial-gradient(ellipse 90% 50% at 50% -10%, ${hexToRgba(hex, 0.18)}, transparent 55%)`,
+        `radial-gradient(ellipse 40% 30% at 100% 80%, ${hexToRgba(accent2, 0.1)}, transparent)`,
+        'var(--bg)',
+      ].join(', ')
+    }
   }
 
   function hexToRgba(hex, a) {
@@ -93,13 +105,15 @@ const Theme = (() => {
     setVar('--border', t.border)
 
     if (!s.accentFromCover) {
+      document.body.classList.remove('accent-from-cover')
       setVar('--accent', t.accent)
       setVar('--accent-2', t.accent2)
       setVar('--accent-glow', t.accentGlow)
+      setVar('--accent-soft', hexToRgba(t.accent, 0.14))
+      setVar('--accent-border', hexToRgba(t.accent, 0.28))
+      const appBg = document.getElementById('app-bg')
+      if (appBg) appBg.style.background = t.appBg
     }
-
-    const appBg = document.getElementById('app-bg')
-    if (appBg) appBg.style.background = t.appBg
 
     applyPlayerBg(s)
   }
@@ -111,7 +125,7 @@ const Theme = (() => {
     const blur = Number(s.bgBlur ?? 56)
     const bright = Number(s.bgBrightness ?? 45) / 100
     bg.style.filter = `blur(${blur}px) saturate(1.35)`
-    bg.style.opacity = String(Math.max(0.15, Math.min(0.85, bright)))
+    bg.style.opacity = String(Math.max(0.35, Math.min(0.72, bright + 0.15)))
   }
 
   function setFullBgImage(url) {
@@ -158,6 +172,7 @@ const Theme = (() => {
           if (!n) return resolve(null)
           const hex = `#${[r / n, g / n, b / n].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
           applyAccent(hex)
+          document.body.classList.add('accent-from-cover')
           resolve(hex)
         } catch {
           resolve(null)
