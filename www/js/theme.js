@@ -2,6 +2,8 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
+  const PALETTE_VERSION = 2
+
   const THEMES = {
 
     dark: {
@@ -361,21 +363,21 @@ const Theme = (() => {
 
 
   function decorFromAccent(accent, accent2, bg) {
-    const shellBase = bg || '#050814'
+    const shellBase = bg || BASE_BG
     return {
-      homeOrb1: hexToRgba(accent, 0.28),
-      homeOrb2: hexToRgba(accent2, 0.18),
-      homeOrb3: hexToRgba(accent, 0.1),
-      homeCardTint: `linear-gradient(145deg, ${hexToRgba(accent, 0.14)} 0%, ${hexToRgba(accent2, 0.06)} 55%, rgba(255,255,255,0.03) 100%)`,
-      homeCardBorder: hexToRgba(accent, 0.22),
-      waveLine1: hexToRgba(accent, 0.52),
-      waveLine2: hexToRgba(accent2, 0.36),
-      waveLine3: hexToRgba(accent, 0.42),
+      homeOrb1: hexToRgba(accent, 0.1),
+      homeOrb2: hexToRgba(accent2, 0.06),
+      homeOrb3: hexToRgba(accent, 0.04),
+      homeCardTint: `linear-gradient(160deg, ${hexToRgba(accent, 0.07)} 0%, rgba(255,255,255,0.04) 100%)`,
+      homeCardBorder: hexToRgba(accent, 0.14),
+      waveLine1: hexToRgba(accent, 0.34),
+      waveLine2: hexToRgba(accent2, 0.22),
+      waveLine3: hexToRgba(accent, 0.28),
       playerBg: shellBase,
-      playerOverlay: `linear-gradient(180deg, ${hexToRgba(accent, 0.32)} 0%, ${hexToRgba(accent2, 0.12)} 38%, rgba(0,0,0,0.78) 72%, rgba(0,0,0,0.9) 100%)`,
-      shellBg: `linear-gradient(180deg, ${hexToRgba(accent, 0.22)} 0%, ${hexToRgba(accent, 0.1)} 42%, rgba(8,10,18,0.92) 100%)`,
-      shellBorder: hexToRgba(accent, 0.2),
-      shellPanel: hexToRgba(accent, 0.1),
+      playerOverlay: `linear-gradient(180deg, ${hexToRgba(accent, 0.14)} 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.88) 100%)`,
+      shellBg: `linear-gradient(180deg, ${hexToRgba(accent, 0.08)} 0%, rgba(10,10,14,0.9) 100%)`,
+      shellBorder: hexToRgba(accent, 0.12),
+      shellPanel: 'rgba(255,255,255,0.06)',
     }
   }
 
@@ -411,61 +413,47 @@ const Theme = (() => {
 
     const [h, s] = rgbToHsl(r, g, b)
 
-    const accentS = Math.max(0.48, Math.min(0.8, s < 0.18 ? 0.64 : s * 1.02))
+    const accentS = Math.max(0.38, Math.min(0.62, s < 0.18 ? 0.5 : s * 0.88))
 
-    const accent = hslToHex(h, accentS, 0.56)
+    const accent = hslToHex(h, accentS, 0.54)
 
-    const accent2 = hslToHex((h + 26) % 360, accentS * 0.9, 0.62)
+    const accent2 = hslToHex((h + 18) % 360, accentS * 0.88, 0.58)
 
+    const ambientS = Math.min(0.28, Math.max(0.14, accentS * 0.35))
 
+    const tintedBg = hslToHex(h, ambientS, 0.065)
 
-    const ambientS = Math.min(0.38, Math.max(0.2, accentS * 0.48))
+    const bg = mixHex(BASE_BG, tintedBg, 0.22)
 
-    const tintedBg = hslToHex(h, ambientS, 0.072)
+    const text = '#f8fafc'
 
-    const bg = mixHex(BASE_BG, tintedBg, 0.58)
+    const textDim = '#94a3b8'
 
-    const bgAlt = mixHex(BASE_BG, hslToHex((h + 24) % 360, ambientS * 0.85, 0.085), 0.5)
+    const textMuted = '#64748b'
 
+    const bgCard = 'rgba(255,255,255,0.06)'
 
+    const bgElevated = 'rgba(255,255,255,0.04)'
 
-    const text = hslToHex(h, 0.06, 0.97)
+    const border = hexToRgba(accent, 0.12)
 
-    const textDim = hslToHex(h, 0.1, 0.72)
+    const glass = 'rgba(15, 17, 26, 0.78)'
 
-    const textMuted = hslToHex(h, 0.08, 0.46)
+    const dockGlass = 'rgba(10, 10, 14, 0.82)'
 
+    const dockBorder = hexToRgba(accent, 0.1)
 
+    const wavePlayed = '#ffffff'
 
-    const bgCard = hexToRgba(accent, 0.11)
-
-    const bgElevated = hexToRgba(accent, 0.065)
-
-    const border = hexToRgba(accent, 0.18)
-
-    const glass = rgbaFromHsl(h, ambientS * 0.65, 0.045, 0.78)
-
-    const dockGlass = rgbaFromHsl(h, ambientS * 0.6, 0.032, 0.84)
-
-    const dockBorder = hexToRgba(accent, 0.16)
-
-
-
-    const wavePlayed = hslToHex(h, 0.14, 0.96)
-
-    const waveUnplayed = hexToRgba(text, 0.24)
-
-
+    const waveUnplayed = 'rgba(255, 255, 255, 0.24)'
 
     const appBg = [
 
-      `radial-gradient(ellipse 120% 72% at 50% -16%, ${hexToRgba(accent, 0.2)}, transparent 54%)`,
+      `radial-gradient(ellipse 70% 40% at 50% 12%, ${hexToRgba(accent, 0.09)}, transparent 52%)`,
 
-      `radial-gradient(ellipse 52% 42% at 96% 88%, ${hexToRgba(accent2, 0.12)}, transparent 46%)`,
+      `radial-gradient(ellipse 40% 30% at 100% 92%, ${hexToRgba(accent2, 0.05)}, transparent 45%)`,
 
-      `radial-gradient(ellipse 44% 36% at 4% 68%, ${hexToRgba(accent, 0.07)}, transparent 40%)`,
-
-      `linear-gradient(168deg, ${bgAlt} 0%, ${bg} 52%, ${mixHex(BASE_BG, hslToHex((h + 10) % 360, ambientS * 0.75, 0.05), 0.35)} 100%)`,
+      bg,
 
     ].join(', ')
 
@@ -509,6 +497,8 @@ const Theme = (() => {
 
       ...decor,
 
+      v: PALETTE_VERSION,
+
     }
 
   }
@@ -529,7 +519,7 @@ const Theme = (() => {
 
     if (t.homeOrb1) return t
 
-    const decor = decorFromAccent(t.accent, t.accent2)
+    const decor = decorFromAccent(t.accent, t.accent2, t.bg)
 
     return { ...t, ...decor }
 
@@ -837,13 +827,15 @@ const Theme = (() => {
 
       const palette = s.accentCoverPalette
 
-      if (palette && palette.accent && palette.bg) {
+      const paletteOk = palette && palette.accent && palette.bg && palette.v === PALETTE_VERSION
+
+      if (paletteOk) {
 
         applyCoverTheme(withDecor(palette), { persist: false, animate: false })
 
       } else if (s.accentCoverHex) {
 
-        applyCoverTheme(buildCoverThemeFromHex(s.accentCoverHex, t), { persist: false, animate: false })
+        applyCoverTheme(buildCoverThemeFromHex(s.accentCoverHex, t), { persist: true, animate: false })
 
       } else {
 
