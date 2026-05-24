@@ -19,14 +19,13 @@
   --radius: 14px;
   --radius-lg: 20px;
   --dock-h: 56px;
-  --dock-gap: 4px;
+  --dock-gap: 8px;
   --kb-offset: 0px;
   --app-height: 100dvh;
   --vv-offset-top: 0px;
   --tab-h: calc(var(--dock-h) + var(--safe-bottom) + var(--dock-gap));
   --mini-h: 62px;
   --mini-h-active: 0px;
-  --shell-bottom: calc(var(--dock-h) + var(--safe-bottom) + var(--dock-gap) + var(--mini-h-active) + 6px);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
@@ -157,8 +156,10 @@ body[data-screen="home"] .screen[data-screen="home"] .h-scroll {
 }
 .top-bar { padding-left: 18px; padding-right: 18px; }
 body[data-screen="search"] .screen[data-screen="search"],
-body[data-screen="settings"] .screen[data-screen="settings"] { padding-top: calc(8px + var(--safe-top)); }
-body[data-screen="library"] .screen[data-screen="library"] { padding-top: calc(8px + var(--safe-top)); }
+body[data-screen="settings"] .screen[data-screen="settings"],
+body[data-screen="library"] .screen[data-screen="library"] {
+  padding-top: calc(4px + var(--safe-top));
+}
 body.keyboard-open .tab-bar,
 body.keyboard-open .mini-player {
   opacity: 0;
@@ -199,16 +200,18 @@ body.keyboard-open #screens {
 
 #screens {
   flex: 1; overflow: hidden; position: relative; min-height: 0;
-  padding-bottom: var(--shell-bottom);
   transition: padding-bottom 0.28s var(--ease-out);
 }
 body.has-mini { --mini-h-active: var(--mini-h); }
+body.has-mini .screen {
+  padding-bottom: calc(16px + var(--tab-h) + var(--mini-h));
+}
 body.player-open,
-body.playlist-open { --mini-h-active: 0px; --shell-bottom: calc(var(--tab-h) + 8px); }
-body.player-open { --shell-bottom: calc(var(--safe-bottom) + 16px); }
+body.playlist-open { --mini-h-active: 0px; }
 
 .screen {
-  position: absolute; inset: 0; overflow-y: auto; padding: 0 18px 24px;
+  position: absolute; inset: 0; overflow-y: auto;
+  padding: 0 18px calc(16px + var(--tab-h));
   opacity: 0; pointer-events: none; transform: translateY(10px);
   transition: opacity 0.28s var(--ease-out), transform 0.28s var(--ease-out);
 }
@@ -783,9 +786,9 @@ body.player-open .mini-player { display: none !important; }
 }
 .full-player__sheet {
   position: relative; z-index: 2; width: 100%; max-width: 480px; margin: 0 auto;
-  flex: 1; display: flex; flex-direction: column; justify-content: flex-start;
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
   min-height: 0; max-height: var(--app-height); overflow-y: auto;
-  padding: calc(10px + var(--safe-top)) 18px calc(12px + var(--safe-bottom));
+  padding: calc(8px + var(--safe-top)) 18px calc(20px + var(--safe-bottom));
   background: transparent;
   animation: fp-sheet-in 0.35s var(--ease-out) both;
 }
@@ -796,13 +799,10 @@ body.player-open .mini-player { display: none !important; }
 .fp-header {
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; flex-shrink: 0;
-  margin: calc(-1 * (10px + var(--safe-top))) -18px 14px;
-  padding: calc(10px + var(--safe-top)) 18px 12px;
-  background: rgba(7, 8, 13, 0.94);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  position: sticky; top: 0; z-index: 4;
+  margin: 0 0 12px;
+  padding: 4px 0 8px;
+  background: transparent;
+  position: relative; z-index: 4;
 }
 .fp-header__btn {
   flex-shrink: 0; width: 40px; height: 40px;
@@ -816,7 +816,7 @@ body.player-open .mini-player { display: none !important; }
   font-size: 13px; color: rgba(255,255,255,0.82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .fp-header__pill .ui-icon { width: 16px; height: 16px; opacity: 0.85; flex-shrink: 0; stroke: var(--accent); }
-.fp-cover-block { margin-bottom: 14px; flex-shrink: 0; }
+.fp-cover-block { margin-bottom: 10px; flex-shrink: 0; }
 .full-cover-wrap {
   position: relative; width: min(300px, 84vw); aspect-ratio: 1;
   margin: 0 auto 16px; border-radius: 22px; overflow: hidden;
@@ -842,7 +842,7 @@ body.player-open .mini-player { display: none !important; }
   margin: 0 0 6px; line-height: 1.2;
 }
 .fp-artist { margin: 0; color: var(--accent); font-size: 15px; opacity: 0.92; }
-.fp-wave-block { margin-top: auto; margin-bottom: 12px; position: relative; flex-shrink: 0; }
+.fp-wave-block { margin-top: 0; margin-bottom: 10px; position: relative; flex-shrink: 0; }
 .waveform {
   position: relative; height: 52px; margin-bottom: 6px;
 }

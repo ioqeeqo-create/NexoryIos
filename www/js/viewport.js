@@ -8,13 +8,17 @@ const Viewport = (() => {
     const offsetTop = vv ? vv.offsetTop : 0
     const kbOffset = Math.max(0, layoutH - vvHeight - offsetTop)
     const keyboardOpen = kbOffset > 72
-    const appHeight = keyboardOpen ? Math.round(vvHeight) : Math.round(layoutH)
 
-    document.documentElement.style.setProperty('--app-height', `${appHeight}px`)
+    if (keyboardOpen) {
+      document.documentElement.style.setProperty('--app-height', `${Math.round(vvHeight)}px`)
+    } else {
+      document.documentElement.style.setProperty('--app-height', '100dvh')
+    }
+
     document.documentElement.style.setProperty('--vv-offset-top', `${Math.round(offsetTop)}px`)
     document.documentElement.style.setProperty('--kb-offset', `${Math.round(kbOffset)}px`)
     document.body.classList.toggle('keyboard-open', keyboardOpen)
-    listeners.forEach((fn) => fn({ appHeight, kbOffset, keyboardOpen }))
+    listeners.forEach((fn) => fn({ appHeight: keyboardOpen ? vvHeight : layoutH, kbOffset, keyboardOpen }))
   }
 
   function bind() {
