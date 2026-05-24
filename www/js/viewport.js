@@ -1,5 +1,6 @@
 const Viewport = (() => {
   const listeners = new Set()
+  let resyncTimer = null
 
   function sync() {
     const vv = window.visualViewport
@@ -9,16 +10,16 @@ const Viewport = (() => {
     const kbOffset = Math.max(0, layoutH - vvHeight - offsetTop)
     const keyboardOpen = kbOffset > 72
 
-    if (keyboardOpen) {
-      document.documentElement.style.setProperty('--app-height', `${Math.round(vvHeight)}px`)
-    } else {
-      document.documentElement.style.setProperty('--app-height', '100dvh')
-    }
-
-    document.documentElement.style.setProperty('--vv-offset-top', `${Math.round(offsetTop)}px`)
-    document.documentElement.style.setProperty('--kb-offset', `${Math.round(kbOffset)}px`)
     document.body.classList.toggle('keyboard-open', keyboardOpen)
-    listeners.forEach((fn) => fn({ appHeight: keyboardOpen ? vvHeight : layoutH, kbOffset, keyboardOpen }))
+    listeners.forEach((fn) => fn({ kbOffset, keyboardOpen }))
+  }
+
+  function scheduleResync() {
+    clearTimeout(resyncTimer)
+    ;[0, 80, 180, 360, 720].forEach((delay) => {
+      setTimeout(sync, delay)
+    })
+    resyncTimer = setTimeout(sync, 900)
   }
 
   function bind() {
@@ -26,9 +27,9 @@ const Viewport = (() => {
     window.visualViewport?.addEventListener('resize', sync)
     window.visualViewport?.addEventListener('scroll', sync)
     window.addEventListener('resize', sync)
-    window.addEventListener('orientationchange', () => setTimeout(sync, 120))
-    window.addEventListener('focusin', () => setTimeout(sync, 80))
-    window.addEventListener('focusout', () => setTimeout(sync, 120))
+    window.addEventListener('orientationchange', scheduleResync)
+    window.addEventListener('focusin', () => setTimeout(sync, 60))
+    window.addEventListener('focusout', scheduleResync)
   }
 
   function onResize(fn) {
@@ -36,5 +37,5 @@ const Viewport = (() => {
     return () => listeners.delete(fn)
   }
 
-  return { bind, sync, onResize }
+  return { bind, sync, scheduleResync, onResize }
 })()

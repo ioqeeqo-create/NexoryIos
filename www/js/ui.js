@@ -47,6 +47,11 @@ const UI = (() => {
   }
 
   function showScreen(name) {
+    const prev = document.body.dataset.screen
+    if (prev === 'search' && name !== 'search') {
+      $('#search-input')?.blur()
+      Viewport.scheduleResync?.()
+    }
     document.body.dataset.screen = name
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('screen--active', s.dataset.screen === name))
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))

@@ -21,8 +21,6 @@
   --dock-h: 56px;
   --dock-gap: 8px;
   --kb-offset: 0px;
-  --app-height: 100dvh;
-  --vv-offset-top: 0px;
   --tab-h: calc(var(--dock-h) + var(--safe-bottom) + var(--dock-gap));
   --mini-h: 62px;
   --mini-h-active: 0px;
@@ -36,7 +34,9 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
-  margin: 0; height: var(--app-height); min-height: var(--app-height); background: var(--bg); color: var(--text);
+  position: fixed; inset: 0;
+  margin: 0; width: 100%; height: 100%;
+  background: var(--bg); color: var(--text);
   font-family: var(--font); font-size: 15px; overflow: hidden;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
@@ -106,8 +106,8 @@ body.app-ready #app {
   animation: app-in 0.5s var(--ease-out) both;
 }
 @keyframes app-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* ── Setup gate ── */
@@ -126,8 +126,8 @@ body.app-ready #app {
 .setup-gate__skip { margin-top: 14px; text-align: center; width: 100%; padding: 10px; }
 
 #app {
-  position: relative; z-index: 1;
-  height: var(--app-height); min-height: var(--app-height); max-width: 480px; margin: 0 auto;
+  position: fixed; inset: 0; z-index: 1;
+  width: 100%; max-width: 480px; margin: 0 auto;
   display: flex; flex-direction: column; overflow: hidden;
 }
 
@@ -163,8 +163,8 @@ body[data-screen="library"] .screen[data-screen="library"] {
 body.keyboard-open .tab-bar,
 body.keyboard-open .mini-player {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transform: translateX(-50%) translateY(calc(100% + 24px));
 }
 body.keyboard-open #screens {
   padding-bottom: 16px;
@@ -429,8 +429,8 @@ body.playlist-open { --mini-h-active: 0px; }
   letter-spacing: -0.03em; margin: 0 0 4px;
 }
 .search-hero__sub { margin: 0; color: var(--text-dim); font-size: 13px; }
-.screen-head { margin-bottom: 8px; }
-.screen-head .screen-title { margin-bottom: 0; }
+.screen-head { margin-bottom: 6px; }
+.screen-head .screen-title { margin-bottom: 0; margin-top: 0; }
 
 .search-box {
   display: flex; align-items: center; gap: 10px; margin: 0 0 14px;
@@ -478,7 +478,7 @@ body.playlist-open { --mini-h-active: 0px; }
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(var(--safe-bottom) + var(--dock-gap));
   width: calc(100% - 28px); max-width: 452px;
-  height: var(--dock-h); z-index: 50;
+  height: var(--dock-h); z-index: 80;
   display: flex; align-items: center; justify-content: space-around;
   padding: 0 8px;
   background: rgba(10, 12, 20, 0.48);
@@ -737,7 +737,7 @@ body.playlist-open .mini-player { display: none !important; }
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-lg);
   padding: 8px 12px;
-  z-index: 60;
+  z-index: 90;
   box-shadow: 0 8px 32px rgba(0,0,0,0.35);
   animation: mini-in 0.35s var(--ease-out);
   transition: transform 0.25s var(--ease-out), box-shadow 0.25s;
@@ -767,7 +767,6 @@ body.playlist-open .mini-player { display: none !important; }
 .full-player {
   position: fixed; inset: 0; z-index: 200;
   display: flex; flex-direction: column;
-  height: var(--app-height); min-height: var(--app-height);
   background: #07080d;
 }
 .full-player[hidden] { display: none !important; }
@@ -787,7 +786,7 @@ body.player-open .mini-player { display: none !important; }
 .full-player__sheet {
   position: relative; z-index: 2; width: 100%; max-width: 480px; margin: 0 auto;
   flex: 1; display: flex; flex-direction: column; justify-content: space-between;
-  min-height: 0; max-height: var(--app-height); overflow-y: auto;
+  min-height: 0; overflow-y: auto;
   padding: calc(8px + var(--safe-top)) 18px calc(20px + var(--safe-bottom));
   background: transparent;
   animation: fp-sheet-in 0.35s var(--ease-out) both;
