@@ -1811,6 +1811,7 @@ const UI = (() => {
     })
     Player.on('state', ({ paused }) => {
       setPlayIcon(paused)
+      document.body.classList.toggle('audio-playing', !paused)
       if (paused) $('#btn-wave-play')?.classList.remove('is-playing')
     })
     Player.on('time', ({ current, duration }) => {

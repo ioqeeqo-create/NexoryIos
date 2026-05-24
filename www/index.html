@@ -16,6 +16,11 @@
     <p class="splash__name">Nexory</p>
   </div>
   <div id="app-bg"></div>
+  <div id="app-orbs" class="app-orbs" aria-hidden="true">
+    <div class="app-orb app-orb--1"></div>
+    <div class="app-orb app-orb--2"></div>
+    <div class="app-orb app-orb--3"></div>
+  </div>
   <div id="setup-gate" class="setup-gate" hidden>
     <div class="setup-gate__scroll safe-top safe-bottom">
       <img class="setup-gate__logo" src="assets/nexory-icon.png" alt="Nexory" />
@@ -50,14 +55,9 @@
 
     <main id="screens">
       <section class="screen screen--active" data-screen="home">
-        <div class="home-decor" aria-hidden="true">
-          <span class="home-decor__orb home-decor__orb--1"></span>
-          <span class="home-decor__orb home-decor__orb--2"></span>
-          <span class="home-decor__orb home-decor__orb--3"></span>
-        </div>
         <div id="gateway-banner" class="status-banner" hidden></div>
         <div class="home-hero">
-          <div class="home-wave-shell">
+          <div class="home-wave-shell ui-shell">
           <button type="button" class="wave-row" id="btn-wave-play" aria-label="Моя волна">
             <div class="wave-row__main">
               <span class="wave-row__play"><span data-icon="play" data-icon-class="ui-icon"></span></span>
@@ -86,7 +86,7 @@
           </div>
         </div>
         <div class="section section--likes">
-          <button type="button" class="home-likes-pill" id="btn-home-likes-play">
+          <button type="button" class="home-likes-pill ui-shell" id="btn-home-likes-play">
             <span class="home-likes-pill__covers" id="home-likes-covers"></span>
             <span class="home-likes-pill__meta">
               <span class="home-likes-pill__title">Любимые</span>
@@ -101,19 +101,21 @@
       </section>
 
       <section class="screen" data-screen="search">
-        <div class="search-hero">
-          <h1 class="search-hero__title">Поиск</h1>
-          <p class="search-hero__sub">Яндекс · VK · SoundCloud</p>
-        </div>
-        <div class="search-box">
-          <span class="search-box__icon" data-icon="search"></span>
-          <input type="search" id="search-input" placeholder="Трек, артист..." autocomplete="off" enterkeyhint="search" />
-          <button type="button" class="search-clear" id="search-clear" hidden>×</button>
-        </div>
-        <div class="chip-row" id="search-source-chips">
-          <button type="button" class="chip chip--active" data-source="yandex"><img class="chip-icon" src="assets/source-yandex-music.png" alt="" /><span>Яндекс</span></button>
-          <button type="button" class="chip" data-source="vk"><img class="chip-icon" src="assets/source-vk.png" alt="" /><span>VK</span></button>
-          <button type="button" class="chip" data-source="soundcloud"><img class="chip-icon" src="assets/source-soundcloud.png" alt="" /><span>SC</span></button>
+        <div class="ui-shell search-shell">
+          <div class="search-hero">
+            <h1 class="search-hero__title">Поиск</h1>
+            <p class="search-hero__sub">Яндекс · VK · SoundCloud</p>
+          </div>
+          <div class="search-box">
+            <span class="search-box__icon" data-icon="search"></span>
+            <input type="search" id="search-input" placeholder="Трек, артист..." autocomplete="off" enterkeyhint="search" />
+            <button type="button" class="search-clear" id="search-clear" hidden>×</button>
+          </div>
+          <div class="chip-row chip-row--search" id="search-source-chips">
+            <button type="button" class="chip chip--active" data-source="yandex"><img class="chip-icon" src="assets/source-yandex-music.png" alt="" /><span>Яндекс</span></button>
+            <button type="button" class="chip" data-source="vk"><img class="chip-icon" src="assets/source-vk.png" alt="" /><span>VK</span></button>
+            <button type="button" class="chip" data-source="soundcloud"><img class="chip-icon" src="assets/source-soundcloud.png" alt="" /><span>SC</span></button>
+          </div>
         </div>
         <div class="search-status" id="search-status"></div>
         <div class="v-list v-list--tracks" id="search-results" data-track-list></div>
@@ -121,7 +123,7 @@
 
       <section class="screen" data-screen="library">
         <div class="lib-hero">
-          <button type="button" class="favorites-card" id="btn-open-likes">
+          <button type="button" class="favorites-card ui-shell" id="btn-open-likes">
             <span class="favorites-card__icon" data-icon="heart"></span>
             <div class="favorites-card__text">
               <div class="favorites-card__title">Любимые</div>
@@ -129,14 +131,14 @@
             </div>
           </button>
         </div>
-        <button type="button" class="import-row" id="btn-import-open">
+        <button type="button" class="import-row ui-shell" id="btn-import-open">
           <span class="import-row__icon" data-icon="download"></span>
           <div class="import-row__text">
             <div class="import-row__title">Импортировать по ссылке</div>
             <div class="import-row__sub">VK / Яндекс или JSON из Nexory на ПК</div>
           </div>
         </button>
-        <div class="lib-toolbar">
+        <div class="lib-toolbar ui-shell lib-toolbar--shell">
           <button type="button" class="lib-tool-btn" id="btn-create-playlist" aria-label="Создать" data-icon="plus"></button>
           <span class="lib-pill lib-pill--active">Плейлисты</span>
         </div>
