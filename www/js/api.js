@@ -123,6 +123,20 @@ const Api = (() => {
   }
 
   async function resolve(track) {
+    const src = String(track?.source || '').toLowerCase()
+    const mode = apiMode()
+    if (src === 'soundcloud' && hasGateway() && mode !== 'direct') {
+      try {
+        const gw = await post(
+          '/resolve',
+          { track, tokens: tokens(), preferMobile: true },
+          TIMEOUT.resolve,
+        )
+        if (gw.ok && gw.url) return gw
+      } catch (e) {
+        if (mode === 'gateway') throw e
+      }
+    }
     return withHybrid(
       () => DirectApi.resolve(track),
       '/resolve',

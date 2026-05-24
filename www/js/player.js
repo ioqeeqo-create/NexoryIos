@@ -176,7 +176,8 @@ const Player = (() => {
   }
 
   async function resolveUrl(track) {
-    if (track.url) return track.url
+    if (track.url && track.source !== 'soundcloud') return track.url
+    if (track.source === 'soundcloud' && track.url && track.scTranscoding) return track.url
     let lastErr = new Error('Не удалось получить поток')
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -231,6 +232,7 @@ const Player = (() => {
       if (track?.source === 'soundcloud' && !track.__scRetried) {
         track.__scRetried = true
         delete track.url
+        delete track.scTranscoding
         try {
           return await playTrackAt(i, fromLabel)
         } catch (_) {}

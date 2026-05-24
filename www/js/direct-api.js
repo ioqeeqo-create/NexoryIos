@@ -391,11 +391,47 @@ const DirectApi = (() => {
     return { ok: true, url: `https://${host}/get-mp3/${sign}/${ts}${path}` }
   }
 
+  async function fetchScTrackTranscoding(trackId, clientId) {
+    const cid = String(clientId || '').trim()
+    const id = String(trackId || '').trim()
+    if (!cid || !id) return null
+    const r = await fetchJson(`https://api-v2.soundcloud.com/tracks/${encodeURIComponent(id)}?client_id=${encodeURIComponent(cid)}`, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15',
+      },
+      timeout: 16000,
+    })
+    if (r.status === 401 || r.status === 403) throw new Error('SoundCloud: неверный Client ID')
+    const t = r.data
+    if (!t || typeof t !== 'object') return null
+    const trans = t.media?.transcodings || []
+    const prog = trans.find((x) => x?.format?.protocol === 'progressive')
+    const hls = trans.find((x) => x?.format?.protocol === 'hls')
+    return {
+      scTranscoding: (prog || hls || trans[0])?.url || null,
+      streamUrl: t.stream_url ? `${t.stream_url}?client_id=${cid}` : null,
+    }
+  }
+
   async function resolveSoundCloud(track, clientId) {
-    const cid = String(clientId || track.scClientId || '').trim()
-    if (track.url && !track.scTranscoding) return { ok: true, url: track.url }
-    if (!track.scTranscoding || !cid) return { ok: false, error: 'SoundCloud: нет transcoding' }
-    const u = new URL(track.scTranscoding)
+    const cid = String(clientId || track.scClientId || cfg().scClientId || '').trim()
+    if (!cid) return { ok: false, error: 'Укажи SoundCloud Client ID в настройках' }
+    let transcoding = track.scTranscoding
+    if (!transcoding && track.id) {
+      try {
+        const meta = await fetchScTrackTranscoding(track.id, cid)
+        transcoding = meta?.scTranscoding || null
+        if (!track.url && meta?.streamUrl) track.url = meta.streamUrl
+      } catch (e) {
+        return { ok: false, error: e.message || 'SoundCloud: не удалось загрузить трек' }
+      }
+    }
+    if (!transcoding) {
+      if (track.url) return { ok: true, url: track.url }
+      return { ok: false, error: 'SoundCloud: нет transcoding — открой через gateway или задай Client ID' }
+    }
+    const u = new URL(transcoding)
     u.searchParams.set('client_id', cid)
     const r = await fetchJson(`https://${u.host}${u.pathname}${u.search}`, {
       headers: {

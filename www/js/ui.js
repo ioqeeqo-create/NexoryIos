@@ -669,10 +669,10 @@ const UI = (() => {
       const cover = pl.coverData || pl.tracks?.find((t) => t.cover)?.cover || ''
       if (cover && !isLikes) {
         heroBg.style.backgroundImage = `url(${cover})`
-        heroBg.style.backgroundPosition = 'center 28%'
+        heroBg.style.backgroundPosition = 'center 22%'
         heroBg.style.backgroundSize = 'cover'
         heroBg.style.filter = 'none'
-        heroBg.style.transform = 'scale(1.14)'
+        heroBg.style.transform = 'scale(1.08)'
       } else {
         heroBg.style.backgroundImage = ''
         heroBg.style.backgroundPosition = ''
@@ -742,6 +742,29 @@ const UI = (() => {
     bindPlaylistLongPress(plEl)
   }
 
+  function compressCoverDataUrl(dataUrl, maxSide = 480, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / img.width, maxSide / img.height)
+        const w = Math.max(1, Math.round(img.width * scale))
+        const h = Math.max(1, Math.round(img.height * scale))
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('Canvas недоступен'))
+          return
+        }
+        ctx.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = () => reject(new Error('Не удалось прочитать фото'))
+      img.src = dataUrl
+    })
+  }
+
   function setPlaylistCoverPreview(coverData) {
     const prev = $('#playlist-cover-preview')
     if (!prev) return
@@ -781,21 +804,25 @@ const UI = (() => {
 
   function saveNewPlaylist() {
     const name = String($('#playlist-create-name')?.value || '').trim() || 'Мой плейлист'
-    if (editingPlaylistId) {
-      const patch = { name }
-      if (pendingCoverData) patch.coverData = pendingCoverData
-      Store.updatePlaylist(editingPlaylistId, patch)
-      const updated = Store.getPlaylist(editingPlaylistId)
-      if (openPlaylistId === editingPlaylistId && updated) openPlaylistView(updated)
-      toast('Плейлист обновлён')
-    } else {
-      Store.addPlaylist(name, [], pendingCoverData)
-      toast('Плейлист создан')
+    try {
+      if (editingPlaylistId) {
+        const patch = { name }
+        if (pendingCoverData) patch.coverData = pendingCoverData
+        Store.updatePlaylist(editingPlaylistId, patch)
+        const updated = Store.getPlaylist(editingPlaylistId)
+        if (openPlaylistId === editingPlaylistId && updated) openPlaylistView(updated)
+        toast('Плейлист обновлён')
+      } else {
+        Store.addPlaylist(name, [], pendingCoverData)
+        toast('Плейлист создан')
+      }
+      pendingCoverData = ''
+      editingPlaylistId = null
+      openPlaylistCreateSheet(false)
+      renderLibrary()
+    } catch (e) {
+      toast(e.message || 'Не удалось сохранить')
     }
-    pendingCoverData = ''
-    editingPlaylistId = null
-    openPlaylistCreateSheet(false)
-    renderLibrary()
   }
 
   function parseFlowJsonLocal(raw) {
@@ -1395,9 +1422,13 @@ const UI = (() => {
       const file = e.target.files?.[0]
       if (!file) return
       const reader = new FileReader()
-      reader.onload = () => {
-        pendingCoverData = String(reader.result || '')
-        setPlaylistCoverPreview(pendingCoverData)
+      reader.onload = async () => {
+        try {
+          pendingCoverData = await compressCoverDataUrl(String(reader.result || ''))
+          setPlaylistCoverPreview(pendingCoverData)
+        } catch (err) {
+          toast(err.message || 'Не удалось обработать фото')
+        }
       }
       reader.readAsDataURL(file)
       e.target.value = ''

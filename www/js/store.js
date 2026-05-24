@@ -42,7 +42,14 @@ const Store = (() => {
 
   function patch(partial) {
     const next = { ...get(), ...partial }
-    save(next)
+    try {
+      save(next)
+    } catch (e) {
+      if (e && (e.name === 'QuotaExceededError' || /quota/i.test(String(e.message || e)))) {
+        throw new Error('Память приложения переполнена. Удали старые обложки плейлистов или импортируй меньше JSON.')
+      }
+      throw e
+    }
     return next
   }
 
@@ -76,8 +83,9 @@ const Store = (() => {
     }
     if (!t.cover) t.cover = t.coverUrl || t.cover_uri || t.albumCover || t.thumbnail || ''
     if (t.source === 'yandex' && t.url) delete t.url
-    if (t.source === 'soundcloud' && t.scTranscoding && !t.scClientId && get().scClientId) {
-      t.scClientId = get().scClientId
+    if (t.source === 'soundcloud') {
+      if (!t.scClientId && get().scClientId) t.scClientId = get().scClientId
+      if (t.sc_transcoding && !t.scTranscoding) t.scTranscoding = t.sc_transcoding
     }
     return t
   }
