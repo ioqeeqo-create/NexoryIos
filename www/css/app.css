@@ -516,8 +516,9 @@ body.accent-from-cover .wave-row.is-playing .wave-row__play .ui-icon { fill: #11
 }
 .search-hero { margin-bottom: 14px; animation: item-in 0.4s var(--ease-out); }
 .search-hero__title {
-  font-family: var(--font-display); font-size: 28px; font-weight: 700;
-  letter-spacing: -0.03em; margin: 0 0 4px;
+  font-family: var(--font-pixel); font-size: 22px; font-weight: 700;
+  color: var(--text-pixel); letter-spacing: 0.02em; margin: 0 0 4px;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.35);
 }
 .search-hero__sub { margin: 0; color: var(--text-dim); font-size: 13px; }
 .screen-head { margin-bottom: 6px; }
@@ -756,12 +757,13 @@ body.playlist-open .tab-bar { opacity: 0; pointer-events: none; transform: trans
   margin-top: auto;
 }
 .pl-view-title {
-  font-family: 'Minecraft', var(--font-display); font-size: 34px; font-weight: 700;
-  margin: 0 0 4px; line-height: 1.1; text-shadow: 0 2px 16px rgba(0,0,0,0.45);
+  font-family: var(--font-pixel); font-size: 30px; font-weight: 700;
+  color: var(--text-pixel); margin: 0 0 4px; line-height: 1.1;
+  letter-spacing: 0.02em; text-shadow: 0 2px 16px rgba(0,0,0,0.45), 0 1px 0 rgba(0,0,0,0.35);
 }
 .pl-view-count {
-  margin: 0 0 14px; color: rgba(255,255,255,0.72); font-size: 14px;
-  font-family: 'Minecraft', var(--font-display);
+  margin: 0 0 14px; color: rgba(255,255,255,0.72); font-size: 13px;
+  font-family: var(--font-pixel); letter-spacing: 0.01em;
 }
 .pl-view-actions { display: flex; gap: 10px; align-items: center; justify-content: flex-start; }
 .pl-view-play {
