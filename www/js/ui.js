@@ -47,14 +47,32 @@ const UI = (() => {
     toastTimer = setTimeout(() => { el.hidden = true }, 3200)
   }
 
+  const SCREEN_ORDER = { home: 0, search: 1, library: 2, settings: 3 }
+  let screenLeaveTimer = null
+
   function showScreen(name) {
-    const prev = document.body.dataset.screen
+    const prev = document.body.dataset.screen || 'home'
+    if (prev === name) return
     if (prev === 'search' && name !== 'search') {
       $('#search-input')?.blur()
       Viewport.scheduleResync?.()
     }
+
+    const dir = (SCREEN_ORDER[name] ?? 0) >= (SCREEN_ORDER[prev] ?? 0) ? 'fwd' : 'back'
+    document.body.dataset.screenDir = dir
+
+    document.querySelectorAll('.screen').forEach((s) => {
+      const id = s.dataset.screen
+      s.classList.toggle('screen--active', id === name)
+      s.classList.toggle('screen--leaving', id === prev && id !== name)
+    })
+
+    clearTimeout(screenLeaveTimer)
+    screenLeaveTimer = setTimeout(() => {
+      document.querySelectorAll('.screen.screen--leaving').forEach((s) => s.classList.remove('screen--leaving'))
+    }, 340)
+
     document.body.dataset.screen = name
-    document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('screen--active', s.dataset.screen === name))
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
     if (name === 'library') renderLibrary()
     if (name === 'settings') renderSettingsForm()
@@ -109,10 +127,9 @@ const UI = (() => {
   }
 
   function cardHtml(track) {
-    const badge = sourceBadgeCorner(track.source)
-    return `<button type="button" class="card-tile card-tile--square" data-key="${Store.trackKey(track)}">
-      <div class="card-tile__square">
-        ${badge}
+    return `<button type="button" class="card-tile" data-key="${Store.trackKey(track)}">
+      <div class="card-tile__cover">${coverBlock(track.source, track.cover)}</div>
+      <div class="card-tile__meta">
         <div class="card-tile__title">${esc(track.title)}</div>
         <div class="card-tile__sub">${esc(track.artist)}</div>
       </div>
@@ -121,7 +138,7 @@ const UI = (() => {
 
   function highlightPlayingTrack(track) {
     const key = track ? Store.trackKey(track) : ''
-    document.querySelectorAll('.card-tile, .track-row').forEach((el) => {
+    document.querySelectorAll('.card-tile, .track-row, .pl-track-row').forEach((el) => {
       el.classList.toggle('is-playing', !!key && el.dataset.key === key)
     })
     const from = Player.playingFrom() || ''
@@ -308,11 +325,30 @@ const UI = (() => {
     Theme.applyPlayerBg()
   }
 
+  let fpCloseTimer = null
+
   function setFullPlayer(open) {
     const fp = $('#full-player')
     if (!fp) return
-    fp.hidden = !open
-    document.body.classList.toggle('player-open', open)
+    clearTimeout(fpCloseTimer)
+    if (open) {
+      fp.hidden = false
+      fp.classList.remove('is-closing')
+      void fp.offsetWidth
+      fp.classList.add('is-opening')
+      document.body.classList.add('player-open')
+      requestAnimationFrame(() => fp.classList.remove('is-opening'))
+    } else if (!fp.hidden) {
+      fp.classList.add('is-closing')
+      document.body.classList.remove('player-open')
+      fpCloseTimer = setTimeout(() => {
+        fp.hidden = true
+        fp.classList.remove('is-closing')
+        syncShellLayout()
+      }, 300)
+      syncShellLayout()
+      return
+    }
     syncShellLayout()
   }
 
@@ -766,8 +802,8 @@ const UI = (() => {
   }
 
   function wireEvents() {
-    $('#screens')?.addEventListener('click', (e) => {
-      const el = e.target.closest('.track-row, .card-tile')
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('.track-row, .card-tile, .pl-track-row')
       if (!el?.dataset.key) return
       const container = el.closest('[data-track-list]')
       if (!container) return
