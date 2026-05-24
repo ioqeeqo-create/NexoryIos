@@ -1,4 +1,6 @@
 const Api = (() => {
+  let activeServerBase = null
+
   const TIMEOUT = {
     health: 8000,
     search: 22000,
@@ -23,15 +25,32 @@ const Api = (() => {
     return Boolean(String(c.gatewayUrl || '').trim() && String(c.gatewaySecret || '').trim())
   }
 
+  function serverBases() {
+    const raw = String(cfg().gatewayUrl || '').trim().replace(/\/+$/, '')
+    const fallback =
+      typeof NexoryConfig !== 'undefined' ? String(NexoryConfig.DEFAULT_SERVER_URL || '').replace(/\/+$/, '') : ''
+    const url = raw || fallback
+    if (!url) return []
+    const out = []
+    const add = (u) => {
+      if (u && !out.includes(u)) out.push(u)
+    }
+    add(url)
+    if (!/:\d+$/.test(url)) add(`${url}:3950`)
+    if (/:3950$/.test(url)) add(url.replace(/:3950$/, ''))
+    return out
+  }
+
   function base() {
-    const u = String(cfg().gatewayUrl || '').trim().replace(/\/+$/, '')
-    if (!u) throw new Error('Укажите Gateway URL (VPS или ПК)')
-    return u
+    const bases = serverBases()
+    if (activeServerBase && bases.includes(activeServerBase)) return activeServerBase
+    if (bases[0]) return bases[0]
+    throw new Error('Укажите URL сервера')
   }
 
   function headers() {
     const secret = String(cfg().gatewaySecret || '').trim()
-    if (!secret) throw new Error('Укажите Gateway Secret')
+    if (!secret) throw new Error('Укажите секрет сервера')
     return {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${secret}`,
@@ -65,9 +84,15 @@ const Api = (() => {
       return await fetch(url, { ...opts, signal: ctrl.signal })
     } catch (e) {
       if (e.name === 'AbortError') {
-        throw new Error('Gateway не отвечает (таймаут). Проверь URL и что сервер запущен')
+        throw new Error(
+          'Gateway не отвечает (таймаут). На VPS: systemctl status nexory-gateway и открой порт 3950 в файрволе Timeweb',
+        )
       }
-      throw new Error('Нет связи с gateway')
+      const hint = String(e?.message || e)
+      if (/failed to fetch|network|load/i.test(hint)) {
+        throw new Error('Нет связи с gateway — порт 3950 закрыт снаружи или nexory-gateway не запущен')
+      }
+      throw new Error('Нет связи с сервером')
     } finally {
       clearTimeout(timer)
     }
@@ -76,12 +101,24 @@ const Api = (() => {
   async function health() {
     if (!hasGateway()) {
       if (DirectApi.hasDirectTokens()) return { ok: true, mode: 'direct' }
-      throw new Error('Gateway не настроен')
+      throw new Error('Сервер не настроен')
     }
-    const r = await fetchWithTimeout(`${base()}/health`, { method: 'GET' }, TIMEOUT.health)
-    const data = await r.json().catch(() => ({}))
-    if (!r.ok || !data.ok) throw new Error('Gateway не отвечает')
-    return data
+    let lastErr = new Error('Сервер не отвечает')
+    for (const b of serverBases()) {
+      try {
+        const r = await fetchWithTimeout(`${b}/health`, { method: 'GET' }, TIMEOUT.health)
+        const data = await r.json().catch(() => ({}))
+        if (!r.ok || !data.ok) {
+          lastErr = new Error('Сервер не отвечает')
+          continue
+        }
+        activeServerBase = b
+        return { ...data, baseUrl: b }
+      } catch (e) {
+        lastErr = e
+      }
+    }
+    throw lastErr
   }
 
   async function post(path, body, ms = TIMEOUT.default) {
@@ -177,42 +214,43 @@ const Api = (() => {
   }
 
   async function waveFetch(opts = {}) {
-    const mode = apiMode()
+    const apiModeVal = apiMode()
+    const waveOpts = { ...opts, mode: opts.mode || cfg().waveMood || 'default' }
     const hasYm = Boolean(String(cfg().yandexToken || '').trim())
-    if (hasGateway() && mode !== 'direct') {
+    if (hasGateway() && apiModeVal !== 'direct') {
       try {
         const out = await post(
           '/yandex/wave/fetch',
           {
             token: cfg().yandexToken,
-            mode: opts.mode || 'default',
-            resetSession: !!opts.resetSession,
-            radioSessionId: opts.radioSessionId || cfg().yandexRotor?.radioSessionId,
-            batchAnchorId: opts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
+            mode: waveOpts.mode,
+            resetSession: !!waveOpts.resetSession,
+            radioSessionId: waveOpts.radioSessionId || cfg().yandexRotor?.radioSessionId,
+            batchAnchorId: waveOpts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
           },
           TIMEOUT.wave,
         )
         if (out?.ok) return out
-        if (mode === 'gateway') throw new Error(out?.error || 'Волна недоступна')
+        if (apiModeVal === 'gateway') throw new Error(out?.error || 'Волна недоступна')
       } catch (e) {
-        if (mode === 'gateway' || !hasYm) throw e
+        if (apiModeVal === 'gateway' || !hasYm) throw e
       }
     }
     if (!hasYm) {
       throw new Error('Нужен токен Яндекса в настройках')
     }
     try {
-      return await DirectApi.waveFetch(opts)
+      return await DirectApi.waveFetch(waveOpts)
     } catch (e) {
       if (hasGateway() && /404|not found|unauthorized/i.test(String(e.message || e))) {
         return post(
           '/yandex/wave/fetch',
           {
             token: cfg().yandexToken,
-            mode: opts.mode || 'default',
-            resetSession: !!opts.resetSession,
-            radioSessionId: opts.radioSessionId || cfg().yandexRotor?.radioSessionId,
-            batchAnchorId: opts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
+            mode: waveOpts.mode,
+            resetSession: !!waveOpts.resetSession,
+            radioSessionId: waveOpts.radioSessionId || cfg().yandexRotor?.radioSessionId,
+            batchAnchorId: waveOpts.batchAnchorId || cfg().yandexRotor?.batchAnchorId,
           },
           TIMEOUT.wave,
         )

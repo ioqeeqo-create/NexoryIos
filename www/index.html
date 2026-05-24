@@ -28,9 +28,9 @@
           <option value="gateway">Только gateway</option>
         </select>
       </label>
-      <label class="field"><span>Gateway URL</span><input type="url" id="gate-gateway" placeholder="https://music.example.com" autocapitalize="off" autocomplete="off" /></label>
-      <label class="field"><span>Gateway Secret</span><input type="password" id="gate-secret" placeholder="секрет с VPS" autocomplete="off" /></label>
-      <button type="button" class="secondary-btn" id="gate-test">Проверить gateway</button>
+      <label class="field"><span>Сервер URL</span><input type="url" id="gate-gateway" placeholder="http://85.239.34.229" autocapitalize="off" autocomplete="off" /></label>
+      <label class="field"><span>Секрет сервера</span><input type="password" id="gate-secret" placeholder="секрет с VPS" autocomplete="off" /></label>
+      <button type="button" class="secondary-btn" id="gate-test">Проверить сервер</button>
       <small class="field-hint" id="gate-status"></small>
       <label class="field"><span>Яндекс OAuth</span><textarea id="gate-yandex" rows="2" placeholder="OAuth токен"></textarea></label>
       <label class="field"><span>VK token</span><input type="password" id="gate-vk" placeholder="опционально" autocomplete="off" /></label>
@@ -76,6 +76,7 @@
               </svg>
             </span>
           </button>
+          <div class="wave-moods" id="wave-moods" role="group" aria-label="Настроение волны"></div>
         </div>
         <div class="section section--likes">
           <button type="button" class="home-likes-pill" id="btn-home-likes-play">
@@ -193,9 +194,9 @@
               </select>
             </label>
             <p class="field-hint">Авто: Яндекс/VK/SC без ПК в Wi‑Fi. Импорт плейлистов по ссылке — только через gateway.</p>
-            <label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="https://твой-сервер:3950" autocapitalize="off" /></label>
-            <label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="FLOW_MOBILE_GATEWAY_SECRET" autocomplete="off" /></label>
-            <button type="button" class="secondary-btn" id="btn-test-gateway">Проверить gateway</button>
+            <label class="field"><span>Сервер URL</span><input type="url" id="cfg-gateway" placeholder="http://85.239.34.229" autocapitalize="off" /></label>
+            <label class="field"><span>Секрет сервера</span><input type="password" id="cfg-secret" placeholder="секрет с VPS" autocomplete="off" /></label>
+            <button type="button" class="secondary-btn" id="btn-test-gateway">Проверить сервер</button>
             <small class="field-hint" id="gateway-status"></small>
           </div>
           <div class="settings-group">
@@ -345,6 +346,11 @@
       <h2 class="sheet__title">Импорт плейлиста</h2>
       <p class="sheet__hint">Ссылка VK / Яндекс Музыки или JSON, экспортированный из Nexory на ПК (flow-playlists-v1).</p>
       <textarea id="import-input" class="import-textarea" rows="4" placeholder="https://music.yandex.ru/... или вставь JSON"></textarea>
+      <div class="import-progress" id="import-progress" hidden>
+        <p class="import-progress__text" id="import-progress-text">Проверка…</p>
+        <div class="import-progress__bar"><span id="import-progress-fill"></span></div>
+        <ul class="import-failures" id="import-failures"></ul>
+      </div>
       <button type="button" class="primary-btn" id="btn-import-run">Импортировать</button>
       <button type="button" class="link-btn sheet__cancel" id="import-sheet-cancel">Отмена</button>
     </div>
@@ -356,6 +362,7 @@
       <div class="pl-view-hero__shade"></div>
       <div class="pl-view-hero__top">
         <button type="button" class="icon-btn pl-view-back" id="playlist-view-back" data-icon="chevron-left" aria-label="Назад"></button>
+        <button type="button" class="icon-btn pl-view-edit" id="playlist-view-edit" data-icon="pencil" aria-label="Редактировать" hidden></button>
       </div>
       <div class="pl-view-hero__content">
         <h1 class="pl-view-title" id="playlist-view-title">Плейлист</h1>
@@ -389,6 +396,18 @@
     </div>
   </div>
 
+  <div class="sheet" id="track-actions-sheet" hidden>
+    <div class="sheet__backdrop" id="track-actions-close"></div>
+    <div class="sheet__panel safe-bottom">
+      <h2 class="sheet__title" id="track-actions-title">Трек</h2>
+      <p class="sheet__hint" id="track-actions-sub">—</p>
+      <button type="button" class="pl-action pl-action--danger" id="track-action-remove">
+        <span data-icon="trash-2" data-icon-class="ui-icon"></span><span>Удалить из плейлиста</span>
+      </button>
+      <button type="button" class="link-btn sheet__cancel" id="track-actions-cancel">Отмена</button>
+    </div>
+  </div>
+
   <div class="sheet" id="playlist-actions-sheet" hidden>
     <div class="sheet__backdrop" id="playlist-actions-close"></div>
     <div class="sheet__panel sheet__panel--actions safe-bottom">
@@ -418,6 +437,7 @@
 
   <script src="js/icons.js"></script>
   <script src="js/viewport.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/store.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/direct-api.js"></script>

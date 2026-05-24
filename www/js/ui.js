@@ -13,6 +13,8 @@ const UI = (() => {
   let plLongPressHandled = false
   let pickPlaylistTrack = null
   let editingPlaylistId = null
+  let trackActionPlaylistId = null
+  let trackActionKey = null
   const trackLists = new WeakMap()
 
   const SERVICE_META = {
@@ -122,7 +124,7 @@ const UI = (() => {
 
   function trackDurationLabel(track) {
     const sec = trackDurationSec(track)
-    return sec > 0 ? Player.fmt(sec) : ''
+    return sec > 0 ? Player.fmt(sec) : '—:——'
   }
 
   function setupScrollTitles(root) {
@@ -155,7 +157,7 @@ const UI = (() => {
         </div>
         <div class="track-row__artist">${esc(track.artist)}</div>
       </div>
-      ${dur ? `<span class="track-row__dur">${dur}</span>` : '<span class="track-row__dur track-row__dur--empty"></span>'}
+      <span class="track-row__dur">${dur}</span>
     </button>`
   }
 
@@ -202,8 +204,141 @@ const UI = (() => {
         </div>
         <div class="pl-track-row__artist">${esc(track.artist)}</div>
       </div>
-      ${dur ? `<span class="pl-track-row__dur">${dur}</span>` : '<span class="pl-track-row__dur pl-track-row__dur--empty"></span>'}
+      <span class="pl-track-row__dur">${dur}</span>
     </button>`
+  }
+
+  function renderWaveMoods() {
+    const el = $('#wave-moods')
+    if (!el || typeof NexoryConfig === 'undefined') return
+    const mood = Store.get().waveMood || 'default'
+    el.innerHTML = NexoryConfig.WAVE_MOODS.map(
+      (m) =>
+        `<button type="button" class="wave-mood${m.id === mood ? ' wave-mood--active' : ''}" data-wave-mood="${esc(m.id)}">${esc(m.label)}</button>`,
+    ).join('')
+  }
+
+  function setWaveMood(id) {
+    Store.patch({ waveMood: id })
+    renderWaveMoods()
+  }
+
+  function openTrackActionsSheet(playlistId, track) {
+    if (!playlistId || playlistId === '__likes' || !track) return
+    trackActionPlaylistId = playlistId
+    trackActionKey = Store.trackKey(track)
+    const sheet = $('#track-actions-sheet')
+    if (!sheet) return
+    $('#track-actions-title').textContent = track.title || 'Трек'
+    $('#track-actions-sub').textContent = track.artist || ''
+    sheet.hidden = false
+    Icons.mount(sheet)
+  }
+
+  function closeTrackActionsSheet() {
+    trackActionPlaylistId = null
+    trackActionKey = null
+    const sheet = $('#track-actions-sheet')
+    if (sheet) sheet.hidden = true
+  }
+
+  function bindPlaylistTrackLongPress(container, playlistId) {
+    if (!container || playlistId === '__likes' || container.dataset.trackPressBound) return
+    container.dataset.trackPressBound = '1'
+    let timer = null
+    let moved = false
+    container.addEventListener('pointerdown', (e) => {
+      const row = e.target.closest('.pl-track-row')
+      if (!row) return
+      moved = false
+      clearTimeout(timer)
+      const idx = Number(row.dataset.idx)
+      timer = setTimeout(() => {
+        if (moved) return
+        const pl = playlistId === '__likes' ? null : Store.getPlaylist(playlistId)
+        const tracks = playlistId === '__likes' ? Store.get().likes : pl?.tracks
+        const track = tracks?.[idx]
+        if (track && playlistId !== '__likes') {
+          if (navigator.vibrate) navigator.vibrate(10)
+          openTrackActionsSheet(playlistId, track)
+        }
+      }, 520)
+    })
+    container.addEventListener('pointermove', () => {
+      moved = true
+      clearTimeout(timer)
+    })
+    container.addEventListener('pointerup', () => clearTimeout(timer))
+    container.addEventListener('pointercancel', () => clearTimeout(timer))
+  }
+
+  async function validatePlaylistTracks(tracks, onProgress) {
+    const list = Store.normalizeTracks(tracks)
+    const ok = []
+    const failed = []
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i]
+      onProgress?.(i + 1, list.length, t)
+      if (t.source === 'vk' && t.url) {
+        ok.push(t)
+        continue
+      }
+      if (t.source === 'yandex' && t.url) {
+        ok.push(t)
+        continue
+      }
+      try {
+        const out = await Api.resolve(t)
+        if (out.ok && out.url) {
+          const next = { ...t, url: out.url }
+          if (out.scTranscoding) next.scTranscoding = out.scTranscoding
+          ok.push(next)
+        } else {
+          failed.push({ track: t, error: out.error || 'Не удалось получить поток' })
+        }
+      } catch (e) {
+        failed.push({ track: t, error: String(e?.message || e) })
+      }
+    }
+    return { ok, failed }
+  }
+
+  function showImportProgress(done, total, text) {
+    const box = $('#import-progress')
+    const label = $('#import-progress-text')
+    const fill = $('#import-progress-fill')
+    if (!box) return
+    box.hidden = false
+    if (label) label.textContent = text || `Проверка ${done}/${total}`
+    if (fill && total > 0) fill.style.width = `${Math.round((done / total) * 100)}%`
+  }
+
+  function hideImportProgress() {
+    const box = $('#import-progress')
+    if (box) box.hidden = true
+    const list = $('#import-failures')
+    if (list) list.innerHTML = ''
+    const fill = $('#import-progress-fill')
+    if (fill) fill.style.width = '0%'
+  }
+
+  function renderImportFailures(failed) {
+    const list = $('#import-failures')
+    if (!list) return
+    if (!failed.length) {
+      list.innerHTML = ''
+      return
+    }
+    list.innerHTML = failed
+      .slice(0, 24)
+      .map(
+        (f) =>
+          `<li><strong>${esc(f.track?.title || 'Трек')}</strong> — ${esc(f.error || 'ошибка')}</li>`,
+      )
+      .join('')
+    if (failed.length > 24) {
+      list.innerHTML += `<li>…и ещё ${failed.length - 24}</li>`
+    }
   }
 
   function getActionsPlaylist() {
@@ -641,6 +776,7 @@ const UI = (() => {
       likesCovers.innerHTML = likesCoversHtml(s.likes)
       Icons.mount(likesCovers)
     }
+    renderWaveMoods()
     highlightPlayingTrack(Player.current())
   }
 
@@ -683,13 +819,16 @@ const UI = (() => {
       }
     }
     $('#playlist-view-title').textContent = pl.name
-    $('#playlist-view-count').textContent = `${pl.tracks.length} треков`
+    $('#playlist-view-count').textContent = formatTrackCount(pl.tracks.length)
+    const editBtn = $('#playlist-view-edit')
+    if (editBtn) editBtn.hidden = !!isLikes
     const tracksEl = $('#playlist-view-tracks')
     if (tracksEl) {
       tracksEl.innerHTML = pl.tracks.length
         ? pl.tracks.map((t, i) => playlistTrackRowHtml(t, i)).join('')
         : '<p class="empty-hint">Плейлист пуст</p>'
       bindTrackClicks(tracksEl, pl.tracks, pl.name)
+      if (!isLikes && pl.id) bindPlaylistTrackLongPress(tracksEl, pl.id)
       highlightPlayingTrack(Player.current())
       setupScrollTitles(tracksEl)
     }
@@ -864,19 +1003,36 @@ const UI = (() => {
     const raw = String($('#import-input')?.value || '').trim()
     if (!raw) return toast('Вставь ссылку или JSON')
     if (!Api.isConfigured()) {
-      toast('Сначала настрой gateway')
+      toast('Сначала настрой сервер и токены')
       showSetupGate()
       return
     }
     const isJson = /^[\[{]/.test(raw)
+    hideImportProgress()
     toast('Импортируем…')
+    const btn = $('#btn-import-run')
+    if (btn) btn.disabled = true
     try {
       if (isJson) {
         const local = parseFlowJsonLocal(raw)
         if (local?.playlists?.length) {
+          let allFailed = []
+          for (const pl of local.playlists) {
+            showImportProgress(0, pl.tracks.length, `Проверка «${pl.name}»…`)
+            const { ok, failed } = await validatePlaylistTracks(pl.tracks, (d, t) => {
+              showImportProgress(d, t, `Проверка ${d}/${t}`)
+            })
+            pl.tracks = ok
+            allFailed = allFailed.concat(failed)
+          }
           Store.importPlaylists(local.playlists)
-          toast(`Импортировано плейлистов: ${local.playlists.length}`)
-          openImportSheet(false)
+          renderImportFailures(allFailed)
+          toast(
+            allFailed.length
+              ? `Импорт: ${local.playlists.length} пл., ${allFailed.length} без потока`
+              : `Импортировано плейлистов: ${local.playlists.length}`,
+          )
+          if (!allFailed.length) openImportSheet(false)
           $('#import-input').value = ''
           renderLibrary()
           return
@@ -885,17 +1041,45 @@ const UI = (() => {
       const out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
       if (!out.ok) throw new Error(out.error || 'Импорт не удался')
       if (Array.isArray(out.playlists)) {
-        Store.importPlaylists(out.playlists)
-        toast(`Импортировано плейлистов: ${out.playlists.length}`)
+        let allFailed = []
+        const validated = []
+        for (const pl of out.playlists) {
+          showImportProgress(0, pl.tracks?.length || 0, `Проверка «${pl.name}»…`)
+          const { ok, failed } = await validatePlaylistTracks(pl.tracks || [], (d, t) => {
+            showImportProgress(d, t, `Проверка ${d}/${t}`)
+          })
+          validated.push({ ...pl, tracks: ok })
+          allFailed = allFailed.concat(failed)
+        }
+        Store.importPlaylists(validated)
+        renderImportFailures(allFailed)
+        toast(
+          allFailed.length
+            ? `Импорт: ${validated.length} пл., ${allFailed.length} без потока`
+            : `Импортировано плейлистов: ${validated.length}`,
+        )
+        if (!allFailed.length) openImportSheet(false)
       } else {
-        Store.addPlaylist(out.name || 'Импорт', out.tracks || [], out.coverData || '')
-        toast(`«${out.name || 'Плейлист'}»: ${(out.tracks || []).length} треков`)
+        const tracks = out.tracks || []
+        showImportProgress(0, tracks.length, 'Проверка треков…')
+        const { ok, failed } = await validatePlaylistTracks(tracks, (d, t) => {
+          showImportProgress(d, t, `Проверка ${d}/${t}`)
+        })
+        Store.addPlaylist(out.name || 'Импорт', ok, out.coverData || '')
+        renderImportFailures(failed)
+        toast(
+          failed.length
+            ? `«${out.name || 'Плейлист'}»: ${ok.length} ок, ${failed.length} без потока`
+            : `«${out.name || 'Плейлист'}»: ${ok.length} треков`,
+        )
+        if (!failed.length) openImportSheet(false)
       }
-      openImportSheet(false)
       $('#import-input').value = ''
       renderLibrary()
     } catch (e) {
       toast(e.message || 'Ошибка импорта')
+    } finally {
+      if (btn) btn.disabled = false
     }
   }
 
@@ -1092,7 +1276,7 @@ const UI = (() => {
       $('#gate-status').textContent = 'Проверяем…'
       try {
         await Api.health()
-        $('#gate-status').textContent = '✓ Gateway OK'
+        $('#gate-status').textContent = '✓ Сервер OK'
       } catch (e) {
         $('#gate-status').textContent = e.message
       }
@@ -1119,12 +1303,19 @@ const UI = (() => {
       toast('Без токенов музыка не заработает')
     })
 
+    $('#wave-moods')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-wave-mood]')
+      if (!btn) return
+      setWaveMood(btn.dataset.waveMood)
+      Store.setRotor(null)
+    })
+
     $('#btn-wave-play')?.addEventListener('click', async () => {
       const row = $('#btn-wave-play')
       if (busy) return
       Player.primeAudio()
       try {
-        if (!Api.isConfigured()) throw new Error('Настрой gateway в настройках')
+        if (!Api.isConfigured()) throw new Error('Настрой сервер и токены')
         if (!Store.get().yandexToken) throw new Error('Добавь Яндекс OAuth')
         busy = true
         row?.classList.add('is-busy')
@@ -1137,6 +1328,25 @@ const UI = (() => {
         row?.classList.remove('is-busy')
       }
     })
+
+    $('#playlist-view-edit')?.addEventListener('click', () => {
+      const pl = Store.getPlaylist(openPlaylistId)
+      if (pl) openPlaylistCreateSheet(true, pl)
+    })
+
+    $('#track-action-remove')?.addEventListener('click', () => {
+      const plId = trackActionPlaylistId
+      const key = trackActionKey
+      if (!plId || !key) return
+      Store.removeTrackFromPlaylist(plId, key)
+      closeTrackActionsSheet()
+      const pl = Store.getPlaylist(plId)
+      if (pl && openPlaylistId === plId) openPlaylistView(pl)
+      renderLibrary()
+      toast('Трек удалён')
+    })
+    $('#track-actions-close')?.addEventListener('click', () => closeTrackActionsSheet())
+    $('#track-actions-cancel')?.addEventListener('click', () => closeTrackActionsSheet())
 
     $('#btn-open-likes')?.addEventListener('click', () => {
       const s = Store.get()
@@ -1404,7 +1614,7 @@ const UI = (() => {
       $('#gateway-status').textContent = 'Проверяем…'
       try {
         await Api.health()
-        $('#gateway-status').textContent = '✓ Gateway OK'
+        $('#gateway-status').textContent = '✓ Сервер OK'
       } catch (e) {
         $('#gateway-status').textContent = e.message
       }

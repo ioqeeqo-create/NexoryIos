@@ -16,12 +16,13 @@ const Store = (() => {
   function defaults() {
     return {
       apiMode: 'auto',
-      gatewayUrl: '',
-      gatewaySecret: '',
+      gatewayUrl: typeof NexoryConfig !== 'undefined' ? NexoryConfig.DEFAULT_SERVER_URL : '',
+      gatewaySecret: typeof NexoryConfig !== 'undefined' ? NexoryConfig.DEFAULT_SERVER_SECRET : '',
       yandexToken: '',
       vkToken: '',
       scClientId: '',
       waveSource: 'yandex',
+      waveMood: 'default',
       likes: [],
       recent: [],
       playlists: [],
@@ -37,7 +38,12 @@ const Store = (() => {
   }
 
   function get() {
-    return { ...defaults(), ...load() }
+    const d = defaults()
+    const merged = { ...d, ...load() }
+    if (!String(merged.gatewayUrl || '').trim() && d.gatewayUrl) merged.gatewayUrl = d.gatewayUrl
+    if (!String(merged.gatewaySecret || '').trim() && d.gatewaySecret) merged.gatewaySecret = d.gatewaySecret
+    if (!merged.waveMood) merged.waveMood = 'default'
+    return merged
   }
 
   function patch(partial) {
@@ -198,8 +204,27 @@ const Store = (() => {
     return patch({ playlists })
   }
 
+  function removeTrackFromPlaylist(playlistId, key) {
+    const s = get()
+    const playlists = s.playlists.map((p) => {
+      if (p.id !== playlistId) return p
+      return { ...p, tracks: p.tracks.filter((t) => trackKey(t) !== key) }
+    })
+    return patch({ playlists })
+  }
+
+  function setPlaylistTracks(playlistId, tracks) {
+    const s = get()
+    const playlists = s.playlists.map((p) => {
+      if (p.id !== playlistId) return p
+      return { ...p, tracks: normalizeTracks(tracks) }
+    })
+    return patch({ playlists })
+  }
+
   return {
     get, patch, trackKey, normalizeTrack, normalizeTracks, isLiked, toggleLike, pushRecent, setRotor,
     addPlaylist, importPlaylists, getPlaylist, updatePlaylist, deletePlaylist, addTrackToPlaylist,
+    removeTrackFromPlaylist, setPlaylistTracks,
   }
 })()

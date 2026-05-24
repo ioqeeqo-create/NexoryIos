@@ -69,16 +69,63 @@ systemctl start nexory-gateway
 systemctl status nexory-gateway
 ```
 
-Открой порт **3950** в файрволе Timeweb (или nginx + HTTPS на 443).
+Открой порт **3950** снаружи — иначе iPhone пишет «Нет связи с gateway»:
+
+1. **Timeweb Cloud** → сервер → **Сеть / Firewall** → входящий TCP **3950** (источник: любой или 0.0.0.0/0).
+2. На VPS (если включён ufw):
+
+```bash
+ufw allow 3950/tcp
+ufw status
+```
+
+3. Проверка **с ноутбука** (не с VPS):
+
+```bash
+curl -sS -m 5 http://IP_СЕРВЕРА:3950/health
+```
+
+Должно вернуть `{"ok":true,...}`. Если таймаут — порт всё ещё закрыт.
+
+4. На VPS сервис должен слушать порт:
+
+```bash
+systemctl status nexory-gateway
+curl -s http://127.0.0.1:3950/health
+ss -tlnp | grep 3950
+```
+
+Отключи старый сервис, если занимает тот же порт:
+
+```bash
+systemctl disable --now flow-mobile-gateway 2>/dev/null
+```
+
+### Обход: nginx на порту 80 (если 3950 не открывается)
+
+Снаружи у тебя уже отвечает nginx на **:80**. Можно проксировать gateway без открытия 3950:
+
+```bash
+cd /opt/nexory && git pull
+# файл: NexoryIos/deploy/nginx-nexory-gateway.conf (если клонишь только NexoryND — скопируй блок server{} вручную)
+sudo cp NexoryIos/deploy/nginx-nexory-gateway.conf /etc/nginx/sites-available/nexory-gateway
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/nexory-gateway /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+curl -s http://127.0.0.1/health
+curl -s http://$(curl -s ifconfig.me)/health
+```
+
+В iPhone **Gateway URL**: `http://IP_СЕРВЕРА` (**без** `:3950`), Secret тот же.
 
 ---
 
-## В iPhone (Nexory)
+## В приложении
 
 | Поле | Пример |
 |------|--------|
 | Режим API | Авто |
-| Gateway URL | `http://IP_СЕРВЕРА:3950` |
+| Gateway URL | `http://IP_СЕРВЕРА:3950` **или** `http://IP_СЕРВЕРА` (через nginx) |
 | Gateway Secret | тот же, что в `.env` |
 
 ---

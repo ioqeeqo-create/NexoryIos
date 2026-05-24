@@ -247,6 +247,7 @@ const Player = (() => {
         }).catch(() => {})
       }
       emit('playing', { track })
+      if (track) Lyrics.prefetch?.(track, audio.duration || 0)
     } catch (e) {
       const needRetry =
         (track?.source === 'soundcloud' || track?.source === 'yandex') &&
@@ -339,7 +340,9 @@ const Player = (() => {
     waveLoading = true
     try {
       const rotor = Store.get().yandexRotor || {}
+      const mood = Store.get().waveMood || 'default'
       const out = await Api.waveFetch({
+        mode: mood,
         resetSession: !rotor.radioSessionId,
         radioSessionId: rotor.radioSessionId,
         batchAnchorId: rotor.batchAnchorId,
@@ -363,7 +366,8 @@ const Player = (() => {
 
   async function startWave() {
     Store.setRotor(null)
-    const out = await Api.waveFetch({ resetSession: true })
+    const mood = Store.get().waveMood || 'default'
+    const out = await Api.waveFetch({ resetSession: true, mode: mood })
     if (!out.ok || !out.tracks?.length) throw new Error(out.error || 'Не удалось запустить волну')
     Store.setRotor({
       radioSessionId: out.radioSessionId,

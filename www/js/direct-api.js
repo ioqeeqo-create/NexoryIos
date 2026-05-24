@@ -6,6 +6,20 @@ const DirectApi = (() => {
   const YM = 'https://api.music.yandex.net'
   const YM_WAVE = 'user:onyourwave'
 
+  function mapWaveModeToSeeds(mode) {
+    const m = {
+      default: 'all',
+      sad: 'sad',
+      happy: 'fun',
+      energetic: 'active',
+      calm: 'calm',
+      romantic: 'fun',
+    }
+    const mood = m[String(mode || 'default').trim()] || 'all'
+    if (!mood || mood === 'all') return [YM_WAVE]
+    return [YM_WAVE, `mood:${mood}`]
+  }
+
   const VK_UA = 'KateMobileAndroid/56 lite-460 (Android 9; 9; SDK 28; HIGH)'
   const VK_UA_ALT = 'KateMobileAndroid/52.1 lite-445 (Android 4.4.2; SDK 19; x86; unknown Android SDK built for x86; en)'
   const VK_SEARCH_PLANS = [
@@ -496,7 +510,7 @@ const DirectApi = (() => {
       method: 'POST',
       headers: yandexRotorHeaders(oauth),
       body: JSON.stringify({
-        seeds: [YM_WAVE],
+        seeds: mapWaveModeToSeeds(opts.mode),
         includeTracksInResponse: true,
         includeWaveModel: true,
         interactive: true,
