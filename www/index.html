@@ -5,16 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#06080d" />
+  <meta name="theme-color" content="#020617" />
   <title>Nexory</title>
   <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
+  <div id="splash" class="splash" aria-hidden="true">
+    <div class="splash__ring"></div>
+    <img class="splash__logo" src="assets/nexory-icon.png" alt="" />
+    <p class="splash__name">Nexory</p>
+  </div>
   <div id="app-bg"></div>
   <div id="setup-gate" class="setup-gate" hidden>
     <div class="setup-gate__scroll safe-top safe-bottom">
       <img class="setup-gate__logo" src="assets/nexory-icon.png" alt="Nexory" />
-      <h1 class="setup-gate__title pixel">NEXORY</h1>
+      <h1 class="setup-gate__title">Nexory</h1>
       <p class="setup-gate__text">Gateway на ПК + токены. IP компа в Wi‑Fi, не localhost.</p>
       <label class="field"><span>Gateway URL</span><input type="url" id="gate-gateway" placeholder="http://192.168.0.5:3950" autocapitalize="off" autocomplete="off" /></label>
       <label class="field"><span>Gateway Secret</span><input type="password" id="gate-secret" placeholder="секрет" autocomplete="off" /></label>
@@ -30,7 +35,7 @@
     <header class="top-bar safe-top">
       <div class="top-bar__brand">
         <img class="brand-mark" src="assets/nexory-icon.png" alt="" />
-        <span class="brand-pixel">NEXORY</span>
+        <span class="brand-pixel">Nexory</span>
       </div>
       <button type="button" class="icon-btn" id="btn-search-open" aria-label="Поиск" data-icon="search"></button>
     </header>
@@ -43,22 +48,22 @@
             <span class="wave-orb__glow"></span>
             <img class="wave-orb__img" src="assets/source-yandex-wave.svg" alt="" />
           </button>
-          <h1 class="wave-title pixel">Моя волна</h1>
+          <h1 class="wave-title">Моя волна</h1>
           <p class="wave-sub" id="wave-source-label">Нажми — погрузиться в волну</p>
         </div>
         <div class="section">
-          <div class="section-head"><h2 class="section-title pixel">Недавние</h2></div>
+          <div class="section-head"><h2 class="section-title">Недавние</h2></div>
           <div class="h-scroll" id="recent-list" data-track-list></div>
         </div>
         <div class="section">
           <div class="section-head">
-            <h2 class="section-title pixel">Любимые</h2>
+            <h2 class="section-title">Любимые</h2>
             <button type="button" class="link-btn" data-goto="library">Все</button>
           </div>
           <div class="h-scroll" id="favorites-preview" data-track-list></div>
         </div>
         <div class="section">
-          <div class="section-head"><h2 class="section-title pixel">Популярное</h2></div>
+          <div class="section-head"><h2 class="section-title">Популярное</h2></div>
           <div class="chip-row" id="popular-chips">
             <button type="button" class="chip chip--active" data-popular="yandex"><img class="chip-icon" src="assets/source-yandex-music.png" alt="" /><span>Яндекс</span></button>
             <button type="button" class="chip" data-popular="vk"><img class="chip-icon" src="assets/source-vk.png" alt="" /><span>VK</span></button>
@@ -84,22 +89,22 @@
       </section>
 
       <section class="screen" data-screen="library">
-        <h1 class="screen-title pixel">Библиотека</h1>
+        <h1 class="screen-title">Библиотека</h1>
         <div class="lib-actions">
           <button type="button" class="lib-card" id="btn-create-playlist"><span class="lib-card__icon" data-icon="plus"></span><span>Создать плейлист</span></button>
         </div>
         <div class="section">
-          <h2 class="section-title pixel">Любимые</h2>
+          <h2 class="section-title">Любимые</h2>
           <div class="v-list v-list--tracks" id="library-likes" data-track-list></div>
         </div>
         <div class="section">
-          <h2 class="section-title pixel">Плейлисты</h2>
+          <h2 class="section-title">Плейлисты</h2>
           <div id="library-playlists"></div>
         </div>
       </section>
 
       <section class="screen" data-screen="settings">
-        <h1 class="screen-title pixel">Настройки</h1>
+        <h1 class="screen-title">Настройки</h1>
         <div class="settings-group">
           <label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="http://IP:3950" autocapitalize="off" /></label>
           <label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="Bearer secret" autocomplete="off" /></label>
@@ -107,7 +112,7 @@
           <small class="field-hint" id="gateway-status"></small>
         </div>
         <div class="settings-group">
-          <h3 class="settings-label pixel">Сервисы</h3>
+          <h3 class="settings-label">Сервисы</h3>
           <label class="field"><span>Яндекс OAuth</span><textarea id="cfg-yandex" rows="2" placeholder="OAuth токен"></textarea><small class="field-hint" id="yandex-status"></small></label>
           <label class="field"><span>VK access_token</span><textarea id="cfg-vk" rows="2" placeholder="access_token"></textarea><small class="field-hint" id="vk-status"></small></label>
           <label class="field"><span>SoundCloud client_id (опц.)</span><input type="text" id="cfg-sc" placeholder="Авто через gateway" /></label>
@@ -143,21 +148,21 @@
     <div class="full-player__bg" id="full-bg"></div>
     <div class="full-player__content safe-top safe-bottom">
       <button type="button" class="full-player__close" id="full-close" data-icon="chevron-down"></button>
-      <p class="full-player__source pixel" id="full-from"></p>
+      <p class="full-player__source" id="full-from"></p>
       <div class="full-cover-wrap" id="full-cover-wrap">
         <span class="full-cover-ph" data-icon="music-2" data-icon-class="ui-icon lg cover-ph"></span>
         <img class="full-cover" id="full-cover" alt="" hidden />
       </div>
       <div class="full-cover-dots" aria-hidden="true"><span></span><span></span></div>
       <div class="full-meta">
-        <h2 class="full-title pixel" id="full-title">—</h2>
+        <h2 class="full-title" id="full-title">—</h2>
         <p class="full-artist" id="full-artist">—</p>
       </div>
       <div class="waveform" id="waveform" aria-hidden="true"></div>
       <div class="progress-row">
-        <span class="time pixel" id="time-current">0:00</span>
+        <span class="time" id="time-current">0:00</span>
         <input type="range" class="seek" id="seek" min="0" max="1000" value="0" />
-        <span class="time pixel" id="time-total">0:00</span>
+        <span class="time" id="time-total">0:00</span>
       </div>
       <div class="full-controls">
         <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
