@@ -234,12 +234,19 @@ const Player = (() => {
 
   async function playQueue(tracks, startIdx = 0, fromLabel = '', opts = {}) {
     if (!Api.isConfigured()) throw new Error('Настрой gateway URL и Secret')
-    const list = tracks.slice()
+    const list = Store.normalizeTracks(tracks)
+    if (!list.length) throw new Error('Нет треков для воспроизведения')
+    let start = Math.max(0, Math.min(startIdx, list.length - 1))
+    const wantKey = Store.trackKey(tracks[startIdx])
+    if (wantKey) {
+      const mapped = list.findIndex((t) => Store.trackKey(t) === wantKey)
+      if (mapped >= 0) start = mapped
+    }
     shuffle = !!opts.shuffle
     queue = shuffle ? list.sort(() => Math.random() - 0.5) : list
     waveMode = fromLabel.includes('волна') || fromLabel.includes('Моя волна')
     playingFrom = fromLabel
-    await playTrackAt(startIdx, fromLabel)
+    await playTrackAt(start, fromLabel)
   }
 
   async function toggle() {

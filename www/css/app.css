@@ -249,10 +249,10 @@ body.player-open { --mini-h-active: 0px; }
 
 .screen[data-screen="home"] {
   display: flex; flex-direction: column;
-  padding-top: 6px;
+  padding-top: 20px;
 }
 .home-hero {
-  margin: 40px 0 16px;
+  margin: 64px 0 28px;
   padding: 0;
   animation: hero-in 0.55s var(--ease-out) both;
 }
@@ -334,10 +334,10 @@ body.accent-from-cover .wave-row.is-playing .wave-row__play .ui-icon { fill: #11
 .wave-row.is-playing .wave-fine-lines__g--3 { animation-duration: 10s; }
 .section { margin-bottom: 28px; }
 .screen[data-screen="home"] .section--likes {
-  margin: 22px 0 30px;
+  margin: 32px 0 40px;
 }
 .screen[data-screen="home"] .section:last-child {
-  margin-top: 6px; margin-bottom: 36px;
+  margin-top: 12px; margin-bottom: 48px;
 }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .section-title {
@@ -735,14 +735,14 @@ body.playlist-open .tab-bar { opacity: 0; pointer-events: none; transform: trans
 .playlist-view[hidden] { display: none !important; }
 .pl-view-hero {
   position: relative; flex-shrink: 0;
-  min-height: min(52vh, 420px);
-  padding-bottom: 28px; overflow: hidden;
+  min-height: min(62vh, 520px);
+  padding-bottom: 36px; overflow: hidden;
   display: flex; flex-direction: column;
 }
 .pl-view-hero__bg {
-  position: absolute; inset: 0;
-  background: #1a1020 center 30% / cover no-repeat;
-  transform: scale(1.06);
+  position: absolute; inset: -8% 0 0;
+  background: #1a1020 center 28% / cover no-repeat;
+  transform: scale(1.14);
   transform-origin: center top;
   filter: saturate(1.08) brightness(0.92);
   image-rendering: auto;
@@ -757,7 +757,7 @@ body.playlist-open .tab-bar { opacity: 0; pointer-events: none; transform: trans
     linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.02) 55%, rgba(0,0,0,0.55) 82%, #050508 100%);
 }
 .pl-view-hero--likes {
-  min-height: min(50vh, 400px);
+  min-height: min(60vh, 500px);
 }
 .pl-view-hero--likes .pl-view-hero__bg {
   background:
@@ -804,9 +804,9 @@ body.playlist-open .tab-bar { opacity: 0; pointer-events: none; transform: trans
   flex-shrink: 0;
 }
 .pl-view-body {
-  flex: 1; min-height: 48vh; margin-top: -32px; position: relative; z-index: 3;
+  flex: 1; min-height: 44vh; margin-top: -44px; position: relative; z-index: 3;
   background: #050508;
-  border-radius: 26px 26px 0 0;
+  border-radius: 28px 28px 0 0;
   overflow: hidden;
   border-top: 1px solid rgba(255,255,255,0.08);
   pointer-events: auto;

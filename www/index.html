@@ -309,7 +309,7 @@
   <div class="sheet" id="playlist-create-sheet" hidden>
     <div class="sheet__backdrop" id="playlist-create-close"></div>
     <div class="sheet__panel safe-bottom">
-      <h2 class="sheet__title">Новый плейлист</h2>
+      <h2 class="sheet__title" id="playlist-sheet-title">Новый плейлист</h2>
       <button type="button" class="playlist-cover-pick" id="playlist-cover-pick">
         <span class="playlist-cover-pick__ph" id="playlist-cover-preview" data-icon="image" data-icon-class="ui-icon lg"></span>
         <span class="playlist-cover-pick__label">Выбрать обложку</span>
@@ -379,6 +379,9 @@
         <button type="button" class="pl-action" id="pl-action-play"><span data-icon="play" data-icon-class="ui-icon"></span><span>Воспроизвести</span></button>
         <button type="button" class="pl-action" id="pl-action-shuffle"><span data-icon="shuffle" data-icon-class="ui-icon"></span><span>Перемешать</span></button>
         <button type="button" class="pl-action" id="pl-action-wave"><span data-icon="audio-lines" data-icon-class="ui-icon"></span><span>Волна по плейлисту</span></button>
+      </div>
+      <div class="pl-actions-group">
+        <button type="button" class="pl-action" id="pl-action-edit"><span data-icon="pencil" data-icon-class="ui-icon"></span><span>Редактировать</span></button>
       </div>
       <div class="pl-actions-group">
         <button type="button" class="pl-action pl-action--danger" id="pl-action-delete"><span data-icon="trash-2" data-icon-class="ui-icon"></span><span>Удалить</span></button>

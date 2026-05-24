@@ -12,6 +12,7 @@ const UI = (() => {
   let plPressMoved = false
   let plLongPressHandled = false
   let pickPlaylistTrack = null
+  let editingPlaylistId = null
   const trackLists = new WeakMap()
 
   const SERVICE_META = {
@@ -280,7 +281,7 @@ const UI = (() => {
 
   function registerTrackList(container, tracks, playAllFrom) {
     if (!container) return
-    trackLists.set(container, { tracks: tracks.slice(), playAllFrom })
+    trackLists.set(container, { tracks: Store.normalizeTracks(tracks), playAllFrom })
     Icons.mount(container)
   }
 
@@ -288,8 +289,13 @@ const UI = (() => {
     if (busy) return
     const list = trackLists.get(container)
     if (!list) return
-    const { tracks, playAllFrom } = list
-    const idx = tracks.findIndex((t) => Store.trackKey(t) === key)
+    let { tracks, playAllFrom } = list
+    tracks = Store.normalizeTracks(tracks)
+    let idx = tracks.findIndex((t) => Store.trackKey(t) === key)
+    if (idx < 0 && el?.dataset.idx != null && el.dataset.idx !== '') {
+      const i = Number(el.dataset.idx)
+      if (Number.isFinite(i) && i >= 0 && i < tracks.length) idx = i
+    }
     if (idx < 0) return
 
     if (!Api.isConfigured()) {
@@ -568,10 +574,10 @@ const UI = (() => {
       const cover = pl.coverData || pl.tracks?.find((t) => t.cover)?.cover || ''
       if (cover && !isLikes) {
         heroBg.style.backgroundImage = `url(${cover})`
-        heroBg.style.backgroundPosition = 'center 32%'
+        heroBg.style.backgroundPosition = 'center 28%'
         heroBg.style.backgroundSize = 'cover'
         heroBg.style.filter = 'none'
-        heroBg.style.transform = 'scale(1.02)'
+        heroBg.style.transform = 'scale(1.14)'
       } else {
         heroBg.style.backgroundImage = ''
         heroBg.style.backgroundPosition = ''
@@ -641,30 +647,87 @@ const UI = (() => {
     bindPlaylistLongPress(plEl)
   }
 
-  function openPlaylistCreateSheet(open) {
+  function setPlaylistCoverPreview(coverData) {
+    const prev = $('#playlist-cover-preview')
+    if (!prev) return
+    if (coverData) {
+      prev.innerHTML = ''
+      prev.style.backgroundImage = `url(${coverData})`
+      prev.style.backgroundSize = 'cover'
+      prev.style.backgroundPosition = 'center'
+    } else {
+      prev.innerHTML = Icons.svg('image', 'ui-icon lg')
+      prev.style.backgroundImage = ''
+      prev.style.backgroundSize = ''
+      prev.style.backgroundPosition = ''
+    }
+  }
+
+  function openPlaylistCreateSheet(open, editPl = null) {
     const sheet = $('#playlist-create-sheet')
     if (!sheet) return
     sheet.hidden = !open
     if (open) {
-      pendingCoverData = ''
+      editingPlaylistId = editPl?.id || null
+      const titleEl = $('#playlist-sheet-title')
+      const saveBtn = $('#playlist-create-save')
+      if (titleEl) titleEl.textContent = editingPlaylistId ? 'Редактировать плейлист' : 'Новый плейлист'
+      if (saveBtn) saveBtn.textContent = editingPlaylistId ? 'Сохранить' : 'Создать'
+      pendingCoverData = editPl?.coverData || ''
       const nameEl = $('#playlist-create-name')
-      if (nameEl) nameEl.value = ''
-      const prev = $('#playlist-cover-preview')
-      if (prev) {
-        prev.innerHTML = Icons.svg('image', 'ui-icon lg')
-        prev.style.backgroundImage = ''
-      }
+      if (nameEl) nameEl.value = editPl?.name || ''
+      setPlaylistCoverPreview(pendingCoverData)
       setTimeout(() => nameEl?.focus(), 120)
+    } else {
+      editingPlaylistId = null
+      pendingCoverData = ''
     }
   }
 
   function saveNewPlaylist() {
     const name = String($('#playlist-create-name')?.value || '').trim() || 'Мой плейлист'
-    Store.addPlaylist(name, [], pendingCoverData)
+    if (editingPlaylistId) {
+      const patch = { name }
+      if (pendingCoverData) patch.coverData = pendingCoverData
+      Store.updatePlaylist(editingPlaylistId, patch)
+      const updated = Store.getPlaylist(editingPlaylistId)
+      if (openPlaylistId === editingPlaylistId && updated) openPlaylistView(updated)
+      toast('Плейлист обновлён')
+    } else {
+      Store.addPlaylist(name, [], pendingCoverData)
+      toast('Плейлист создан')
+    }
     pendingCoverData = ''
+    editingPlaylistId = null
     openPlaylistCreateSheet(false)
     renderLibrary()
-    toast('Плейлист создан')
+  }
+
+  function parseFlowJsonLocal(raw) {
+    try {
+      const data = JSON.parse(raw)
+      if (data?.format === 'flow-playlists-v1' && Array.isArray(data.playlists)) {
+        return { playlists: data.playlists }
+      }
+      if (Array.isArray(data)) return { playlists: data }
+      if (Array.isArray(data?.playlists)) return { playlists: data.playlists }
+      if (Array.isArray(data?.tracks)) {
+        return { playlists: [{ name: data.name || 'Импорт', tracks: data.tracks, coverData: data.coverData }] }
+      }
+    } catch (_) { /* not local json */ }
+    return null
+  }
+
+  function migrateStoredTracks() {
+    const s = Store.get()
+    Store.patch({
+      likes: Store.normalizeTracks(s.likes),
+      recent: Store.normalizeTracks(s.recent),
+      playlists: s.playlists.map((p) => ({
+        ...p,
+        tracks: Store.normalizeTracks(p.tracks),
+      })),
+    })
   }
 
   function openImportSheet(open) {
@@ -685,13 +748,24 @@ const UI = (() => {
     const isJson = /^[\[{]/.test(raw)
     toast('Импортируем…')
     try {
+      if (isJson) {
+        const local = parseFlowJsonLocal(raw)
+        if (local?.playlists?.length) {
+          Store.importPlaylists(local.playlists)
+          toast(`Импортировано плейлистов: ${local.playlists.length}`)
+          openImportSheet(false)
+          $('#import-input').value = ''
+          renderLibrary()
+          return
+        }
+      }
       const out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
       if (!out.ok) throw new Error(out.error || 'Импорт не удался')
       if (Array.isArray(out.playlists)) {
         Store.importPlaylists(out.playlists)
         toast(`Импортировано плейлистов: ${out.playlists.length}`)
       } else {
-        Store.addPlaylist(out.name || 'Импорт', out.tracks || [])
+        Store.addPlaylist(out.name || 'Импорт', out.tracks || [], out.coverData || '')
         toast(`«${out.name || 'Плейлист'}»: ${(out.tracks || []).length} треков`)
       }
       openImportSheet(false)
@@ -991,6 +1065,12 @@ const UI = (() => {
       closePlaylistActionsSheet()
       toast('Волна по плейлисту скоро')
     })
+    $('#pl-action-edit')?.addEventListener('click', () => {
+      const pl = getActionsPlaylist()
+      if (!pl) return
+      closePlaylistActionsSheet()
+      openPlaylistCreateSheet(true, pl)
+    })
     $('#pl-action-delete')?.addEventListener('click', () => {
       const pl = getActionsPlaylist()
       if (!pl) return
@@ -1218,13 +1298,7 @@ const UI = (() => {
       const reader = new FileReader()
       reader.onload = () => {
         pendingCoverData = String(reader.result || '')
-        const prev = $('#playlist-cover-preview')
-        if (prev && pendingCoverData) {
-          prev.innerHTML = ''
-          prev.style.backgroundImage = `url(${pendingCoverData})`
-          prev.style.backgroundSize = 'cover'
-          prev.style.backgroundPosition = 'center'
-        }
+        setPlaylistCoverPreview(pendingCoverData)
       }
       reader.readAsDataURL(file)
       e.target.value = ''
@@ -1373,6 +1447,7 @@ const UI = (() => {
     Icons.mount()
     showSettingsPane('custom')
     Theme.apply(Store.get())
+    migrateStoredTracks()
     renderSettingsForm()
     renderSetupGateForm()
     updateSetupGate()

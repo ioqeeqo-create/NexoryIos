@@ -45,8 +45,54 @@ const Store = (() => {
     return next
   }
 
+  function normalizeSource(source) {
+    const s = String(source || '').trim().toLowerCase()
+    if (s === 'ya' || s === 'ym' || s === 'yandex_music') return 'yandex'
+    if (s === 'vk' || s === 'vkontakte') return 'vk'
+    if (s === 'sc' || s === 'soundcloud') return 'soundcloud'
+    return s
+  }
+
+  function normalizeTrack(track) {
+    if (!track || typeof track !== 'object') return null
+    const t = { ...track }
+    t.source = normalizeSource(t.source)
+    if (!t.id) {
+      t.id = t.trackId || t.track_id || t.yandexId || t.vkAudioId || t.audioId || t.oid || ''
+    }
+    t.id = String(t.id || '').trim()
+    if (!t.id && t.url) t.id = String(t.url)
+    if (!t.source || !t.id) return null
+    t.title = String(t.title || t.name || 'Без названия').trim() || 'Без названия'
+    let artist = t.artist ?? t.artists ?? t.author ?? '—'
+    if (Array.isArray(artist)) artist = artist.map((a) => (typeof a === 'string' ? a : a?.name)).filter(Boolean).join(', ')
+    t.artist = String(artist || '—').trim() || '—'
+    const ms = Number(t.durationMs ?? t.duration_ms)
+    if (Number.isFinite(ms) && ms > 0) t.durationMs = ms
+    else {
+      const d = Number(t.duration)
+      if (Number.isFinite(d) && d > 0) t.durationMs = d > 36000 ? d : d * 1000
+    }
+    if (!t.cover) t.cover = t.coverUrl || t.cover_uri || t.albumCover || t.thumbnail || ''
+    if (t.source === 'yandex' && t.url) delete t.url
+    if (t.source === 'soundcloud' && t.scTranscoding && !t.scClientId && get().scClientId) {
+      t.scClientId = get().scClientId
+    }
+    return t
+  }
+
+  function normalizeTracks(tracks) {
+    return (Array.isArray(tracks) ? tracks : [])
+      .map((tr) => normalizeTrack(tr))
+      .filter(Boolean)
+  }
+
   function trackKey(t) {
-    return `${t.source}:${t.id}`
+    if (!t) return ''
+    const n = normalizeTrack(t)
+    const src = n?.source || normalizeSource(t.source)
+    const id = n?.id || String(t.id || '').trim()
+    return `${src}:${id}`
   }
 
   function isLiked(track) {
@@ -78,7 +124,7 @@ const Store = (() => {
     const pl = {
       id: `pl_${Date.now()}`,
       name: String(name || 'Плейлист').trim(),
-      tracks: Array.isArray(tracks) ? tracks.map((t) => ({ ...t })) : [],
+      tracks: normalizeTracks(tracks),
       coverData: String(coverData || ''),
     }
     return patch({ playlists: [pl, ...s.playlists] })
@@ -90,7 +136,8 @@ const Store = (() => {
       .map((pl) => ({
         id: pl.id || `pl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         name: String(pl.name || 'Плейлист').trim(),
-        tracks: Array.isArray(pl.tracks) ? pl.tracks.map((t) => ({ ...t })) : [],
+        tracks: normalizeTracks(pl.tracks),
+        coverData: String(pl.coverData || pl.cover || ''),
         description: pl.description || '',
       }))
       .filter((p) => p.name)
@@ -106,11 +153,13 @@ const Store = (() => {
     const s = get()
     const playlists = s.playlists.map((p) => {
       if (p.id !== id) return p
-      return {
+      const next = {
         ...p,
         ...changes,
         name: changes.name != null ? String(changes.name).trim() || p.name : p.name,
       }
+      if (changes.coverData != null) next.coverData = String(changes.coverData)
+      return next
     })
     return patch({ playlists })
   }
@@ -133,7 +182,7 @@ const Store = (() => {
   }
 
   return {
-    get, patch, trackKey, isLiked, toggleLike, pushRecent, setRotor,
+    get, patch, trackKey, normalizeTrack, normalizeTracks, isLiked, toggleLike, pushRecent, setRotor,
     addPlaylist, importPlaylists, getPlaylist, updatePlaylist, deletePlaylist, addTrackToPlaylist,
   }
 })()
