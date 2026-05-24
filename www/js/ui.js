@@ -5,7 +5,31 @@ const UI = (() => {
   let openPlaylistId = null
   let pendingCoverData = ''
   let seeking = false
+  let openServiceId = null
+  let tokenVisible = false
   const trackLists = new WeakMap()
+
+  const SERVICE_META = {
+    yandex: {
+      logo: 'assets/source-yandex-wave.svg',
+      storeKey: 'yandexToken',
+      helpUrl: 'https://telegra.ph/Kak-podklyuchit-YAndeks-Muzyku-vo-Flow-05-03',
+      helpText: 'Как получить токен Яндекс',
+    },
+    vk: {
+      logo: 'assets/source-vk.svg',
+      storeKey: 'vkToken',
+      helpUrl: 'https://telegra.ph/Kak-podklyuchit-VKontakte-vo-Flow-05-04',
+      helpText: 'Получить токен VK',
+    },
+    soundcloud: {
+      logo: 'assets/flow-mark.svg',
+      storeKey: 'scClientId',
+      helpUrl: '',
+      helpText: '',
+      optional: true,
+    },
+  }
 
   const $ = (sel) => document.querySelector(sel)
 
@@ -23,6 +47,7 @@ const UI = (() => {
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('screen--active', s.dataset.screen === name))
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
     if (name === 'library') renderLibrary()
+    if (name === 'settings') renderSettingsForm()
     if (name === 'search') setTimeout(() => $('#search-input')?.focus(), 150)
   }
 
@@ -120,13 +145,20 @@ const UI = (() => {
     registerTrackList(container, tracks, playAllFrom)
   }
 
-  function setCover(wrap, img, track) {
+  function getPlayerCoverUrl(track) {
+    const override = Store.get().playerCoverOverride
+    if (override) return override
+    return track?.cover || ''
+  }
+
+  function setCover(wrap, img, track, { playerOnly = false } = {}) {
     if (!wrap) return
     const ph = wrap.querySelector('[data-icon]')
-    if (track?.cover) {
+    const url = playerOnly ? getPlayerCoverUrl(track) : track?.cover
+    if (url) {
       if (img) {
         img.hidden = false
-        img.src = track.cover
+        img.src = url
         img.onerror = () => {
           img.hidden = true
           if (ph) ph.hidden = false
@@ -138,6 +170,14 @@ const UI = (() => {
       if (ph) ph.hidden = false
       Icons.mount(wrap)
     }
+  }
+
+  function applyPlayerVisuals(track) {
+    if (!track) return
+    const url = getPlayerCoverUrl(track)
+    Theme.setFullBgImage(url)
+    Theme.applyPlayerBg()
+    if (Store.get().accentFromCover && url) Theme.extractAccentFromUrl(url)
   }
 
   function setFullPlayer(open) {
@@ -361,9 +401,96 @@ const UI = (() => {
     const s = Store.get()
     $('#cfg-gateway').value = s.gatewayUrl || ''
     $('#cfg-secret').value = s.gatewaySecret || ''
-    $('#cfg-yandex').value = s.yandexToken || ''
-    $('#cfg-vk').value = s.vkToken || ''
-    $('#cfg-sc').value = s.scClientId || ''
+    $('#cfg-accent-cover').checked = !!s.accentFromCover
+    $('#cfg-bg-blur').value = String(s.bgBlur ?? 56)
+    $('#cfg-bg-brightness').value = String(s.bgBrightness ?? 45)
+    $('#cfg-blur-val').textContent = String(s.bgBlur ?? 56)
+    $('#cfg-bright-val').textContent = String(s.bgBrightness ?? 45)
+    document.querySelectorAll('.theme-chip').forEach((btn) => {
+      btn.classList.toggle('theme-chip--active', btn.dataset.theme === (s.theme || 'dark'))
+    })
+    const preview = $('#player-cover-preview')
+    if (preview) {
+      if (s.playerCoverOverride) {
+        preview.hidden = false
+        preview.style.backgroundImage = `url(${s.playerCoverOverride})`
+      } else {
+        preview.hidden = true
+        preview.style.backgroundImage = ''
+      }
+    }
+    updateServiceStates()
+    Theme.apply(s)
+  }
+
+  function updateServiceStates() {
+    const s = Store.get()
+    const y = $('#svc-yandex-state')
+    const v = $('#svc-vk-state')
+    const sc = $('#svc-sc-state')
+    if (y) y.textContent = s.yandexToken ? 'Подключено' : 'Не настроено'
+    if (v) v.textContent = s.vkToken ? 'Подключено' : 'Не настроено'
+    if (sc) sc.textContent = s.scClientId ? 'Настроено' : 'Опционально'
+  }
+
+  function showSettingsPane(name) {
+    document.querySelectorAll('.settings-switch__btn').forEach((b) => {
+      b.classList.toggle('settings-switch__btn--active', b.dataset.settingsPane === name)
+    })
+    $('#settings-custom').hidden = name !== 'custom'
+    $('#settings-services').hidden = name !== 'services'
+  }
+
+  function openServiceSheet(id) {
+    const meta = SERVICE_META[id]
+    if (!meta) return
+    openServiceId = id
+    tokenVisible = false
+    const sheet = $('#service-sheet')
+    const logo = $('#service-sheet-logo')
+    const input = $('#service-token-input')
+    const help = $('#service-token-help')
+    const helpText = $('#service-token-help-text')
+    const status = $('#service-token-status')
+    if (logo) logo.src = meta.logo
+    if (input) {
+      input.type = 'password'
+      input.value = Store.get()[meta.storeKey] || ''
+    }
+    if (help) {
+      if (meta.helpUrl) {
+        help.href = meta.helpUrl
+        help.hidden = false
+        if (helpText) helpText.textContent = meta.helpText
+      } else {
+        help.hidden = true
+      }
+    }
+    if (status) status.textContent = ''
+    if (sheet) sheet.hidden = false
+    Icons.mount(sheet)
+  }
+
+  function closeServiceSheet() {
+    openServiceId = null
+    tokenVisible = false
+    const sheet = $('#service-sheet')
+    if (sheet) sheet.hidden = true
+  }
+
+  function saveGatewayFromForm() {
+    Store.patch({
+      gatewayUrl: $('#cfg-gateway').value.trim().replace(/\/+$/, ''),
+      gatewaySecret: $('#cfg-secret').value.trim(),
+    })
+    updateSetupGate()
+  }
+
+  function saveCustomization(patch) {
+    const next = Store.patch(patch)
+    Theme.apply(next)
+    const track = Player.current()
+    if (track) applyPlayerVisuals(track)
   }
 
   function updatePlayerUI(track) {
@@ -372,12 +499,13 @@ const UI = (() => {
     $('#mini-player').hidden = false
     $('#mini-title').textContent = track.title
     $('#mini-artist').textContent = track.artist
-    setCover($('#mini-cover-wrap'), $('#mini-cover'), track)
+    setCover($('#mini-cover-wrap'), $('#mini-cover'), track, { playerOnly: true })
     $('#full-title').textContent = track.title
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from ? `Играет из ${from}` : ''
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
-    setCover($('#full-cover-wrap'), $('#full-cover'), track)
+    setCover($('#full-cover-wrap'), $('#full-cover'), track, { playerOnly: true })
+    applyPlayerVisuals(track)
   }
 
   function setPlayIcon(paused) {
@@ -459,20 +587,20 @@ const UI = (() => {
     })
 
     $('#btn-wave-play')?.addEventListener('click', async () => {
-      const orb = $('#btn-wave-play')
+      const row = $('#btn-wave-play')
       if (busy) return
       try {
         if (!Api.isConfigured()) throw new Error('Настрой gateway в настройках')
         if (!Store.get().yandexToken) throw new Error('Добавь Яндекс OAuth')
         busy = true
-        orb?.classList.add('is-busy')
+        row?.classList.add('is-busy')
         toast('Запускаем волну…')
         await Player.startWave()
       } catch (e) {
         toast(e.message || 'Ошибка волны')
       } finally {
         busy = false
-        orb?.classList.remove('is-busy')
+        row?.classList.remove('is-busy')
       }
     })
 
@@ -537,8 +665,127 @@ const UI = (() => {
       runSearch($('#search-input').value)
     })
 
+    document.querySelectorAll('[data-settings-pane]').forEach((btn) => {
+      btn.addEventListener('click', () => showSettingsPane(btn.dataset.settingsPane))
+    })
+
+    $('#theme-grid')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-theme]')
+      if (!chip) return
+      saveCustomization({ theme: chip.dataset.theme })
+      renderSettingsForm()
+    })
+
+    $('#cfg-accent-cover')?.addEventListener('change', (e) => {
+      saveCustomization({ accentFromCover: e.target.checked })
+      const track = Player.current()
+      if (track && e.target.checked) applyPlayerVisuals(track)
+    })
+
+    $('#cfg-bg-blur')?.addEventListener('input', (e) => {
+      $('#cfg-blur-val').textContent = e.target.value
+      saveCustomization({ bgBlur: Number(e.target.value) })
+    })
+
+    $('#cfg-bg-brightness')?.addEventListener('input', (e) => {
+      $('#cfg-bright-val').textContent = e.target.value
+      saveCustomization({ bgBrightness: Number(e.target.value) })
+    })
+
+    $('#cfg-player-cover-pick')?.addEventListener('click', () => $('#player-cover-input')?.click())
+    $('#cfg-player-cover-clear')?.addEventListener('click', () => {
+      saveCustomization({ playerCoverOverride: '' })
+      renderSettingsForm()
+      const track = Player.current()
+      if (track) updatePlayerUI(track)
+      toast('Обложка сброшена')
+    })
+
+    $('#player-cover-input')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        saveCustomization({ playerCoverOverride: String(reader.result || '') })
+        renderSettingsForm()
+        const track = Player.current()
+        if (track) updatePlayerUI(track)
+        toast('Обложка плеера обновлена')
+      }
+      reader.readAsDataURL(file)
+      e.target.value = ''
+    })
+
+    document.querySelectorAll('[data-service-open]').forEach((btn) => {
+      btn.addEventListener('click', () => openServiceSheet(btn.dataset.serviceOpen))
+    })
+
+    $('#service-sheet-hide')?.addEventListener('click', closeServiceSheet)
+    $('#service-sheet-back')?.addEventListener('click', closeServiceSheet)
+
+    $('#service-token-eye')?.addEventListener('click', () => {
+      const input = $('#service-token-input')
+      if (!input) return
+      tokenVisible = !tokenVisible
+      input.type = tokenVisible ? 'text' : 'password'
+      const eye = $('#service-token-eye')
+      if (eye) {
+        eye.dataset.icon = tokenVisible ? 'eye-off' : 'eye'
+        eye.innerHTML = Icons.svg(eye.dataset.icon, 'ui-icon')
+      }
+    })
+
+    $('#service-token-clear')?.addEventListener('click', () => {
+      const meta = SERVICE_META[openServiceId]
+      if (!meta) return
+      Store.patch({ [meta.storeKey]: '' })
+      const input = $('#service-token-input')
+      if (input) input.value = ''
+      $('#service-token-status').textContent = 'Очищено'
+      updateServiceStates()
+      renderHome()
+      updateGatewayBanner()
+    })
+
+    $('#service-token-save')?.addEventListener('click', async () => {
+      const meta = SERVICE_META[openServiceId]
+      if (!meta) return
+      const token = $('#service-token-input').value.trim()
+      Store.patch({ [meta.storeKey]: token })
+      saveGatewayFromForm()
+      const status = $('#service-token-status')
+      if (!token && !meta.optional) {
+        status.textContent = 'Введи токен'
+        return
+      }
+      if (!token && meta.optional) {
+        status.textContent = 'Сохранено'
+        updateServiceStates()
+        toast('Сохранено')
+        return
+      }
+      status.textContent = 'Проверяем…'
+      try {
+        if (openServiceId === 'yandex') {
+          const r = await Api.validateYandex(token)
+          status.textContent = r.ok ? `✓ ${r.login || 'OK'}` : r.error
+        } else if (openServiceId === 'vk') {
+          const r = await Api.validateVk(token)
+          status.textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error
+        } else {
+          status.textContent = '✓ Сохранено'
+        }
+        updateServiceStates()
+        renderHome()
+        updateGatewayBanner()
+        toast('Сохранено')
+      } catch (e) {
+        status.textContent = e.message
+      }
+    })
+
     $('#btn-test-gateway')?.addEventListener('click', async () => {
-      Store.patch({ gatewayUrl: $('#cfg-gateway').value.trim(), gatewaySecret: $('#cfg-secret').value.trim() })
+      saveGatewayFromForm()
       $('#gateway-status').textContent = 'Проверяем…'
       try {
         await Api.health()
@@ -548,23 +795,8 @@ const UI = (() => {
       }
     })
 
-    $('#btn-save-settings')?.addEventListener('click', async () => {
-      Store.patch({
-        gatewayUrl: $('#cfg-gateway').value.trim().replace(/\/+$/, ''),
-        gatewaySecret: $('#cfg-secret').value.trim(),
-        yandexToken: $('#cfg-yandex').value.trim(),
-        vkToken: $('#cfg-vk').value.trim(),
-        scClientId: $('#cfg-sc').value.trim(),
-      })
-      updateSetupGate()
-      toast('Сохранено')
-      renderHome()
-      updateGatewayBanner()
-      const yt = $('#cfg-yandex').value.trim()
-      const vk = $('#cfg-vk').value.trim()
-      if (yt && Api.isConfigured()) Api.validateYandex(yt).then((r) => { $('#yandex-status').textContent = r.ok ? `✓ ${r.login || 'OK'}` : r.error })
-      if (vk && Api.isConfigured()) Api.validateVk(vk).then((r) => { $('#vk-status').textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error })
-    })
+    $('#cfg-gateway')?.addEventListener('change', saveGatewayFromForm)
+    $('#cfg-secret')?.addEventListener('change', saveGatewayFromForm)
 
     $('#btn-create-playlist')?.addEventListener('click', () => openPlaylistCreateSheet(true))
     $('#playlist-create-close')?.addEventListener('click', () => openPlaylistCreateSheet(false))
@@ -622,8 +854,14 @@ const UI = (() => {
     wireSeek()
 
     Player.on('trackchange', ({ track }) => updatePlayerUI(track))
-    Player.on('playing', () => openFullPlayer())
-    Player.on('state', ({ paused }) => setPlayIcon(paused))
+    Player.on('playing', () => {
+      $('#btn-wave-play')?.classList.add('is-playing')
+      openFullPlayer()
+    })
+    Player.on('state', ({ paused }) => {
+      setPlayIcon(paused)
+      if (paused) $('#btn-wave-play')?.classList.remove('is-playing')
+    })
     Player.on('time', ({ current, duration }) => {
       if (!seeking) $('#time-current').textContent = Player.fmt(current)
       $('#time-total').textContent = Player.fmt(duration)
@@ -679,7 +917,10 @@ const UI = (() => {
     document.body.dataset.screen = 'home'
     closeFullPlayer()
     closePlaylistView()
+    closeServiceSheet()
     Icons.mount()
+    showSettingsPane('custom')
+    Theme.apply(Store.get())
     renderSettingsForm()
     renderSetupGateForm()
     updateSetupGate()

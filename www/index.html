@@ -43,13 +43,11 @@
     <main id="screens">
       <section class="screen screen--active" data-screen="home">
         <div id="gateway-banner" class="status-banner" hidden></div>
-        <div class="wave-hero">
-          <button type="button" class="wave-orb" id="btn-wave-play" aria-label="Моя волна">
-            <span class="wave-orb__ring wave-orb__ring--1"></span>
-            <span class="wave-orb__ring wave-orb__ring--2"></span>
-            <span class="wave-orb__ring wave-orb__ring--3"></span>
-            <span class="wave-orb__core"><span data-icon="play" data-icon-class="ui-icon lg"></span></span>
-            <div class="wave-fine-lines" aria-hidden="true">
+        <button type="button" class="wave-row" id="btn-wave-play" aria-label="Моя волна">
+          <span class="wave-row__play"><span data-icon="play" data-icon-class="ui-icon"></span></span>
+          <span class="wave-row__body">
+            <span class="wave-row__title">Моя волна</span>
+            <span class="wave-row__lines" aria-hidden="true">
               <svg class="wave-fine-lines__svg" viewBox="0 0 720 92" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
                 <g class="wave-fine-lines__g wave-fine-lines__g--1">
                   <path fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/>
@@ -64,11 +62,10 @@
                   <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="1.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/></g>
                 </g>
               </svg>
-            </div>
-          </button>
-          <h1 class="wave-title">Моя волна</h1>
-          <p class="wave-sub" id="wave-source-label">Нажми — погрузиться в волну</p>
-        </div>
+            </span>
+          </span>
+        </button>
+        <p class="wave-sub" id="wave-source-label">Нажми — погрузиться в волну</p>
         <div class="section">
           <div class="section-head"><h2 class="section-title">Недавние</h2></div>
           <div class="h-scroll" id="recent-list" data-track-list></div>
@@ -129,23 +126,73 @@
         <div class="screen-head safe-top">
           <h1 class="screen-title">Настройки</h1>
         </div>
-        <div class="settings-group">
-          <label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="http://IP:3950" autocapitalize="off" /></label>
-          <label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="Bearer secret" autocomplete="off" /></label>
-          <button type="button" class="secondary-btn" id="btn-test-gateway">Проверить gateway</button>
-          <small class="field-hint" id="gateway-status"></small>
+        <div class="settings-switch">
+          <button type="button" class="settings-switch__btn settings-switch__btn--active" data-settings-pane="custom">Кастомизация</button>
+          <button type="button" class="settings-switch__btn" data-settings-pane="services">Сервисы</button>
         </div>
-        <div class="settings-group">
-          <h3 class="settings-label">Сервисы</h3>
-          <label class="field"><span>Яндекс OAuth</span><textarea id="cfg-yandex" rows="2" placeholder="OAuth токен"></textarea><small class="field-hint" id="yandex-status"></small></label>
-          <label class="field"><span>VK access_token</span><textarea id="cfg-vk" rows="2" placeholder="access_token"></textarea><small class="field-hint" id="vk-status"></small></label>
-          <label class="field"><span>SoundCloud client_id (опц.)</span><input type="text" id="cfg-sc" placeholder="Авто через gateway" /></label>
+
+        <div id="settings-custom" class="settings-pane">
+          <div class="settings-group">
+            <h3 class="settings-label">Тема</h3>
+            <div class="theme-grid" id="theme-grid">
+              <button type="button" class="theme-chip" data-theme="dark">Тёмная</button>
+              <button type="button" class="theme-chip" data-theme="light">Светлая</button>
+              <button type="button" class="theme-chip" data-theme="amoled">AMOLED</button>
+              <button type="button" class="theme-chip" data-theme="rose">Розовая</button>
+            </div>
+          </div>
+          <label class="toggle-row">
+            <span class="toggle-row__label">Акцентный цвет из обложки</span>
+            <input type="checkbox" class="toggle-row__input" id="cfg-accent-cover" />
+          </label>
+          <div class="settings-group">
+            <h3 class="settings-label">Обложка плеера</h3>
+            <p class="settings-hint">Меняет обложку и фон только у играющего трека</p>
+            <button type="button" class="secondary-btn" id="cfg-player-cover-pick">Выбрать из галереи</button>
+            <button type="button" class="link-btn settings-clear-link" id="cfg-player-cover-clear">Сбросить обложку</button>
+            <div class="player-cover-preview" id="player-cover-preview" hidden></div>
+          </div>
+          <label class="slider-field">
+            <span class="slider-field__head"><span>Размытие фона</span><span id="cfg-blur-val">56</span></span>
+            <input type="range" id="cfg-bg-blur" min="0" max="80" value="56" />
+          </label>
+          <label class="slider-field">
+            <span class="slider-field__head"><span>Яркость фона</span><span id="cfg-bright-val">45</span></span>
+            <input type="range" id="cfg-bg-brightness" min="15" max="75" value="45" />
+          </label>
         </div>
-        <button type="button" class="primary-btn" id="btn-save-settings">Сохранить</button>
+
+        <div id="settings-services" class="settings-pane" hidden>
+          <div class="settings-group">
+            <h3 class="settings-label">Gateway</h3>
+            <label class="field"><span>Gateway URL</span><input type="url" id="cfg-gateway" placeholder="http://IP:3950" autocapitalize="off" /></label>
+            <label class="field"><span>Gateway Secret</span><input type="password" id="cfg-secret" placeholder="Bearer secret" autocomplete="off" /></label>
+            <button type="button" class="secondary-btn" id="btn-test-gateway">Проверить gateway</button>
+            <small class="field-hint" id="gateway-status"></small>
+          </div>
+          <div class="settings-group">
+            <h3 class="settings-label">Подключение сервисов</h3>
+            <button type="button" class="service-row" data-service-open="yandex">
+              <img class="service-row__logo" src="assets/source-yandex-wave.svg" alt="" />
+              <span class="service-row__text"><span class="service-row__name">Яндекс Музыка</span><span class="service-row__state" id="svc-yandex-state">Не настроено</span></span>
+              <span data-icon="chevron-right" data-icon-class="ui-icon service-row__chev"></span>
+            </button>
+            <button type="button" class="service-row" data-service-open="vk">
+              <img class="service-row__logo service-row__logo--vk" src="assets/source-vk.svg" alt="" />
+              <span class="service-row__text"><span class="service-row__name">VKontakte</span><span class="service-row__state" id="svc-vk-state">Не настроено</span></span>
+              <span data-icon="chevron-right" data-icon-class="ui-icon service-row__chev"></span>
+            </button>
+            <button type="button" class="service-row" data-service-open="soundcloud">
+              <img class="service-row__logo" src="assets/flow-mark.svg" alt="" />
+              <span class="service-row__text"><span class="service-row__name">SoundCloud</span><span class="service-row__state" id="svc-sc-state">Опционально</span></span>
+              <span data-icon="chevron-right" data-icon-class="ui-icon service-row__chev"></span>
+            </button>
+          </div>
+        </div>
       </section>
     </main>
 
-    <footer class="mini-player safe-bottom" id="mini-player" hidden>
+    <footer class="mini-player" id="mini-player" hidden>
       <button type="button" class="mini-player__main" id="mini-open-full">
         <div class="mini-cover-wrap" id="mini-cover-wrap">
           <img class="mini-cover" id="mini-cover" alt="" hidden />
@@ -163,7 +210,7 @@
       </div>
     </footer>
 
-    <nav class="tab-bar safe-bottom" id="tab-bar">
+    <nav class="tab-bar" id="tab-bar">
       <button type="button" class="tab tab--active" data-tab="home" data-icon="home"><span>Главная</span></button>
       <button type="button" class="tab" data-tab="library" data-icon="library"><span>Библиотека</span></button>
       <button type="button" class="tab" data-tab="settings" data-icon="settings"><span>Настройки</span></button>
@@ -200,6 +247,29 @@
   </div>
 
   <input type="file" id="playlist-cover-input" accept="image/*" hidden />
+  <input type="file" id="player-cover-input" accept="image/*" hidden />
+
+  <div class="service-sheet" id="service-sheet" hidden>
+    <div class="service-sheet__scroll safe-top safe-bottom">
+      <img class="service-sheet__logo" id="service-sheet-logo" src="" alt="" />
+      <label class="token-field">
+        <span class="token-field__label">Access Token</span>
+        <div class="token-field__wrap">
+          <input type="password" class="token-field__input" id="service-token-input" autocomplete="off" autocapitalize="off" />
+          <button type="button" class="token-field__eye" id="service-token-eye" data-icon="eye" aria-label="Показать"></button>
+        </div>
+      </label>
+      <button type="button" class="token-btn token-btn--save" id="service-token-save">Сохранить и проверить</button>
+      <button type="button" class="token-btn token-btn--clear" id="service-token-clear">Очистить</button>
+      <a class="token-link" id="service-token-help" href="#" target="_blank" rel="noopener">
+        <span data-icon="external-link" data-icon-class="ui-icon"></span>
+        <span id="service-token-help-text">Как получить токен</span>
+      </a>
+      <small class="field-hint token-status" id="service-token-status"></small>
+      <button type="button" class="token-btn token-btn--hide" id="service-sheet-hide">Скрыть</button>
+      <button type="button" class="token-btn token-btn--back" id="service-sheet-back">Назад</button>
+    </div>
+  </div>
 
   <div class="sheet" id="playlist-create-sheet" hidden>
     <div class="sheet__backdrop" id="playlist-create-close"></div>
@@ -244,6 +314,7 @@
 
   <script src="js/icons.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/theme.js"></script>
   <script src="js/api.js"></script>
   <script src="js/player.js"></script>
   <script src="js/ui.js"></script>

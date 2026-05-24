@@ -25,6 +25,11 @@ const Store = (() => {
       recent: [],
       playlists: [],
       yandexRotor: null,
+      theme: 'dark',
+      accentFromCover: false,
+      playerCoverOverride: '',
+      bgBlur: 56,
+      bgBrightness: 45,
     }
   }
 
@@ -95,14 +100,14 @@ const Store = (() => {
     return get().playlists.find((p) => p.id === id) || null
   }
 
-  function updatePlaylist(id, patch) {
+  function updatePlaylist(id, changes) {
     const s = get()
     const playlists = s.playlists.map((p) => {
       if (p.id !== id) return p
       return {
         ...p,
-        ...patch,
-        name: patch.name != null ? String(patch.name).trim() || p.name : p.name,
+        ...changes,
+        name: changes.name != null ? String(changes.name).trim() || p.name : p.name,
       }
     })
     return patch({ playlists })
