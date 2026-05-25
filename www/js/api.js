@@ -318,7 +318,26 @@ const Api = (() => {
   }
 
   async function validateSoundCloud(token) {
-    return DirectApi.validateSoundCloud(token)
+    try {
+      return await DirectApi.validateSoundCloud(token)
+    } catch (e) {
+      if (!hasGateway()) throw e
+      const t = tokens()
+      const out = await post('/search', {
+        source: 'soundcloud',
+        q: 'test',
+        tokens: t,
+      }, TIMEOUT.default)
+      if (out?.ok && (out.tracks?.length || out.mode === 'soundcloud')) {
+        return {
+          ok: true,
+          username: 'через Gateway',
+          scClientId: t.soundcloudClientId || '',
+          scAccessToken: t.soundcloudAccessToken || '',
+        }
+      }
+      throw e
+    }
   }
 
   async function prepareSoundCloudOAuth() {

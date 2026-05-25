@@ -5,10 +5,14 @@
 const DirectApi = (() => {
   const YM = 'https://api.music.yandex.net'
   const YM_WAVE = 'user:onyourwave'
-  /** Публичный client_id из Dotify (PKCE OAuth на secure.soundcloud.com). */
-  const SC_DOTIFY_CLIENT_ID = 'G7BDyGYNAhEaASbDD1GqYrXfeXcqBiPY'
   const SC_AUTH_URL = 'https://secure.soundcloud.com/authorize'
   const SC_TOKEN_URL = 'https://secure.soundcloud.com/oauth/token'
+
+  function scRedirectUri() {
+    return String(
+      typeof NexoryConfig !== 'undefined' ? NexoryConfig.SC_OAUTH_REDIRECT : '',
+    ).trim() || 'nexory://oauth/soundcloud'
+  }
 
   function mapWaveModeToMoodEnergy(mode) {
     const m = {
@@ -95,18 +99,25 @@ const DirectApi = (() => {
     if (!s) return { clientId: '', oauth: '' }
     const tokFromUrl = s.match(/access_token=([^&#]+)/i)
     if (tokFromUrl) {
-      return { clientId: SC_DOTIFY_CLIENT_ID, oauth: decodeURIComponent(tokFromUrl[1]).trim() }
+      return { clientId: scClientIdFromCfg(), oauth: decodeURIComponent(tokFromUrl[1]).trim() }
     }
     const codeFromUrl = s.match(/[?&]code=([^&#]+)/i)
     if (codeFromUrl) {
-      return { clientId: SC_DOTIFY_CLIENT_ID, oauth: '', code: decodeURIComponent(codeFromUrl[1]).trim() }
+      return { clientId: scClientIdFromCfg(), oauth: '', code: decodeURIComponent(codeFromUrl[1]).trim() }
     }
-    if (/^ya29\.|^1\/\//.test(s)) return { clientId: SC_DOTIFY_CLIENT_ID, oauth: s }
     if (s.length >= 50 && /^[A-Za-z0-9._-]+$/.test(s)) {
-      return { clientId: SC_DOTIFY_CLIENT_ID, oauth: s }
+      return { clientId: scClientIdFromCfg(), oauth: s }
     }
     if (/^[A-Za-z0-9]{16,40}$/.test(s)) return { clientId: s, oauth: '' }
     return { clientId: s, oauth: '' }
+  }
+
+  function scClientIdFromCfg() {
+    return String(cfg().scClientId || '').trim()
+  }
+
+  function scSecretFromCfg() {
+    return String(cfg().scClientSecret || '').trim()
   }
 
   function scAuth() {
@@ -114,10 +125,8 @@ const DirectApi = (() => {
     const fromAccess = parseSoundCloudCredential(c.scAccessToken)
     const fromClient = parseSoundCloudCredential(c.scClientId)
     const oauth = String(fromAccess.oauth || fromClient.oauth || c.scAccessToken || '').trim()
-    const clientId = String(
-      fromClient.clientId || fromAccess.clientId || c.scClientId || SC_DOTIFY_CLIENT_ID,
-    ).trim()
-    return { clientId: clientId || SC_DOTIFY_CLIENT_ID, oauth }
+    const clientId = String(fromClient.clientId || fromAccess.clientId || c.scClientId || '').trim()
+    return { clientId, oauth, secret: scSecretFromCfg() }
   }
 
   function hasDirectTokens() {
@@ -131,40 +140,8 @@ const DirectApi = (() => {
     )
   }
 
-  function normalizeNetworkError(e) {
-    const msg = String(e?.message || e || '')
-    if (/load failed/i.test(msg)) {
-      return new Error('Сеть: Load failed — проверь интернет/VPN или включи Gateway в настройках')
-    }
-    if (/aborted|abort/i.test(msg)) return new Error('Таймаут запроса к сервису')
-    return e instanceof Error ? e : new Error(msg || 'Сеть недоступна')
-  }
-
   async function fetchJson(url, opts = {}) {
-    const ctrl = new AbortController()
-    const ms = opts.timeout || 20000
-    const timer = setTimeout(() => ctrl.abort(), ms)
-    try {
-      const r = await fetch(url, {
-        method: opts.method || 'GET',
-        headers: opts.headers || {},
-        body: opts.body,
-        signal: ctrl.signal,
-      })
-      const text = await r.text()
-      let data = {}
-      try {
-        data = text ? JSON.parse(text) : {}
-      } catch {
-        data = { raw: text }
-      }
-      return { ok: r.ok, status: r.status, data }
-    } catch (e) {
-      if (e.name === 'AbortError') throw new Error('Таймаут запроса к сервису')
-      throw normalizeNetworkError(e)
-    } finally {
-      clearTimeout(timer)
-    }
+    return Http.request(url, opts)
   }
 
   function yandexOAuth(raw) {
@@ -452,7 +429,7 @@ const DirectApi = (() => {
     const { clientId, oauth } = auth || scAuth()
     const u = new URL(path.startsWith('http') ? path : `https://api-v2.soundcloud.com${path}`)
     if (oauth) u.searchParams.set('oauth_token', oauth)
-    else u.searchParams.set('client_id', clientId || SC_DOTIFY_CLIENT_ID)
+    else if (clientId) u.searchParams.set('client_id', clientId)
     return u.toString()
   }
 
@@ -478,14 +455,19 @@ const DirectApi = (() => {
   }
 
   async function prepareSoundCloudOAuth() {
+    const clientId = scClientIdFromCfg()
+    if (!clientId) {
+      throw new Error('Сначала укажи Client ID приложения SoundCloud (поле выше)')
+    }
     const verifier = randomB64Url(32)
     const state = randomB64Url(12)
     const challenge = await sha256Base64Url(verifier)
-    const pkce = { verifier, state, challenge }
+    const pkce = { verifier, state, challenge, clientId }
     try { sessionStorage.setItem('nexory_sc_pkce', JSON.stringify(pkce)) } catch (_) {}
+    const redirect = scRedirectUri()
     const params = new URLSearchParams({
-      client_id: SC_DOTIFY_CLIENT_ID,
-      redirect_uri: 'dotify://oauth/soundcloud',
+      client_id: clientId,
+      redirect_uri: redirect,
       response_type: 'code',
       code_challenge: challenge,
       code_challenge_method: 'S256',
@@ -495,14 +477,17 @@ const DirectApi = (() => {
     return `${SC_AUTH_URL}?${params}`
   }
 
-  async function exchangeSoundCloudCode(code, verifier) {
+  async function exchangeSoundCloudCode(code, verifier, clientId, secret) {
+    const cid = String(clientId || scClientIdFromCfg()).trim()
+    const redirect = scRedirectUri()
     const form = new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: SC_DOTIFY_CLIENT_ID,
-      redirect_uri: 'dotify://oauth/soundcloud',
+      client_id: cid,
+      redirect_uri: redirect,
       code: String(code || '').trim(),
       code_verifier: String(verifier || '').trim(),
     })
+    if (secret) form.set('client_secret', String(secret).trim())
     const r = await fetchJson(SC_TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
@@ -511,7 +496,7 @@ const DirectApi = (() => {
     })
     const access = r.data?.access_token
     if (!access) return { ok: false, error: r.data?.error_description || r.data?.error || 'Нет access_token' }
-    return { ok: true, accessToken: String(access), clientId: SC_DOTIFY_CLIENT_ID }
+    return { ok: true, accessToken: String(access), clientId: cid }
   }
 
   async function validateSoundCloud(raw) {
@@ -522,7 +507,12 @@ const DirectApi = (() => {
       if (!pkce?.verifier) {
         return { ok: false, error: 'Сначала «Войти в SoundCloud», затем вставь redirect-ссылку с code' }
       }
-      const ex = await exchangeSoundCloudCode(parsed.code, pkce.verifier)
+      const ex = await exchangeSoundCloudCode(
+        parsed.code,
+        pkce.verifier,
+        pkce.clientId || scClientIdFromCfg(),
+        scSecretFromCfg(),
+      )
       if (!ex.ok) return ex
       const me = await fetchJson(soundCloudRequestUrl('/me', { clientId: ex.clientId, oauth: ex.accessToken }), {
         headers: soundCloudHeaders({ oauth: ex.accessToken }),
@@ -537,7 +527,7 @@ const DirectApi = (() => {
       }
     }
     const oauth = parsed.oauth
-    const clientId = parsed.clientId || SC_DOTIFY_CLIENT_ID
+    const clientId = parsed.clientId || scClientIdFromCfg()
     if (oauth) {
       const me = await fetchJson(soundCloudRequestUrl('/me', { clientId, oauth }), {
         headers: soundCloudHeaders({ oauth }),
@@ -657,7 +647,7 @@ const DirectApi = (() => {
     const auth = scAuth()
     const cid = String(track.scClientId || auth.clientId || '').trim()
     const oauth = String(track.scAccessToken || auth.oauth || '').trim()
-    const useAuth = { clientId: cid || SC_DOTIFY_CLIENT_ID, oauth }
+    const useAuth = { clientId: cid || scClientIdFromCfg(), oauth, secret: scSecretFromCfg() }
     if (!useAuth.clientId && !useAuth.oauth) {
       return { ok: false, error: 'Укажи SoundCloud Client ID или OAuth-токен' }
     }

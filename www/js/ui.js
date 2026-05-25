@@ -51,8 +51,8 @@ const UI = (() => {
       logo: 'assets/source-soundcloud.png',
       storeKey: 'scClientId',
       accessStoreKey: 'scAccessToken',
-      helpUrl: 'https://secure.soundcloud.com/authorize',
-      helpText: 'OAuth SoundCloud (как в Dotify)',
+      helpUrl: 'https://soundcloud.com/you/apps',
+      helpText: 'Создать приложение SoundCloud',
       optional: true,
       oauth: true,
     },
@@ -1496,7 +1496,16 @@ const UI = (() => {
         multi: local.playlists.length > 1 ? local.playlists : null,
       }
     }
-    const out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
+    let out
+    try {
+      out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
+    } catch (e) {
+      const msg = String(e?.message || e)
+      if (/load failed|сеть/i.test(msg) && Api.hasGateway?.()) {
+        throw new Error(`${msg}. Проверь Gateway URL/Secret в настройках`)
+      }
+      throw e
+    }
     if (!out.ok) throw new Error(out.error || 'Импорт не удался')
     if (Array.isArray(out.playlists)) {
       const pl = out.playlists[0]
@@ -1711,19 +1720,26 @@ const UI = (() => {
     const sheet = $('#service-sheet')
     const logo = $('#service-sheet-logo')
     const input = $('#service-token-input')
+    const label = $('#service-token-label')
     const help = $('#service-token-help')
     const helpText = $('#service-token-help-text')
     const status = $('#service-token-status')
+    const scFields = $('#service-sc-fields')
+    const scCid = $('#service-sc-client-id')
+    const scSec = $('#service-sc-client-secret')
     if (logo) logo.src = meta.logo
+    if (scFields) scFields.hidden = id !== 'soundcloud'
     if (input) {
       input.type = 'password'
       const s = Store.get()
       if (id === 'soundcloud') {
-        input.value = s.scAccessToken || s.scClientId || ''
-        const label = document.querySelector('#service-token-input')?.closest('.token-field')?.querySelector('.token-field__label')
-        if (label) label.textContent = 'Client ID или OAuth access_token'
+        if (scCid) scCid.value = s.scClientId || ''
+        if (scSec) scSec.value = s.scClientSecret || ''
+        input.value = s.scAccessToken || ''
+        if (label) label.textContent = 'OAuth access_token (опционально)'
       } else {
         input.value = s[meta.storeKey] || ''
+        if (label) label.textContent = 'Access Token'
       }
     }
     const scOAuthBtn = $('#service-sc-oauth')
@@ -1740,6 +1756,41 @@ const UI = (() => {
     if (status) status.textContent = ''
     if (sheet) sheet.hidden = false
     Icons.mount(sheet)
+  }
+
+  async function handleOAuthRedirect(url) {
+    const parsed = Bridge.parseSoundCloudRedirect(url)
+    if (!parsed) return
+    openServiceId = 'soundcloud'
+    const status = $('#service-token-status')
+    const input = $('#service-token-input')
+    if (parsed.error) {
+      if (status) status.textContent = `OAuth: ${parsed.error}`
+      return
+    }
+    if (!parsed.code) return
+    if (input) input.value = `nexory://oauth/soundcloud?code=${parsed.code}`
+    if (status) status.textContent = 'Код получен, обмениваем…'
+    try {
+      const r = await Api.validateSoundCloud(input?.value || parsed.code)
+      if (r.ok) {
+        Store.patch({
+          scClientId: r.scClientId || $('#service-sc-client-id')?.value?.trim() || '',
+          scClientSecret: $('#service-sc-client-secret')?.value?.trim() || Store.get().scClientSecret || '',
+          scAccessToken: r.scAccessToken || '',
+        })
+        if (status) status.textContent = r.username ? `✓ ${r.username}` : '✓ SoundCloud'
+        toast('SoundCloud подключён')
+        updateServiceStates()
+        renderHome()
+        homePopularTracks = null
+        loadHomePopular()
+      } else if (status) {
+        status.textContent = r.error || 'Ошибка OAuth'
+      }
+    } catch (e) {
+      if (status) status.textContent = e.message
+    }
   }
 
   function closeServiceSheet() {
@@ -2139,7 +2190,11 @@ const UI = (() => {
       const meta = SERVICE_META[openServiceId]
       if (!meta) return
       if (openServiceId === 'soundcloud') {
-        Store.patch({ scClientId: '', scAccessToken: '' })
+        Store.patch({ scClientId: '', scClientSecret: '', scAccessToken: '' })
+        const scCid = $('#service-sc-client-id')
+        const scSec = $('#service-sc-client-secret')
+        if (scCid) scCid.value = ''
+        if (scSec) scSec.value = ''
       } else {
         Store.patch({ [meta.storeKey]: '' })
       }
@@ -2157,14 +2212,21 @@ const UI = (() => {
 
     $('#service-sc-oauth')?.addEventListener('click', async () => {
       const status = $('#service-token-status')
+      const scCid = $('#service-sc-client-id')
+      const scSec = $('#service-sc-client-secret')
+      const cid = scCid?.value?.trim() || ''
+      const sec = scSec?.value?.trim() || ''
+      if (!cid) {
+        toast('Сначала укажи Client ID')
+        scCid?.focus()
+        return
+      }
+      Store.patch({ scClientId: cid, scClientSecret: sec })
       try {
-        if (status) status.textContent = 'Открываем OAuth…'
+        if (status) status.textContent = 'Открываем авторизацию…'
         const url = await Api.prepareSoundCloudOAuth()
-        window.open(url, '_blank', 'noopener')
-        if (status) {
-          status.textContent = 'Войди в SoundCloud, скопируй access_token или ссылку с code и вставь выше'
-        }
-        toast('После входа вставь токен или redirect-URL')
+        await Bridge.openUrl(url)
+        if (status) status.textContent = 'После входа вернись в Nexory — токен подставится сам'
       } catch (e) {
         if (status) status.textContent = e.message
       }
@@ -2199,10 +2261,14 @@ const UI = (() => {
           const r = await Api.validateVk(token)
           status.textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error
         } else if (openServiceId === 'soundcloud') {
-          const r = await Api.validateSoundCloud(token)
+          const scCid = $('#service-sc-client-id')?.value?.trim() || ''
+          const scSec = $('#service-sc-client-secret')?.value?.trim() || ''
+          if (scCid) Store.patch({ scClientId: scCid, scClientSecret: scSec })
+          const r = await Api.validateSoundCloud(token || scCid)
           if (r.ok) {
             Store.patch({
-              scClientId: r.scClientId || '',
+              scClientId: r.scClientId || scCid,
+              scClientSecret: scSec,
               scAccessToken: r.scAccessToken || '',
             })
             status.textContent = r.username ? `✓ ${r.username}` : '✓ SoundCloud OK'
@@ -2415,5 +2481,5 @@ const UI = (() => {
     updateGatewayBanner()
   }
 
-  return { init, toast, showScreen, renderHome, renderLibrary }
+  return { init, toast, showScreen, renderHome, renderLibrary, handleOAuthRedirect }
 })()

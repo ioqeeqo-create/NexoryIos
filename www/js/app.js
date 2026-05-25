@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     })
     UI.init()
+    Bridge.bindAppUrlOpen((url) => UI.handleOAuthRedirect(url))
     setTimeout(finishSplash, 1400)
   } catch (e) {
     console.error(e)

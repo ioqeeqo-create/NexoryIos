@@ -21,6 +21,7 @@ const Store = (() => {
       yandexToken: '',
       vkToken: '',
       scClientId: '',
+      scClientSecret: '',
       scAccessToken: '',
       waveSource: 'yandex',
       waveMood: 'default',
