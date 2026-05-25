@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 7
+  const PALETTE_VERSION = 8
 
   const THEMES = {
 
@@ -365,9 +365,18 @@ const Theme = (() => {
   function decorFromAccent(accent, accent2, bg, opts = {}) {
     const shellBase = bg || BASE_BG
     const dark = !!opts.dark
-    const tintMix = dark ? 0.28 : 0.18
-    const tintedPlayer = mixHex(BASE_BG, accent, tintMix)
+    const coverLum = opts.coverLum ?? 0.28
+    const tintMix = dark ? 0.22 + coverLum * 0.18 : 0.18
+    let tintedPlayer = mixHex(BASE_BG, accent, tintMix)
+    if (opts.shadowRgb) {
+      const [sr, sg, sb] = opts.shadowRgb
+      const shadowHex = `#${[sr, sg, sb].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
+      tintedPlayer = mixHex(tintedPlayer, shadowHex, dark ? 0.42 : 0.18)
+    }
     const glowMul = dark ? 1.35 : 1
+    const shadowGlow = opts.shadowRgb
+      ? `#${opts.shadowRgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
+      : accent2
     return {
       homeOrb1: hexToRgba(accent, 0.18),
       homeOrb2: hexToRgba(accent2, 0.12),
@@ -385,7 +394,8 @@ const Theme = (() => {
         ? [
           `radial-gradient(ellipse 95% 58% at 50% 6%, ${hexToRgba(accent, 0.48)} 0%, transparent 62%)`,
           `radial-gradient(ellipse 60% 48% at 88% 76%, ${hexToRgba(accent2, 0.34)} 0%, transparent 54%)`,
-          `linear-gradient(180deg, ${hexToRgba(accent, 0.22)} 0%, rgba(0,0,0,0.28) 38%, rgba(0,0,0,0.82) 100%)`,
+          `radial-gradient(ellipse 70% 55% at 12% 88%, ${hexToRgba(shadowGlow, 0.38)} 0%, transparent 58%)`,
+          `linear-gradient(180deg, ${hexToRgba(accent, 0.22)} 0%, ${hexToRgba(shadowGlow, 0.18)} 32%, rgba(0,0,0,0.88) 100%)`,
         ].join(', ')
         : [
           `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
@@ -418,9 +428,16 @@ const Theme = (() => {
 
   function buildCoverThemeFromRgb(r, g, b, fallbackTheme, meta = {}) {
 
-    const coverLum = relLum(r, g, b)
+    const coverLum = meta.coverLum != null ? meta.coverLum : relLum(r, g, b)
 
-    const dark = meta.dark || coverLum < 0.28
+    const dark = meta.dark !== false && (meta.dark || coverLum < 0.38)
+
+    if (dark && meta.shadowR != null) {
+      const t = Math.min(0.45, 0.18 + (0.42 - coverLum) * 0.75)
+      r = Math.round(r * (1 - t) + meta.shadowR * t)
+      g = Math.round(g * (1 - t) + meta.shadowG * t)
+      b = Math.round(b * (1 - t) + meta.shadowB * t)
+    }
 
     const muted = meta.muted || isDullCover(r, g, b)
 
@@ -436,7 +453,7 @@ const Theme = (() => {
 
     const accentS = dark
 
-      ? Math.max(0.46, Math.min(0.74, srcSat * 1.45 + (lowChroma ? 0.32 : 0.24)))
+      ? Math.max(0.38, Math.min(0.68, srcSat * 1.2 + (lowChroma ? 0.28 : 0.18)))
 
       : muted
 
@@ -444,17 +461,19 @@ const Theme = (() => {
 
         : Math.max(0.4, Math.min(0.72, srcSat * 1.22 + 0.12))
 
-    const accentL = dark ? 0.58 : (muted ? 0.54 : 0.56)
+    const accentL = dark
+      ? Math.max(0.4, Math.min(0.56, 0.34 + coverLum * 0.58))
+      : (muted ? 0.54 : 0.56)
 
     const accent = hslToHex(accentHue, accentS, accentL)
 
-    const accent2 = hslToHex((accentHue + 16) % 360, accentS * 0.9, accentL + 0.04)
+    const accent2 = hslToHex((accentHue + 16) % 360, accentS * 0.9, Math.min(0.62, accentL + 0.04))
 
-    const ambientS = Math.min(0.42, Math.max(0.22, accentS * 0.55))
+    const ambientS = Math.min(0.42, Math.max(0.18, accentS * 0.5))
 
-    const tintedBg = hslToHex(accentHue, ambientS, dark ? 0.1 : 0.07)
+    const tintedBg = hslToHex(accentHue, ambientS, Math.max(0.05, 0.06 + coverLum * 0.1 + (dark ? 0.04 : 0)))
 
-    const bg = mixHex(BASE_BG, tintedBg, dark ? 0.22 : (muted ? 0.26 : 0.34))
+    const bg = mixHex(BASE_BG, tintedBg, dark ? 0.12 + coverLum * 0.2 : (muted ? 0.26 : 0.34))
 
     const text = '#f8fafc'
 
@@ -492,7 +511,15 @@ const Theme = (() => {
 
 
 
-    const decor = decorFromAccent(accent, accent2, bg, { dark: dark || grayish })
+    const shadowRgb = meta.shadowR != null
+      ? [meta.shadowR, meta.shadowG, meta.shadowB]
+      : null
+
+    const decor = decorFromAccent(accent, accent2, bg, {
+      dark: dark || grayish,
+      coverLum,
+      shadowRgb,
+    })
 
     return {
 
@@ -979,7 +1006,14 @@ const Theme = (() => {
   function extractAccentRgb(data, width, height) {
     const buckets = new Map()
     let sumLum = 0
-    let avgN = 0
+    let allR = 0
+    let allG = 0
+    let allB = 0
+    let allN = 0
+    let darkR = 0
+    let darkG = 0
+    let darkB = 0
+    let darkW = 0
     let chromaR = 0
     let chromaG = 0
     let chromaB = 0
@@ -1001,14 +1035,26 @@ const Theme = (() => {
         const chroma = max - min
         const sat = max === 0 ? 0 : chroma / max
         const lum = max / 255
-        if (lum < 0.04) continue
+
+        allR += r
+        allG += g
+        allB += b
+        allN++
         sumLum += lum
-        avgN++
+
+        if (lum < 0.34) {
+          const sw = (0.36 - lum) * 1.75 + 0.1
+          darkR += r * sw
+          darkG += g * sw
+          darkB += b * sw
+          darkW += sw
+        }
+
         const dist = Math.hypot(x - cx, y - cy) / maxDist
-        const centerBoost = 1.45 - dist * 0.38
-        const chromaBoost = chroma > 28 ? 1.85 : (chroma > 12 ? 1.2 : 0.35)
-        const weight = centerBoost * chromaBoost * (sat * sat + 0.06) * (0.35 + lum * 0.75)
-        if (weight < 0.008) continue
+        const centerBoost = 1.4 - dist * 0.35
+        const chromaBoost = chroma > 28 ? 1.7 : (chroma > 10 ? 1.15 : 0.55)
+        const weight = centerBoost * chromaBoost * (sat * sat + 0.05) * (0.2 + lum * 0.65)
+        if (weight < 0.005) continue
         const key = `${r >> 4},${g >> 4},${b >> 4}`
         const prev = buckets.get(key) || { r: 0, g: 0, b: 0, w: 0, s: 0, c: 0 }
         prev.r += r * weight
@@ -1018,7 +1064,7 @@ const Theme = (() => {
         prev.c += chroma * weight
         prev.w += weight
         buckets.set(key, prev)
-        if (chroma > 18 && sat > 0.14) {
+        if (chroma > 14 && sat > 0.1) {
           chromaR += r * weight
           chromaG += g * weight
           chromaB += b * weight
@@ -1027,43 +1073,81 @@ const Theme = (() => {
       }
     }
 
-    if (!avgN) return null
-    const avgLum = sumLum / avgN
-    const isDark = avgLum < 0.36
+    if (!allN) return null
+    const avgLum = sumLum / allN
+    const isDark = avgLum < 0.38
+    const ar = allR / allN
+    const ag = allG / allN
+    const ab = allB / allN
+    const shadowR = darkW > 0 ? darkR / darkW : ar
+    const shadowG = darkW > 0 ? darkG / darkW : ag
+    const shadowB = darkW > 0 ? darkB / darkW : ab
+
     const ranked = [...buckets.values()]
       .map((b) => ({
         ...b,
         avgSat: b.s / Math.max(0.001, b.w),
         avgChroma: b.c / Math.max(0.001, b.w),
-        score: b.w * (1 + (b.s / Math.max(0.001, b.w)) * (isDark ? 2.4 : 1.2)),
+        score: b.w * (1 + (b.s / Math.max(0.001, b.w)) * (isDark ? 2 : 1.15)),
       }))
       .sort((a, b) => b.score - a.score)
 
-    let pick = ranked.find((b) => b.avgSat > 0.16 && b.avgChroma > 14) || ranked[0]
-    if (chromaW > 0.002 && (!pick || pick.avgSat < 0.14)) {
+    let pick = ranked.find((b) => b.avgSat > 0.12 && b.avgChroma > 10) || ranked[0]
+    if (chromaW > 0.002 && (!pick || pick.avgSat < 0.12)) {
       pick = {
         r: chromaR,
         g: chromaG,
         b: chromaB,
         w: chromaW,
-        s: chromaW * 0.35,
-        avgSat: 0.35,
-        avgChroma: 40,
+        s: chromaW * 0.3,
+        avgSat: 0.3,
+        avgChroma: 35,
       }
     }
-    if (!pick || pick.w < 0.001) return null
 
-    const fr = pick.r / pick.w
-    const fg = pick.g / pick.w
-    const fb = pick.b / pick.w
+    if (!pick || pick.w < 0.001) {
+      return {
+        r: Math.round(ar),
+        g: Math.round(ag),
+        b: Math.round(ab),
+        sat: 0.18,
+        muted: true,
+        dark: isDark,
+        coverLum: avgLum,
+        shadowR: Math.round(shadowR),
+        shadowG: Math.round(shadowG),
+        shadowB: Math.round(shadowB),
+      }
+    }
+
+    let fr = pick.r / pick.w
+    let fg = pick.g / pick.w
+    let fb = pick.b / pick.w
     const fsat = pick.s / pick.w
+
+    const avgBlend = isDark ? 0.42 : 0.22
+    fr = fr * (1 - avgBlend) + ar * avgBlend
+    fg = fg * (1 - avgBlend) + ag * avgBlend
+    fb = fb * (1 - avgBlend) + ab * avgBlend
+
+    if (isDark && darkW > 0.01) {
+      const shadowBlend = Math.min(0.58, 0.28 + (0.4 - avgLum) * 1.2)
+      fr = fr * (1 - shadowBlend) + shadowR * shadowBlend
+      fg = fg * (1 - shadowBlend) + shadowG * shadowBlend
+      fb = fb * (1 - shadowBlend) + shadowB * shadowBlend
+    }
+
     return {
       r: Math.round(fr),
       g: Math.round(fg),
       b: Math.round(fb),
-      sat: Math.max(0.14, fsat),
+      sat: Math.max(0.12, fsat),
       muted: fsat < 0.14,
       dark: isDark,
+      coverLum: avgLum,
+      shadowR: Math.round(shadowR),
+      shadowG: Math.round(shadowG),
+      shadowB: Math.round(shadowB),
     }
   }
 
