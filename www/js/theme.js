@@ -673,6 +673,8 @@ const Theme = (() => {
 
     notifyAccentChange(t.accent)
 
+    applyPlayerBg()
+
     return t
 
   }
