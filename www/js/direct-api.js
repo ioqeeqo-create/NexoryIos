@@ -6,7 +6,7 @@ const DirectApi = (() => {
   const YM = 'https://api.music.yandex.net'
   const YM_WAVE = 'user:onyourwave'
 
-  function mapWaveModeToSeeds(mode) {
+  function mapWaveModeToMoodEnergy(mode) {
     const m = {
       default: 'all',
       sad: 'sad',
@@ -15,9 +15,50 @@ const DirectApi = (() => {
       calm: 'calm',
       romantic: 'fun',
     }
-    const mood = m[String(mode || 'default').trim()] || 'all'
+    return m[String(mode || 'default').trim()] || 'all'
+  }
+
+  function mapWaveModeToSeeds(mode) {
+    const mood = mapWaveModeToMoodEnergy(mode)
     if (!mood || mood === 'all') return [YM_WAVE]
     return [YM_WAVE, `mood:${mood}`]
+  }
+
+  function buildRotorSessionBody(mode) {
+    const moodEnergy = mapWaveModeToMoodEnergy(mode)
+    const body = {
+      seeds: mapWaveModeToSeeds(mode),
+      includeTracksInResponse: true,
+      includeWaveModel: true,
+      interactive: true,
+    }
+    if (moodEnergy && moodEnergy !== 'all') {
+      body.moodEnergy = moodEnergy
+      body.waveSettings = {
+        moodEnergy,
+        diversity: mode === 'romantic' ? 'favorite' : 'discover',
+        language: 'any',
+      }
+    }
+    return body
+  }
+
+  async function sendRotorRadioStarted(oauth, parsed) {
+    if (!parsed?.radioSessionId || !parsed.batchId) return
+    try {
+      await fetchJson(
+        `${YM}/rotor/session/${encodeURIComponent(parsed.radioSessionId)}/feedback`,
+        {
+          method: 'POST',
+          headers: yandexRotorHeaders(oauth),
+          body: JSON.stringify({
+            event: { type: 'radioStarted', timestamp: new Date().toISOString() },
+            batchId: parsed.batchId,
+          }),
+          timeout: 12000,
+        },
+      )
+    } catch (_) {}
   }
 
   const VK_UA = 'KateMobileAndroid/56 lite-460 (Android 9; 9; SDK 28; HIGH)'
@@ -509,17 +550,13 @@ const DirectApi = (() => {
     const r = await fetchJson(`${YM}/rotor/session/new`, {
       method: 'POST',
       headers: yandexRotorHeaders(oauth),
-      body: JSON.stringify({
-        seeds: mapWaveModeToSeeds(opts.mode),
-        includeTracksInResponse: true,
-        includeWaveModel: true,
-        interactive: true,
-      }),
+      body: JSON.stringify(buildRotorSessionBody(opts.mode)),
       timeout: 28000,
     })
     const parsed = parseRotorBody(r.data)
     if (!parsed.tracks.length) return { ok: false, error: 'Яндекс волна: пустая сессия' }
-    return { ok: true, ...parsed }
+    await sendRotorRadioStarted(oauth, parsed)
+    return { ok: true, ...parsed, mode: opts.mode || 'default' }
   }
 
   async function waveFeedback(payload) {

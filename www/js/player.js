@@ -154,11 +154,28 @@ const Player = (() => {
       })
     } catch {}
     navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing'
+    updateMediaSessionPosition()
+  }
+
+  function updateMediaSessionPosition() {
+    if (!('mediaSession' in navigator) || typeof navigator.mediaSession.setPositionState !== 'function') return
+    const duration = audio.duration
+    if (!duration || !Number.isFinite(duration) || duration <= 0) return
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: audio.playbackRate || 1,
+        position: Math.min(audio.currentTime, duration),
+      })
+    } catch {}
   }
 
   function wireMediaSessionActions() {
     if (!('mediaSession' in navigator)) return
     try {
+      navigator.mediaSession.setActionHandler('seekbackward', null)
+      navigator.mediaSession.setActionHandler('seekforward', null)
+      navigator.mediaSession.setActionHandler('seekto', null)
       navigator.mediaSession.setActionHandler('play', () => { audio.play().catch(() => {}) })
       navigator.mediaSession.setActionHandler('pause', () => { audio.pause() })
       navigator.mediaSession.setActionHandler('previoustrack', () => { prev().catch(() => {}) })
@@ -341,11 +358,12 @@ const Player = (() => {
     try {
       const rotor = Store.get().yandexRotor || {}
       const mood = Store.get().waveMood || 'default'
+      const moodChanged = rotor.mode && rotor.mode !== mood
       const out = await Api.waveFetch({
         mode: mood,
-        resetSession: !rotor.radioSessionId,
-        radioSessionId: rotor.radioSessionId,
-        batchAnchorId: rotor.batchAnchorId,
+        resetSession: moodChanged || !rotor.radioSessionId,
+        radioSessionId: moodChanged ? '' : rotor.radioSessionId,
+        batchAnchorId: moodChanged ? '' : rotor.batchAnchorId,
       })
       if (!out.ok) throw new Error(out.error || 'Волна недоступна')
       Store.setRotor({
@@ -353,6 +371,7 @@ const Player = (() => {
         batchId: out.batchId,
         batchAnchorId: out.batchAnchorId || out.nextQueueTrackId,
         radioStartedFrom: out.radioStartedFrom,
+        mode: mood,
       })
       const existing = new Set(queue.map((t) => Store.trackKey(t)))
       const fresh = (out.tracks || []).filter((t) => !existing.has(Store.trackKey(t)))
@@ -374,12 +393,14 @@ const Player = (() => {
       batchId: out.batchId,
       batchAnchorId: out.batchAnchorId,
       radioStartedFrom: out.radioStartedFrom,
+      mode: mood,
     })
     await playQueue(out.tracks, 0, 'Моя волна')
   }
 
   audio.addEventListener('timeupdate', () => {
     emit('time', { current: audio.currentTime, duration: audio.duration || 0 })
+    updateMediaSessionPosition()
   })
   audio.addEventListener('play', () => {
     document.getElementById('waveform')?.classList.remove('paused')

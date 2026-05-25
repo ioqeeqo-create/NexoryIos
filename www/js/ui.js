@@ -73,11 +73,24 @@ const UI = (() => {
       Viewport.scheduleResync?.()
     }
 
+    const leaving = document.querySelector(`.screen[data-screen="${prev}"]`)
+    const entering = document.querySelector(`.screen[data-screen="${name}"]`)
+
     document.querySelectorAll('.screen').forEach((s) => {
+      s.classList.remove('screen--entering', 'screen--leaving')
+      if (leaving && s === leaving && leaving !== entering) {
+        s.classList.add('screen--leaving', 'screen--active')
+        return
+      }
       s.classList.toggle('screen--active', s.dataset.screen === name)
     })
 
+    entering?.classList.add('screen--entering')
     document.body.dataset.screen = name
+    requestAnimationFrame(() => entering?.classList.remove('screen--entering'))
+    if (leaving && leaving !== entering) {
+      setTimeout(() => leaving.classList.remove('screen--active', 'screen--leaving'), 300)
+    }
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('tab--active', t.dataset.tab === name))
     if (name === 'library') renderLibrary()
     if (name === 'settings') renderSettingsForm()
@@ -415,9 +428,25 @@ const UI = (() => {
     }
   }
 
-  function setWaveMood(id) {
+  async function setWaveMood(id) {
+    const prev = Store.get().waveMood || 'default'
+    if (prev === id) return
     Store.patch({ waveMood: id })
+    Store.setRotor(null)
     renderWaveMoods()
+    const from = Player.playingFrom() || ''
+    if (from.includes('волна') || from.includes('Моя волна')) {
+      if (busy) return
+      try {
+        busy = true
+        toast('Меняем настроение волны…')
+        await Player.startWave()
+      } catch (e) {
+        toast(e.message || 'Не удалось переключить волну')
+      } finally {
+        busy = false
+      }
+    }
   }
 
   function openTrackActionsSheet(playlistId, track) {
@@ -1054,7 +1083,7 @@ const UI = (() => {
       view.hidden = true
       view.classList.remove('is-closing')
       syncShellLayout()
-    }, 300)
+    }, 360)
   }
 
   function renderLibrary() {

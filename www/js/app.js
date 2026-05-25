@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     })
     UI.init()
-    setTimeout(finishSplash, 1100)
+    setTimeout(finishSplash, 1400)
   } catch (e) {
     console.error(e)
     finishSplash()

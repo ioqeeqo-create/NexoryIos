@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 5
+  const PALETTE_VERSION = 6
 
   const THEMES = {
 
@@ -420,7 +420,7 @@ const Theme = (() => {
 
     const coverLum = relLum(r, g, b)
 
-    const dark = meta.dark || coverLum < 0.22
+    const dark = meta.dark || coverLum < 0.28
 
     const muted = meta.muted || isDullCover(r, g, b)
 
@@ -438,7 +438,7 @@ const Theme = (() => {
 
         : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
 
-    const accentL = dark ? 0.62 : (muted ? 0.54 : 0.56)
+    const accentL = dark ? 0.66 : (muted ? 0.54 : 0.56)
 
     const accent = hslToHex(h, accentS, accentL)
 
@@ -448,7 +448,7 @@ const Theme = (() => {
 
     const tintedBg = hslToHex(h, ambientS, 0.07)
 
-    const bg = mixHex(BASE_BG, tintedBg, dark ? 0.2 : (muted ? 0.26 : 0.34))
+    const bg = mixHex(BASE_BG, tintedBg, dark ? 0.28 : (muted ? 0.26 : 0.34))
 
     const text = '#f8fafc'
 
@@ -474,11 +474,11 @@ const Theme = (() => {
 
     const appBg = [
 
-      `radial-gradient(ellipse 70% 40% at 50% 12%, ${hexToRgba(accent, 0.14)}, transparent 52%)`,
+      `radial-gradient(ellipse 70% 40% at 50% 12%, ${hexToRgba(accent, dark ? 0.22 : 0.14)}, transparent 52%)`,
 
-      `radial-gradient(ellipse 40% 30% at 100% 92%, ${hexToRgba(accent2, 0.1)}, transparent 45%)`,
+      `radial-gradient(ellipse 40% 30% at 100% 92%, ${hexToRgba(accent2, dark ? 0.16 : 0.1)}, transparent 45%)`,
 
-      `radial-gradient(ellipse 35% 28% at 4% 68%, ${hexToRgba(accent, 0.08)}, transparent 48%)`,
+      `radial-gradient(ellipse 35% 28% at 4% 68%, ${hexToRgba(accent, dark ? 0.12 : 0.08)}, transparent 48%)`,
 
       bg,
 
@@ -919,11 +919,11 @@ const Theme = (() => {
 
     bg.style.filter = dark
 
-      ? 'blur(56px) saturate(1.65) brightness(1.05)'
+      ? 'blur(64px) saturate(1.75) brightness(1.18) contrast(1.08)'
 
       : 'blur(56px) saturate(1.55) brightness(0.92)'
 
-    bg.style.opacity = dark ? '0.72' : '0.62'
+    bg.style.opacity = dark ? '0.84' : '0.62'
 
   }
 
@@ -1089,7 +1089,7 @@ const Theme = (() => {
 
     const avgLum = sumLum / Math.max(1, avgN)
 
-    const isDark = avgLum < 0.34
+    const isDark = avgLum < 0.38
 
     const fallbackRgb = {
 
