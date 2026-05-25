@@ -477,6 +477,121 @@ const DirectApi = (() => {
     return `${SC_AUTH_URL}?${params}`
   }
 
+  const SC_PATTERNS = [
+    /client_id["']?\s*[:=]\s*["']([a-zA-Z0-9]{32})["']/,
+    /client_id\s*:\s*"([a-zA-Z0-9]{32})"/,
+    /client_id="([a-zA-Z0-9]{32})"/,
+    /"client_id","([a-zA-Z0-9]{32})"/,
+    /,client_id:"([a-zA-Z0-9]{32})"/,
+    /\?client_id=([a-zA-Z0-9]{32})/,
+    /client_id\s*=\s*"([a-zA-Z0-9]{32})"/,
+    /["']client_id["']\s*:\s*["']([a-zA-Z0-9]{32})["']/,
+    /clientId["']?\s*:\s*["']([a-zA-Z0-9]{32})["']/i,
+  ]
+  const SC_HTML_PAGES = [
+    'https://soundcloud.com/',
+    'https://soundcloud.com/discover',
+    'https://m.soundcloud.com/',
+  ]
+  const SC_UA =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1'
+  let _scDiscoveredCache = null
+
+  function responseText(data) {
+    if (typeof data === 'string') return data
+    if (data && typeof data.raw === 'string') return data.raw
+    return ''
+  }
+
+  function extractSndcdnScriptUrls(html) {
+    const raw = String(html || '')
+    const out = []
+    const reList = [
+      /src="(https:\/\/a-v2\.sndcdn\.com\/assets\/[^"]+\.js)"/g,
+      /"(https:\/\/[a-z0-9.-]*sndcdn\.com\/[^"]+\.js)"/gi,
+    ]
+    for (const re of reList) {
+      let m
+      const r = new RegExp(re.source, re.flags)
+      while ((m = r.exec(raw)) !== null) {
+        if (m[1]) out.push(m[1])
+      }
+    }
+    return [...new Set(out)].slice(0, 10)
+  }
+
+  function collectCandidateClientIds(jsText) {
+    const text = String(jsText || '')
+    const found = new Set()
+    for (const pattern of SC_PATTERNS) {
+      const g = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+      let m
+      while ((m = g.exec(text)) !== null) {
+        const id = m[1]
+        if (id && /^[a-zA-Z0-9]{32}$/.test(id)) found.add(id)
+      }
+    }
+    return [...found]
+  }
+
+  async function verifyScClientIdWorks(clientId) {
+    const cid = String(clientId || '').trim()
+    if (!/^[a-zA-Z0-9]{32}$/.test(cid)) return false
+    const test = new URL('https://api-v2.soundcloud.com/search/tracks')
+    test.searchParams.set('q', 'a')
+    test.searchParams.set('client_id', cid)
+    test.searchParams.set('limit', '1')
+    try {
+      const r = await fetchJson(test.toString(), {
+        headers: soundCloudHeaders({ clientId: cid }),
+        timeout: 12000,
+      })
+      if (r.status === 401 || r.status === 403 || !r.ok) return false
+      const d = r.data
+      return Array.isArray(d) || Array.isArray(d?.collection) || Array.isArray(d?.tracks)
+    } catch {
+      return false
+    }
+  }
+
+  async function discoverSoundCloudClientId() {
+    if (_scDiscoveredCache) return { ok: true, clientId: _scDiscoveredCache }
+    const manual = scClientIdFromCfg()
+    if (manual && await verifyScClientIdWorks(manual)) {
+      _scDiscoveredCache = manual
+      return { ok: true, clientId: manual }
+    }
+    const candidates = new Set()
+    const htmlHeaders = {
+      'User-Agent': SC_UA,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    }
+    for (const page of SC_HTML_PAGES) {
+      try {
+        const htmlR = await fetchJson(page, { headers: htmlHeaders, timeout: 18000 })
+        const html = responseText(htmlR.data)
+        collectCandidateClientIds(html).forEach((id) => candidates.add(id))
+        for (const scriptUrl of extractSndcdnScriptUrls(html)) {
+          try {
+            const jsR = await fetchJson(scriptUrl, { headers: htmlHeaders, timeout: 15000 })
+            collectCandidateClientIds(responseText(jsR.data)).forEach((id) => candidates.add(id))
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+    for (const id of candidates) {
+      if (await verifyScClientIdWorks(id)) {
+        _scDiscoveredCache = id
+        return { ok: true, clientId: id }
+      }
+    }
+    return {
+      ok: false,
+      error: 'Не удалось найти Client ID. OAuth требует SoundCloud Developer (Artist Pro для новых приложений).',
+    }
+  }
+
   async function exchangeSoundCloudCode(code, verifier, clientId, secret) {
     const cid = String(clientId || scClientIdFromCfg()).trim()
     const redirect = scRedirectUri()
@@ -839,13 +954,44 @@ const DirectApi = (() => {
     if (!t?.title) return null
     const id = String(t.id ?? row.trackId ?? row.id ?? '').split(':')[0].trim()
     if (!id) return null
+    const msRaw = Number(t.durationMs ?? t.duration_ms ?? row?.durationMs ?? row?.duration_ms ?? 0)
+    const durField = Number(t.duration ?? row?.duration ?? 0)
+    let durationMs
+    if (msRaw > 0) durationMs = msRaw
+    else if (durField > 0) durationMs = durField > 36000 ? durField : durField * 1000
     return {
       title: String(t.title).trim(),
       artist: (t.artists || []).map((a) => a?.name).filter(Boolean).join(', ') || '—',
       cover: t.coverUri ? `https://${String(t.coverUri).replace('%%', '300x300')}` : null,
       source: 'yandex',
       id,
+      durationMs: durationMs > 0 ? durationMs : undefined,
     }
+  }
+
+  async function enrichYandexTrackMeta(headers, tracks = []) {
+    const list = (Array.isArray(tracks) ? tracks : []).map((t) => ({ ...t }))
+    const need = list.some((t) => t.id && (!t.durationMs || !t.cover))
+    if (!need || !list.length) return list
+    const ids = [...new Set(list.map((t) => String(t.id).split(':')[0]).filter(Boolean))]
+    if (!ids.length) return list
+    const full = await fetchYandexTracksByIds(headers, ids)
+    const byId = new Map(full.map((t) => [String(t.id), t]))
+    return list.map((t) => {
+      const f = byId.get(String(t.id))
+      if (!f) return t
+      return {
+        ...t,
+        durationMs: t.durationMs || f.durationMs,
+        cover: t.cover || f.cover,
+        artist: (!t.artist || t.artist === '—') && f.artist ? f.artist : t.artist,
+      }
+    })
+  }
+
+  async function finalizeYandexImport(headers, name, tracks) {
+    const enriched = await enrichYandexTrackMeta(headers, tracks)
+    return { name, tracks: enriched }
   }
 
   function mapYandexImportRows(tracks = []) {
@@ -933,7 +1079,7 @@ const DirectApi = (() => {
       rows = Array.isArray(lib?.tracks) ? lib.tracks : []
       if (rows.length) break
     }
-    if (!rows.length) return { name: 'Мне нравится', tracks: [] }
+    if (!rows.length) return finalizeYandexImport(headers, 'Мне нравится', [])
     const seen = new Set()
     const batchIds = []
     for (const row of rows) {
@@ -946,13 +1092,13 @@ const DirectApi = (() => {
       batchIds.push(spec)
     }
     const tracks = await fetchYandexTracksByIds(headers, batchIds)
-    return { name: 'Мне нравится', tracks }
+    return finalizeYandexImport(headers, 'Мне нравится', tracks)
   }
 
   async function fetchYandexPlaylistImport(headers, owner, kind) {
     const uid = String(owner || '').trim()
     const k = String(kind || '').trim()
-    if (!uid || !k) return { name: 'Плейлист', tracks: [] }
+    if (!uid || !k) return finalizeYandexImport(headers, 'Плейлист', [])
     if (isYandexLikesPlaylistKind(k)) {
       return fetchYandexUserLikesTracksForImport(headers, uid)
     }
@@ -969,7 +1115,7 @@ const DirectApi = (() => {
     const rRich = await fetchJson(`${YM}/users/${encodeURIComponent(uid)}/playlists/${pathKind}?rich-tracks=true`, { headers, timeout: 28000 })
     let { name, tracks, pl } = load(rRich.data?.result)
     rememberRowsPl(pl)
-    if (tracks.length) return { name, tracks }
+    if (tracks.length) return finalizeYandexImport(headers, name, tracks)
     try {
       const form = new URLSearchParams()
       form.set('kinds', k)
@@ -985,19 +1131,19 @@ const DirectApi = (() => {
       const first = Array.isArray(raw) ? raw[0] : raw
       ;({ name, tracks, pl } = load(first))
       rememberRowsPl(pl)
-      if (tracks.length) return { name, tracks }
+      if (tracks.length) return finalizeYandexImport(headers, name, tracks)
     } catch {}
     const rPlain = await fetchJson(`${YM}/users/${encodeURIComponent(uid)}/playlists/${pathKind}`, { headers, timeout: 20000 })
     ;({ name, tracks, pl } = load(rPlain.data?.result))
     rememberRowsPl(pl)
-    if (tracks.length) return { name, tracks }
+    if (tracks.length) return finalizeYandexImport(headers, name, tracks)
     const sourcePl = lastPlWithTrackRows || pl
     const batchIds = collectYandexBatchIds(sourcePl?.tracks || [])
     if (batchIds.length) {
       const fromBatch = await fetchYandexTracksByIds(headers, batchIds)
-      if (fromBatch.length) return { name, tracks: fromBatch }
+      if (fromBatch.length) return finalizeYandexImport(headers, name, fromBatch)
     }
-    return { name, tracks: [] }
+    return finalizeYandexImport(headers, name, [])
   }
 
   function flattenYandexAlbum(result = {}) {
@@ -1023,8 +1169,9 @@ const DirectApi = (() => {
     if (albumId) {
       const r = await fetchJson(`${YM}/albums/${encodeURIComponent(albumId)}/with-tracks`, { headers, timeout: 28000 })
       const result = r.data?.result || {}
-      const tracks = flattenYandexAlbum(result)
+      let tracks = flattenYandexAlbum(result)
       if (!tracks.length) return { ok: false, error: 'В альбоме нет треков' }
+      tracks = await enrichYandexTrackMeta(headers, tracks)
       return { ok: true, service: 'yandex', name: String(result.title || `Альбом ${albumId}`), tracks }
     }
     const ref = parseYandexPlaylistRef(link)
@@ -1065,6 +1212,7 @@ const DirectApi = (() => {
     importPlaylistLink,
     fetchSoundCloudReleases,
     validateSoundCloud,
+    discoverSoundCloudClientId,
     prepareSoundCloudOAuth,
     parseSoundCloudCredential,
     scAuth,

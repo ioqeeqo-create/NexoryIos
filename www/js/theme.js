@@ -735,7 +735,7 @@ const Theme = (() => {
 
 
 
-    if (!animate || !currentTheme || currentTheme.accent === target.accent) {
+    if (!animate || !currentTheme) {
 
       applyCoverThemeInstant(target, { persist })
 
@@ -925,26 +925,53 @@ const Theme = (() => {
 
     bg.style.filter = dark
 
-      ? 'blur(64px) saturate(1.75) brightness(1.18) contrast(1.08)'
+      ? 'blur(72px) saturate(1.2) brightness(0.72) contrast(1.05)'
 
-      : 'blur(56px) saturate(1.55) brightness(0.92)'
-
-    bg.style.opacity = dark ? '0.84' : '0.62'
+      : 'blur(64px) saturate(1.5) brightness(0.88)'
 
   }
 
 
 
+  let fullBgLayer = 'a'
+
   function setFullBgImage(url) {
-
-    const bg = document.getElementById('full-bg')
-
-    if (!bg) return
-
-    if (url) bg.style.backgroundImage = `url(${url})`
-
-    else bg.style.backgroundImage = ''
-
+    const host = document.getElementById('full-bg')
+    const a = document.getElementById('full-bg-a')
+    const b = document.getElementById('full-bg-b')
+    if (!host) return
+    if (!a || !b) {
+      if (url) host.style.backgroundImage = `url("${url}")`
+      else host.style.backgroundImage = ''
+      return
+    }
+    host.style.backgroundImage = ''
+    const nextKey = fullBgLayer === 'a' ? 'b' : 'a'
+    const cur = fullBgLayer === 'a' ? a : b
+    const next = fullBgLayer === 'a' ? b : a
+    if (!url) {
+      cur.classList.remove('is-active')
+      next.classList.remove('is-active')
+      cur.style.backgroundImage = ''
+      next.style.backgroundImage = ''
+      cur.dataset.bgUrl = ''
+      next.dataset.bgUrl = ''
+      return
+    }
+    if (next.dataset.bgUrl === url && next.classList.contains('is-active')) return
+    const swap = () => {
+      next.dataset.bgUrl = url
+      next.style.backgroundImage = `url("${url}")`
+      requestAnimationFrame(() => {
+        next.classList.add('is-active')
+        cur.classList.remove('is-active')
+        fullBgLayer = nextKey
+      })
+    }
+    const probe = new Image()
+    probe.onload = swap
+    probe.onerror = swap
+    probe.src = url
   }
 
 

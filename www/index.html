@@ -298,7 +298,10 @@
       <div class="fp-orb fp-orb--2"></div>
       <div class="fp-orb fp-orb--3"></div>
     </div>
-    <div class="full-player__bg" id="full-bg"></div>
+    <div class="full-player__bg" id="full-bg">
+      <div class="full-player__bg-layer is-active" id="full-bg-a"></div>
+      <div class="full-player__bg-layer" id="full-bg-b"></div>
+    </div>
     <div class="full-player__sheet">
       <div class="fp-header">
         <button type="button" class="icon-btn fp-header__btn" id="full-close" data-icon="x" aria-label="Закрыть"></button>
@@ -315,7 +318,8 @@
       <div class="fp-cover-block" id="fp-cover-block">
         <div class="full-cover-wrap" id="full-cover-wrap">
           <span class="full-cover-ph" data-icon="music-2" data-icon-class="ui-icon lg cover-ph"></span>
-          <img class="full-cover" id="full-cover" alt="" hidden />
+          <img class="full-cover full-cover--layer is-active" id="full-cover-a" alt="" hidden />
+          <img class="full-cover full-cover--layer" id="full-cover-b" alt="" hidden />
           <button type="button" class="fp-cover-btn fp-cover-btn--like" id="full-like" data-icon="heart" aria-label="Like"></button>
           <button type="button" class="fp-cover-btn fp-cover-btn--add" id="full-add" data-icon="plus" aria-label="Добавить"></button>
         </div>
@@ -361,7 +365,8 @@
             <span class="token-field__label">Client Secret (для OAuth)</span>
             <input type="password" class="token-field__input token-field__input--plain" id="service-sc-client-secret" autocomplete="off" />
           </label>
-          <p class="field-hint field-hint--sc">Redirect URI в приложении SC: <strong>nexory://oauth/soundcloud</strong></p>
+          <p class="field-hint field-hint--sc">Redirect URI (если есть Developer): <strong>nexory://oauth/soundcloud</strong></p>
+          <p class="field-hint field-hint--sc">Новые приложения SC требуют Artist Pro — можно нажать «Найти Client ID» без OAuth.</p>
         </div>
         <label class="token-field">
           <span class="token-field__label" id="service-token-label">Access Token</span>
@@ -370,7 +375,8 @@
             <button type="button" class="token-field__eye" id="service-token-eye" data-icon="eye" aria-label="Показать"></button>
           </div>
         </label>
-        <button type="button" class="token-btn token-btn--oauth" id="service-sc-oauth" hidden>Авторизация SoundCloud</button>
+        <button type="button" class="token-btn token-btn--oauth" id="service-sc-autoid" hidden>Найти Client ID автоматически</button>
+        <button type="button" class="token-btn token-btn--oauth-secondary" id="service-sc-oauth" hidden>OAuth (нужен Developer)</button>
         <button type="button" class="token-btn token-btn--save" id="service-token-save">Сохранить и проверить</button>
         <button type="button" class="token-btn token-btn--clear" id="service-token-clear">Очистить</button>
         <a class="token-link" id="service-token-help" href="https://soundcloud.com/you/apps" target="_blank" rel="noopener">

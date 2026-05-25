@@ -748,7 +748,73 @@ const UI = (() => {
     return track?.cover || ''
   }
 
-  function setCover(wrap, img, track, { playerOnly = false } = {}) {
+  let fullCoverLayer = 'a'
+
+  function activeFullCoverEl() {
+    const a = $('#full-cover-a')
+    const b = $('#full-cover-b')
+    if (b?.classList.contains('is-active')) return b
+    return a || b
+  }
+
+  function crossfadeFullCover(track) {
+    const wrap = $('#full-cover-wrap')
+    if (!wrap) return
+    const ph = wrap.querySelector('[data-icon]')
+    const a = $('#full-cover-a')
+    const b = $('#full-cover-b')
+    const url = getPlayerCoverUrl(track)
+    if (!a && !b) return
+    if (!url) {
+      if (a) { a.hidden = true; a.classList.remove('is-active'); a.removeAttribute('src') }
+      if (b) { b.hidden = true; b.classList.remove('is-active'); b.removeAttribute('src') }
+      if (ph) ph.hidden = false
+      Icons.mount(wrap)
+      return
+    }
+    const nextKey = fullCoverLayer === 'a' ? 'b' : 'a'
+    const cur = fullCoverLayer === 'a' ? a : b
+    const next = fullCoverLayer === 'a' ? b : a
+    if (!next) return
+    if (ph) ph.hidden = true
+    if (cur && !cur.src) {
+      cur.src = url
+      cur.hidden = false
+      cur.classList.add('is-active')
+      if (next) {
+        next.classList.remove('is-active')
+        next.hidden = true
+      }
+      return
+    }
+    const show = () => {
+      next.hidden = false
+      next.classList.add('is-active')
+      if (cur) {
+        cur.classList.remove('is-active')
+        window.setTimeout(() => {
+          if (!cur.classList.contains('is-active')) cur.hidden = true
+        }, 520)
+      }
+      fullCoverLayer = nextKey
+    }
+    if (next.src === url && next.classList.contains('is-active')) return
+    next.onload = show
+    next.onerror = () => {
+      next.hidden = true
+      next.classList.remove('is-active')
+      if (ph) ph.hidden = false
+      Icons.mount(wrap)
+    }
+    next.src = url
+    if (next.complete) show()
+  }
+
+  function setCover(wrap, img, track, { playerOnly = false, crossfade = false } = {}) {
+    if (crossfade && wrap?.id === 'full-cover-wrap') {
+      crossfadeFullCover(track)
+      return
+    }
     if (!wrap) return
     const ph = wrap.querySelector('[data-icon]')
     const url = playerOnly ? getPlayerCoverUrl(track) : track?.cover
@@ -772,17 +838,8 @@ const UI = (() => {
   function applyPlayerVisuals(track) {
     if (!track) return
     const s = Store.get()
-    if (s.playerBgOverride) {
-      const bg = document.getElementById('full-bg')
-      if (bg) {
-        bg.style.background = ''
-        bg.style.backgroundImage = `url(${s.playerBgOverride})`
-      }
-    } else {
-      const bg = document.getElementById('full-bg')
-      if (bg) bg.style.background = ''
-      Theme.setFullBgImage(getPlayerBgUrl(track))
-    }
+    const bgUrl = s.playerBgOverride || getPlayerBgUrl(track)
+    Theme.setFullBgImage(bgUrl || '')
     Theme.applyPlayerBg()
   }
 
@@ -1742,7 +1799,9 @@ const UI = (() => {
         if (label) label.textContent = 'Access Token'
       }
     }
+    const scAutoBtn = $('#service-sc-autoid')
     const scOAuthBtn = $('#service-sc-oauth')
+    if (scAutoBtn) scAutoBtn.hidden = id !== 'soundcloud'
     if (scOAuthBtn) scOAuthBtn.hidden = id !== 'soundcloud'
     if (help) {
       if (meta.helpUrl) {
@@ -1836,11 +1895,18 @@ const UI = (() => {
     $('#full-artist').textContent = track.artist
     $('#full-from').textContent = from || 'Nexory'
     $('#full-like').classList.toggle('is-active', Store.isLiked(track))
-    setCover($('#full-cover-wrap'), $('#full-cover'), track, { playerOnly: true })
+    setCover($('#full-cover-wrap'), null, track, { playerOnly: true, crossfade: true })
     applyPlayerVisuals(track)
+    const fpMeta = $('#fp-cover-block .fp-meta')
+    if (fpMeta) {
+      fpMeta.classList.remove('is-fading')
+      void fpMeta.offsetWidth
+      fpMeta.classList.add('is-fading')
+      window.setTimeout(() => fpMeta.classList.remove('is-fading'), 480)
+    }
     if (Store.get().accentFromCover) {
       const accentUrl = getPlayerBgUrl(track) || getPlayerCoverUrl(track)
-      const coverImg = $('#full-cover')
+      const coverImg = activeFullCoverEl()
       const tryRedraw = () => {
         const d = Player.audio?.duration || 0
         if (d > 0) Player.drawWaveform((Player.audio?.currentTime || 0) / d)
@@ -2208,6 +2274,29 @@ const UI = (() => {
         loadHomePopular()
       }
       updateGatewayBanner()
+    })
+
+    $('#service-sc-autoid')?.addEventListener('click', async () => {
+      const status = $('#service-token-status')
+      const scCid = $('#service-sc-client-id')
+      if (status) status.textContent = 'Ищем Client ID…'
+      try {
+        const r = await Api.discoverSoundCloudClientId()
+        if (r.ok && r.clientId) {
+          Store.patch({ scClientId: r.clientId })
+          if (scCid) scCid.value = r.clientId
+          if (status) status.textContent = '✓ Client ID найден'
+          toast('SoundCloud Client ID подставлен')
+          updateServiceStates()
+          renderHome()
+          homePopularTracks = null
+          loadHomePopular()
+        } else if (status) {
+          status.textContent = r.error || 'Не найден'
+        }
+      } catch (e) {
+        if (status) status.textContent = e.message
+      }
     })
 
     $('#service-sc-oauth')?.addEventListener('click', async () => {

@@ -344,6 +344,10 @@ const Api = (() => {
     return DirectApi.prepareSoundCloudOAuth()
   }
 
+  async function discoverSoundCloudClientId() {
+    return DirectApi.discoverSoundCloudClientId()
+  }
+
   return {
     search,
     resolve,
@@ -355,6 +359,7 @@ const Api = (() => {
     fetchLyrics,
     soundCloudReleases,
     validateSoundCloud,
+    discoverSoundCloudClientId,
     prepareSoundCloudOAuth,
     tokens,
     health,
