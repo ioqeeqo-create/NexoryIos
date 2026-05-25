@@ -136,9 +136,17 @@ const UI = (() => {
     return `<span class="source-badge-corner"><img src="${src}" alt="" loading="lazy" /></span>`
   }
 
+  function coverImgFallbackSrc(url) {
+    if (!url || !/sndcdn\.com/i.test(url)) return ''
+    if (/-t\d+x\d+\./i.test(url)) return String(url).replace(/-t\d+x\d+(?=\.[a-z]{3,4}$)/i, '-large')
+    return ''
+  }
+
   function coverOnly(url) {
     if (url) {
-      return `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
+      const fb = coverImgFallbackSrc(url)
+      const fbAttr = fb ? ` data-cover-fb="${esc(fb)}"` : ''
+      return `<img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer"${fbAttr} onerror="if(this.dataset.coverFb&&!this.dataset.coverTried){this.dataset.coverTried='1';this.src=this.dataset.coverFb;return}this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
     }
     return `<span data-icon="music-2" data-icon-class="ui-icon cover-ph"></span>`
   }
@@ -1192,13 +1200,13 @@ const UI = (() => {
   function loadHomeSoundCloudSections() {
     return Promise.all([
       loadHomeScRow({
-        key: 'popular',
+        key: 'popular-v2',
         elId: '#home-popular-scroll',
         title: 'Популярные треки',
         fetcher: () => Api.soundCloudCisPopular(20),
       }),
       loadHomeScRow({
-        key: 'mixes',
+        key: 'mixes-v2',
         elId: '#home-mixes-scroll',
         title: 'Миксы',
         fetcher: () => Api.soundCloudCisMixes(20),

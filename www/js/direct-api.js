@@ -403,6 +403,20 @@ const DirectApi = (() => {
       }))
   }
 
+  function soundCloudArtworkUrl(t) {
+    const raw = t?.artwork_url || t?.user?.avatar_url || t?.user?.visuals?.metapages?.[0]?.visual_url || null
+    if (!raw) return null
+    let u = String(raw).trim()
+    if (u.startsWith('//')) u = `https:${u}`
+    else if (/^http:\/\//i.test(u)) u = u.replace(/^http:/i, 'https:')
+    u = u.split('?')[0]
+    if (!/sndcdn\.com/i.test(u)) return u
+    if (!/-t\d+x\d+\./i.test(u)) {
+      u = u.replace(/-(large|original|crop|small|tiny|badge-large|visual-proportioned)(?=\.[a-z]{3,4}$)/i, '-t300x300')
+    }
+    return u
+  }
+
   function mapSoundCloudTrack(t, auth) {
     const { clientId: cid, oauth } = auth || scAuth()
     const trans = (t.media?.transcodings || []).find((x) => x?.format?.protocol === 'progressive')
@@ -419,7 +433,7 @@ const DirectApi = (() => {
       scTranscoding: trans?.url || null,
       scClientId: cid,
       scAccessToken: oauth || '',
-      cover: t.artwork_url ? String(t.artwork_url).replace('-large', '-t300x300') : null,
+      cover: soundCloudArtworkUrl(t),
       source: 'soundcloud',
       id: String(t.id || ''),
       durationMs: Number(t.duration || t.full_duration || 0) || undefined,
