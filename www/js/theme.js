@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 8
+  const PALETTE_VERSION = 9
 
   const THEMES = {
 
@@ -365,15 +365,16 @@ const Theme = (() => {
   function decorFromAccent(accent, accent2, bg, opts = {}) {
     const shellBase = bg || BASE_BG
     const dark = !!opts.dark
+    const mono = !!opts.monochrome
     const coverLum = opts.coverLum ?? 0.28
-    const tintMix = dark ? 0.22 + coverLum * 0.18 : 0.18
+    const tintMix = mono ? 0.12 : (dark ? 0.22 + coverLum * 0.18 : 0.18)
     let tintedPlayer = mixHex(BASE_BG, accent, tintMix)
     if (opts.shadowRgb) {
       const [sr, sg, sb] = opts.shadowRgb
       const shadowHex = `#${[sr, sg, sb].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
-      tintedPlayer = mixHex(tintedPlayer, shadowHex, dark ? 0.42 : 0.18)
+      tintedPlayer = mixHex(tintedPlayer, shadowHex, mono ? 0.55 : (dark ? 0.42 : 0.18))
     }
-    const glowMul = dark ? 1.35 : 1
+    const glowMul = mono ? 0.85 : (dark ? 1.35 : 1)
     const shadowGlow = opts.shadowRgb
       ? `#${opts.shadowRgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
       : accent2
@@ -390,18 +391,24 @@ const Theme = (() => {
       playerGlow1: hexToRgba(accent, 0.42 * glowMul),
       playerGlow2: hexToRgba(accent2, 0.32 * glowMul),
       playerGlow3: hexToRgba(accent, 0.22 * glowMul),
-      playerOverlay: dark
+      playerOverlay: mono
         ? [
-          `radial-gradient(ellipse 95% 58% at 50% 6%, ${hexToRgba(accent, 0.48)} 0%, transparent 62%)`,
-          `radial-gradient(ellipse 60% 48% at 88% 76%, ${hexToRgba(accent2, 0.34)} 0%, transparent 54%)`,
-          `radial-gradient(ellipse 70% 55% at 12% 88%, ${hexToRgba(shadowGlow, 0.38)} 0%, transparent 58%)`,
-          `linear-gradient(180deg, ${hexToRgba(accent, 0.22)} 0%, ${hexToRgba(shadowGlow, 0.18)} 32%, rgba(0,0,0,0.88) 100%)`,
+          `radial-gradient(ellipse 90% 55% at 50% 8%, rgba(255,255,255,0.14) 0%, transparent 58%)`,
+          `radial-gradient(ellipse 55% 42% at 88% 78%, rgba(255,255,255,0.08) 0%, transparent 52%)`,
+          `linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(40,40,44,0.35) 35%, rgba(0,0,0,0.92) 100%)`,
         ].join(', ')
-        : [
-          `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
-          `radial-gradient(ellipse 55% 42% at 92% 78%, ${hexToRgba(accent2, 0.2)} 0%, transparent 52%)`,
-          `linear-gradient(180deg, ${hexToRgba(accent, 0.12)} 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.9) 100%)`,
-        ].join(', '),
+        : dark
+          ? [
+            `radial-gradient(ellipse 95% 58% at 50% 6%, ${hexToRgba(accent, 0.48)} 0%, transparent 62%)`,
+            `radial-gradient(ellipse 60% 48% at 88% 76%, ${hexToRgba(accent2, 0.34)} 0%, transparent 54%)`,
+            `radial-gradient(ellipse 70% 55% at 12% 88%, ${hexToRgba(shadowGlow, 0.38)} 0%, transparent 58%)`,
+            `linear-gradient(180deg, ${hexToRgba(accent, 0.22)} 0%, ${hexToRgba(shadowGlow, 0.18)} 32%, rgba(0,0,0,0.88) 100%)`,
+          ].join(', ')
+          : [
+            `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
+            `radial-gradient(ellipse 55% 42% at 92% 78%, ${hexToRgba(accent2, 0.2)} 0%, transparent 52%)`,
+            `linear-gradient(180deg, ${hexToRgba(accent, 0.12)} 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.9) 100%)`,
+          ].join(', '),
       shellBg: `linear-gradient(180deg, ${hexToRgba(accent, 0.1)} 0%, rgba(10,10,14,0.9) 100%)`,
       shellBorder: hexToRgba(accent, 0.14),
       shellPanel: 'rgba(255,255,255,0.06)',
@@ -426,9 +433,68 @@ const Theme = (() => {
 
 
 
+  function buildMonochromeCoverTheme(coverLum, meta = {}) {
+    const lum = Math.max(0.05, Math.min(0.92, coverLum != null ? coverLum : 0.22))
+    const accentL = Math.max(0.52, Math.min(0.82, 0.48 + lum * 0.42))
+    const accent = hslToHex(0, 0, accentL)
+    const accent2 = hslToHex(0, 0, Math.min(0.9, accentL + 0.06))
+    const bg = hslToHex(0, 0, Math.max(0.04, lum * 0.1 + 0.03))
+    const text = '#f8fafc'
+    const textDim = '#a1a1aa'
+    const textMuted = '#71717a'
+    const bgCard = 'rgba(255,255,255,0.06)'
+    const bgElevated = 'rgba(255,255,255,0.04)'
+    const border = 'rgba(255,255,255,0.1)'
+    const glass = 'rgba(12, 12, 14, 0.82)'
+    const dockGlass = 'rgba(8, 8, 10, 0.88)'
+    const dockBorder = 'rgba(255,255,255,0.08)'
+    const wavePlayed = '#ffffff'
+    const waveUnplayed = 'rgba(255, 255, 255, 0.22)'
+    const appBg = [
+      `radial-gradient(ellipse 70% 40% at 50% 12%, rgba(255,255,255,${0.08 + lum * 0.06}), transparent 52%)`,
+      `radial-gradient(ellipse 40% 30% at 100% 92%, rgba(255,255,255,0.04), transparent 45%)`,
+      bg,
+    ].join(', ')
+    const shadowRgb = meta.shadowR != null
+      ? [meta.shadowR, meta.shadowG, meta.shadowB]
+      : [Math.round(24 + lum * 40), Math.round(24 + lum * 40), Math.round(26 + lum * 42)]
+    const decor = decorFromAccent(accent, accent2, bg, {
+      dark: true,
+      coverLum: lum,
+      shadowRgb,
+      monochrome: true,
+    })
+    return {
+      bg,
+      text,
+      textDim,
+      textMuted,
+      bgCard,
+      bgElevated,
+      border,
+      glass,
+      dockGlass,
+      dockBorder,
+      accent,
+      accent2,
+      accentGlow: 'rgba(255,255,255,0.2)',
+      wavePlayed,
+      waveUnplayed,
+      appBg,
+      ...decor,
+      dark: true,
+      monochrome: true,
+      v: PALETTE_VERSION,
+    }
+  }
+
   function buildCoverThemeFromRgb(r, g, b, fallbackTheme, meta = {}) {
 
     const coverLum = meta.coverLum != null ? meta.coverLum : relLum(r, g, b)
+
+    if (meta.monochrome || (meta.avgSat != null && meta.avgSat < 0.11 && meta.avgChroma < 18)) {
+      return buildMonochromeCoverTheme(coverLum, meta)
+    }
 
     const dark = meta.dark !== false && (meta.dark || coverLum < 0.38)
 
@@ -694,7 +760,8 @@ const Theme = (() => {
 
     document.documentElement.classList.add('cover-theme-on')
 
-    document.documentElement.classList.toggle('cover-theme-dark', !!t.dark)
+    document.documentElement.classList.toggle('cover-theme-dark', !!t.dark && !t.monochrome)
+    document.documentElement.classList.toggle('cover-theme-mono', !!t.monochrome)
 
 
 
@@ -923,6 +990,7 @@ const Theme = (() => {
       document.documentElement.classList.remove('cover-theme-on')
 
       document.documentElement.classList.remove('cover-theme-dark')
+      document.documentElement.classList.remove('cover-theme-mono')
 
       if (s.accentCoverHex || s.accentCoverPalette) {
 
@@ -1018,6 +1086,8 @@ const Theme = (() => {
     let chromaG = 0
     let chromaB = 0
     let chromaW = 0
+    let sumSat = 0
+    let sumChroma = 0
     const cx = (width - 1) / 2
     const cy = (height - 1) / 2
     const maxDist = Math.hypot(cx, cy) || 1
@@ -1041,6 +1111,8 @@ const Theme = (() => {
         allB += b
         allN++
         sumLum += lum
+        sumSat += sat
+        sumChroma += chroma
 
         if (lum < 0.34) {
           const sw = (0.36 - lum) * 1.75 + 0.1
@@ -1075,6 +1147,9 @@ const Theme = (() => {
 
     if (!allN) return null
     const avgLum = sumLum / allN
+    const avgSat = sumSat / allN
+    const avgChroma = sumChroma / allN
+    const monochrome = avgSat < 0.11 && avgChroma < 18
     const isDark = avgLum < 0.38
     const ar = allR / allN
     const ag = allG / allN
@@ -1106,13 +1181,36 @@ const Theme = (() => {
     }
 
     if (!pick || pick.w < 0.001) {
+      const gray = Math.round(40 + avgLum * 180)
       return {
-        r: Math.round(ar),
-        g: Math.round(ag),
-        b: Math.round(ab),
-        sat: 0.18,
+        r: gray,
+        g: gray,
+        b: gray,
+        sat: 0,
         muted: true,
         dark: isDark,
+        monochrome,
+        avgSat,
+        avgChroma,
+        coverLum: avgLum,
+        shadowR: Math.round(shadowR),
+        shadowG: Math.round(shadowG),
+        shadowB: Math.round(shadowB),
+      }
+    }
+
+    if (monochrome) {
+      const gray = Math.round(38 + avgLum * 175)
+      return {
+        r: gray,
+        g: gray,
+        b: gray,
+        sat: 0,
+        muted: true,
+        dark: true,
+        monochrome: true,
+        avgSat,
+        avgChroma,
         coverLum: avgLum,
         shadowR: Math.round(shadowR),
         shadowG: Math.round(shadowG),
@@ -1144,6 +1242,9 @@ const Theme = (() => {
       sat: Math.max(0.12, fsat),
       muted: fsat < 0.14,
       dark: isDark,
+      monochrome,
+      avgSat,
+      avgChroma,
       coverLum: avgLum,
       shadowR: Math.round(shadowR),
       shadowG: Math.round(shadowG),

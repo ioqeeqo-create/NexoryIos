@@ -226,6 +226,8 @@ const UI = (() => {
 
   let recentSheetTimer = null
   let recentDrag = null
+  let playlistViewTimer = null
+  const trackTap = { active: false, moved: false, x: 0, y: 0, el: null, container: null, key: null }
 
   function bindRecentSheetSwipe() {
     const sheet = $('#recent-sheet')
@@ -1167,13 +1169,13 @@ const UI = (() => {
         key: 'popular',
         elId: '#home-popular-scroll',
         title: 'Популярные треки',
-        fetcher: () => Api.soundCloudChartKind('trending', 20),
+        fetcher: () => Api.soundCloudCisPopular(20),
       }),
       loadHomeScRow({
         key: 'mixes',
         elId: '#home-mixes-scroll',
         title: 'Миксы',
-        fetcher: () => Api.soundCloudMixes(20),
+        fetcher: () => Api.soundCloudCisMixes(20),
       }),
       loadHomeScRow({
         key: 'new',
@@ -1258,8 +1260,12 @@ const UI = (() => {
       setupScrollTitles(tracksEl)
     }
     if (view) {
+      clearTimeout(playlistViewTimer)
       view.hidden = false
       view.classList.remove('is-closing')
+      void view.offsetWidth
+      view.classList.add('is-opening')
+      playlistViewTimer = setTimeout(() => view.classList.remove('is-opening'), 520)
     }
     document.body.classList.add('playlist-open')
     syncShellLayout()
@@ -1273,14 +1279,16 @@ const UI = (() => {
       document.body.classList.remove('playlist-open')
       return
     }
+    clearTimeout(playlistViewTimer)
     document.body.classList.remove('playlist-open')
+    view.classList.remove('is-opening')
     view.classList.add('is-closing')
-    setTimeout(() => {
+    playlistViewTimer = setTimeout(() => {
       openPlaylistId = null
       view.hidden = true
       view.classList.remove('is-closing')
       syncShellLayout()
-    }, 360)
+    }, 380)
   }
 
   function renderLibrary() {
@@ -1997,15 +2005,48 @@ const UI = (() => {
     }
   }
 
-  function wireEvents() {
-    document.addEventListener('click', (e) => {
+  function wireTrackTapPlay() {
+    const TAP_MOVE_PX = 14
+    const resetTap = () => {
+      trackTap.active = false
+      trackTap.moved = false
+      trackTap.el = null
+      trackTap.container = null
+      trackTap.key = null
+    }
+    document.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return
       const el = e.target.closest('.track-row, .card-tile, .strip-tile, .pl-track-row')
       if (!el?.dataset.key) return
       const container = el.closest('[data-track-list]')
       if (!container) return
+      trackTap.active = true
+      trackTap.moved = false
+      trackTap.x = e.clientX
+      trackTap.y = e.clientY
+      trackTap.el = el
+      trackTap.container = container
+      trackTap.key = el.dataset.key
+    }, { capture: true })
+    document.addEventListener('pointermove', (e) => {
+      if (!trackTap.active || trackTap.moved) return
+      if (Math.hypot(e.clientX - trackTap.x, e.clientY - trackTap.y) > TAP_MOVE_PX) {
+        trackTap.moved = true
+      }
+    }, { capture: true })
+    document.addEventListener('pointerup', (e) => {
+      if (!trackTap.active) return
+      const { moved, el, container, key } = trackTap
+      resetTap()
+      if (moved || !el || !container || !key) return
       e.preventDefault()
-      playFromList(container, el.dataset.key, el)
-    })
+      playFromList(container, key, el)
+    }, { capture: true })
+    document.addEventListener('pointercancel', resetTap, { capture: true })
+  }
+
+  function wireEvents() {
+    wireTrackTapPlay()
 
     document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showScreen(t.dataset.tab)))
     document.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => showScreen(b.dataset.goto)))

@@ -426,6 +426,94 @@ const DirectApi = (() => {
     }
   }
 
+  const CIS_SC_COUNTRIES = new Set([
+    'RU', 'UA', 'BY', 'KZ', 'UZ', 'AM', 'AZ', 'GE', 'KG', 'MD', 'TJ', 'TM', 'LT', 'LV', 'EE',
+  ])
+  const CIS_SC_CYRILLIC = /[\u0400-\u04FF\u0500-\u052F]/
+  const CIS_SC_TAG_HINTS = /\b(снг|ru\b|russia|russian|украин|беларус|казах|phonk|hardstyle|jumpstyle|микс)\b/i
+
+  function isCisSoundCloudRaw(t) {
+    if (!t) return false
+    const user = t.user || {}
+    const title = String(t.title || '')
+    const artist = String(user.username || '')
+    const tags = Array.isArray(t.tag_list) ? t.tag_list.join(' ') : String(t.tags || '')
+    const blob = `${title} ${artist} ${tags} ${user.city || ''}`
+    if (CIS_SC_CYRILLIC.test(blob)) return true
+    const cc = String(user.country_code || user.country || '').toUpperCase()
+    if (cc && CIS_SC_COUNTRIES.has(cc)) return true
+    return CIS_SC_TAG_HINTS.test(blob)
+  }
+
+  function dedupeSoundCloudRaw(rows) {
+    const seen = new Set()
+    return rows.filter((t) => {
+      const id = String(t?.id || `${t?.title || ''}:${t?.user?.username || ''}`)
+      if (!id || seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+  }
+
+  async function searchSoundCloudTracksRaw(q, limit, auth) {
+    const u = new URL(soundCloudRequestUrl('/search/tracks', auth))
+    u.searchParams.set('q', q)
+    u.searchParams.set('limit', String(limit))
+    const r = await fetchJson(u.toString(), { headers: soundCloudHeaders(auth), timeout: 18000 })
+    return Array.isArray(r.data) ? r.data : r.data?.collection || []
+  }
+
+  async function fetchSoundCloudCisTracks(queries, limit = 20) {
+    const auth = scAuth()
+    if (!auth.clientId && !auth.oauth) throw new Error('Укажи SoundCloud Client ID')
+    let raw = []
+    for (const q of queries) {
+      if (raw.length >= limit * 3) break
+      try {
+        const batch = await searchSoundCloudTracksRaw(q, Math.max(12, limit), auth)
+        raw = raw.concat(batch)
+      } catch (_) {}
+    }
+    if (raw.length < limit) {
+      try {
+        const u = new URL(soundCloudRequestUrl('/charts', auth))
+        u.searchParams.set('genre', 'soundcloud:genres:hiphoprap')
+        u.searchParams.set('kind', 'trending')
+        u.searchParams.set('limit', String(limit * 2))
+        const charts = await fetchJson(u.toString(), { headers: soundCloudHeaders(auth), timeout: 18000 })
+        const coll = charts.data?.collection || charts.data
+        const rows = Array.isArray(coll) ? coll.map((item) => item?.track || item).filter(Boolean) : []
+        raw = raw.concat(rows)
+      } catch (_) {}
+    }
+    const filtered = dedupeSoundCloudRaw(raw).filter(isCisSoundCloudRaw)
+    return filtered
+      .slice(0, limit)
+      .map((t) => mapSoundCloudTrack(t, auth))
+      .filter((t) => t.scTranscoding || t.url)
+  }
+
+  async function fetchSoundCloudCisPopular(limit = 20) {
+    return fetchSoundCloudCisTracks([
+      'снг phonk',
+      'снг hardstyle',
+      'russian phonk',
+      'снг underground',
+      'jumpstyle снг',
+      'phonk ru',
+    ], limit)
+  }
+
+  async function fetchSoundCloudCisMixes(limit = 20) {
+    return fetchSoundCloudCisTracks([
+      'снг mix',
+      'russian mix',
+      'микс снг',
+      'phonk mix ru',
+      'hardstyle mix снг',
+    ], limit)
+  }
+
   async function fetchSoundCloudChartKind(kind, limit = 20) {
     const auth = scAuth()
     if (!auth.clientId && !auth.oauth) throw new Error('Укажи SoundCloud Client ID')
@@ -1221,6 +1309,8 @@ const DirectApi = (() => {
     fetchSoundCloudReleases,
     fetchSoundCloudChartKind,
     fetchSoundCloudMixes,
+    fetchSoundCloudCisPopular,
+    fetchSoundCloudCisMixes,
     validateSoundCloud,
     discoverSoundCloudClientId,
     prepareSoundCloudOAuth,
