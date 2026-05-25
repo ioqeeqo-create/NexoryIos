@@ -382,14 +382,12 @@ const Player = (() => {
     emit('time', { current: audio.currentTime, duration: audio.duration || 0 })
   })
   audio.addEventListener('play', () => {
-    document.querySelector('.wave-row')?.classList.add('is-playing')
     document.getElementById('waveform')?.classList.remove('paused')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
     updateMediaSession(current())
     emit('state', { paused: false })
   })
   audio.addEventListener('pause', () => {
-    document.querySelector('.wave-row')?.classList.remove('is-playing')
     document.getElementById('waveform')?.classList.add('paused')
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
     emit('state', { paused: true })

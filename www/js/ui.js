@@ -201,12 +201,22 @@ const UI = (() => {
     )).join('')
   }
 
+  let recentSheetTimer = null
+
   function openRecentSheet(open) {
     const sheet = $('#recent-sheet')
     const list = $('#recent-sheet-list')
     if (!sheet) return
+    clearTimeout(recentSheetTimer)
     if (!open) {
-      sheet.hidden = true
+      if (sheet.hidden) return
+      sheet.classList.remove('is-opening')
+      sheet.classList.add('is-closing')
+      document.body.classList.remove('recent-sheet-open')
+      recentSheetTimer = setTimeout(() => {
+        sheet.hidden = true
+        sheet.classList.remove('is-closing')
+      }, 360)
       return
     }
     const items = Store.get().recent.slice(0, 40)
@@ -219,7 +229,12 @@ const UI = (() => {
       Icons.mount(list)
     }
     sheet.hidden = false
+    sheet.classList.remove('is-closing')
+    document.body.classList.add('recent-sheet-open')
+    void sheet.offsetWidth
+    sheet.classList.add('is-opening')
     Icons.mount(sheet)
+    recentSheetTimer = setTimeout(() => sheet.classList.remove('is-opening'), 480)
   }
 
   function highlightPlayingTrack(track) {
@@ -229,8 +244,12 @@ const UI = (() => {
     })
     const from = Player.playingFrom() || ''
     const waveBtn = $('#btn-wave-play')
+    const isWave = !!track && (from.includes('волна') || from.includes('Моя волна'))
+    const audio = Player.audio
+    const playing = isWave && audio && !audio.paused
     if (waveBtn) {
-      waveBtn.classList.toggle('is-playing', !!track && (from.includes('волна') || from.includes('Моя волна')))
+      waveBtn.classList.toggle('is-wave-session', isWave)
+      waveBtn.classList.toggle('is-playing', playing)
     }
   }
 
@@ -1619,11 +1638,20 @@ const UI = (() => {
       mini.dataset.icon = icon
       mini.innerHTML = Icons.svg(icon, 'ui-icon')
     }
+    const from = Player.playingFrom() || ''
+    const isWave = from.includes('волна') || from.includes('Моя волна')
+    const wavePlay = $('#wave-play-btn')
+    if (wavePlay) {
+      const waveIcon = isWave ? icon : 'play'
+      wavePlay.dataset.icon = waveIcon
+      wavePlay.innerHTML = Icons.svg(waveIcon, 'ui-icon')
+    }
     const full = $('#full-play')
     if (full) {
       full.dataset.icon = icon
       full.innerHTML = Icons.svg(icon, 'ui-icon lg')
     }
+    highlightPlayingTrack(Player.current())
   }
 
   async function runSearch(q) {
@@ -2066,13 +2094,13 @@ const UI = (() => {
       if (Lyrics.isOpen() && track) Lyrics.load(track, Player.audio?.duration || 0)
     })
     Player.on('playing', ({ track }) => {
-      $('#btn-wave-play')?.classList.add('is-playing')
       highlightPlayingTrack(track)
+      setPlayIcon(false)
     })
     Player.on('state', ({ paused }) => {
       setPlayIcon(paused)
       document.body.classList.toggle('audio-playing', !paused)
-      if (paused) $('#btn-wave-play')?.classList.remove('is-playing')
+      highlightPlayingTrack(Player.current())
     })
     Player.on('time', ({ current, duration }) => {
       if (!seeking) $('#time-current').textContent = Player.fmt(current)

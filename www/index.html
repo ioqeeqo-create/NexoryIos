@@ -63,7 +63,7 @@
           <div class="home-wave-shell ui-shell">
           <button type="button" class="wave-row" id="btn-wave-play" aria-label="Моя волна">
             <div class="wave-row__main">
-              <span class="wave-row__play"><span data-icon="play" data-icon-class="ui-icon"></span></span>
+              <span class="wave-row__play" id="wave-play-btn"><span data-icon="play" data-icon-class="ui-icon"></span></span>
               <span class="wave-row__body">
                 <span class="wave-row__title">Моя волна</span>
               </span>
@@ -536,8 +536,8 @@
   </div>
 
   <div class="sheet sheet--list" id="recent-sheet" hidden>
-    <div class="sheet__backdrop" id="recent-sheet-close"></div>
-    <div class="sheet__panel sheet__panel--list safe-bottom">
+    <div class="sheet__backdrop" id="recent-sheet-close" aria-hidden="true"></div>
+    <div class="sheet__panel sheet__panel--list sheet__panel--recent safe-bottom">
       <div class="sheet__grabber" aria-hidden="true"></div>
       <h2 class="sheet__title sheet__title--pixel">Недавние</h2>
       <div class="sheet-list v-list v-list--tracks" id="recent-sheet-list" data-track-list></div>
