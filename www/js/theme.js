@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 3
+  const PALETTE_VERSION = 4
 
   const THEMES = {
 
@@ -364,19 +364,27 @@ const Theme = (() => {
 
   function decorFromAccent(accent, accent2, bg) {
     const shellBase = bg || BASE_BG
+    const tintedPlayer = mixHex(BASE_BG, accent, 0.18)
     return {
-      homeOrb1: hexToRgba(accent, 0.1),
-      homeOrb2: hexToRgba(accent2, 0.06),
-      homeOrb3: hexToRgba(accent, 0.04),
-      homeCardTint: `linear-gradient(160deg, ${hexToRgba(accent, 0.07)} 0%, rgba(255,255,255,0.04) 100%)`,
-      homeCardBorder: hexToRgba(accent, 0.14),
-      waveLine1: hexToRgba(accent, 0.34),
-      waveLine2: hexToRgba(accent2, 0.22),
-      waveLine3: hexToRgba(accent, 0.28),
-      playerBg: shellBase,
-      playerOverlay: `linear-gradient(180deg, ${hexToRgba(accent, 0.14)} 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.88) 100%)`,
-      shellBg: `linear-gradient(180deg, ${hexToRgba(accent, 0.08)} 0%, rgba(10,10,14,0.9) 100%)`,
-      shellBorder: hexToRgba(accent, 0.12),
+      homeOrb1: hexToRgba(accent, 0.18),
+      homeOrb2: hexToRgba(accent2, 0.12),
+      homeOrb3: hexToRgba(accent, 0.1),
+      homeCardTint: `linear-gradient(160deg, ${hexToRgba(accent, 0.1)} 0%, rgba(255,255,255,0.04) 100%)`,
+      homeCardBorder: hexToRgba(accent, 0.18),
+      waveLine1: hexToRgba(accent, 0.42),
+      waveLine2: hexToRgba(accent2, 0.28),
+      waveLine3: hexToRgba(accent, 0.34),
+      playerBg: tintedPlayer,
+      playerGlow1: hexToRgba(accent, 0.42),
+      playerGlow2: hexToRgba(accent2, 0.32),
+      playerGlow3: hexToRgba(accent, 0.22),
+      playerOverlay: [
+        `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
+        `radial-gradient(ellipse 55% 42% at 92% 78%, ${hexToRgba(accent2, 0.2)} 0%, transparent 52%)`,
+        `linear-gradient(180deg, ${hexToRgba(accent, 0.12)} 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.9) 100%)`,
+      ].join(', '),
+      shellBg: `linear-gradient(180deg, ${hexToRgba(accent, 0.1)} 0%, rgba(10,10,14,0.9) 100%)`,
+      shellBorder: hexToRgba(accent, 0.14),
       shellPanel: 'rgba(255,255,255,0.06)',
     }
   }
@@ -409,9 +417,9 @@ const Theme = (() => {
 
     const accentS = muted
 
-      ? Math.max(0.22, Math.min(0.4, srcSat * 1.15 + 0.14))
+      ? Math.max(0.24, Math.min(0.44, srcSat * 1.25 + 0.16))
 
-      : Math.max(0.32, Math.min(0.58, srcSat * 0.92 + 0.06))
+      : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
 
     const accentL = muted ? 0.5 : 0.54
 
@@ -419,11 +427,11 @@ const Theme = (() => {
 
     const accent2 = hslToHex((h + 16) % 360, accentS * 0.9, accentL + 0.04)
 
-    const ambientS = Math.min(0.28, Math.max(0.14, accentS * 0.35))
+    const ambientS = Math.min(0.36, Math.max(0.18, accentS * 0.48))
 
-    const tintedBg = hslToHex(h, ambientS, 0.065)
+    const tintedBg = hslToHex(h, ambientS, 0.07)
 
-    const bg = mixHex(BASE_BG, tintedBg, 0.22)
+    const bg = mixHex(BASE_BG, tintedBg, muted ? 0.26 : 0.34)
 
     const text = '#f8fafc'
 
@@ -449,9 +457,11 @@ const Theme = (() => {
 
     const appBg = [
 
-      `radial-gradient(ellipse 70% 40% at 50% 12%, ${hexToRgba(accent, 0.09)}, transparent 52%)`,
+      `radial-gradient(ellipse 70% 40% at 50% 12%, ${hexToRgba(accent, 0.14)}, transparent 52%)`,
 
-      `radial-gradient(ellipse 40% 30% at 100% 92%, ${hexToRgba(accent2, 0.05)}, transparent 45%)`,
+      `radial-gradient(ellipse 40% 30% at 100% 92%, ${hexToRgba(accent2, 0.1)}, transparent 45%)`,
+
+      `radial-gradient(ellipse 35% 28% at 4% 68%, ${hexToRgba(accent, 0.08)}, transparent 48%)`,
 
       bg,
 
@@ -571,6 +581,9 @@ const Theme = (() => {
     setVar('--shell-bg', t.shellBg || t.dockGlass)
     setVar('--shell-border', t.shellBorder || t.dockBorder)
     setVar('--shell-panel', t.shellPanel || 'rgba(255,255,255,0.06)')
+    setVar('--player-glow-1', t.playerGlow1 || hexToRgba(t.accent, 0.35))
+    setVar('--player-glow-2', t.playerGlow2 || hexToRgba(t.accent2, 0.25))
+    setVar('--player-glow-3', t.playerGlow3 || hexToRgba(t.accent, 0.18))
   }
 
 
@@ -879,13 +892,9 @@ const Theme = (() => {
 
     if (!bg) return
 
-    const blur = Number(s.bgBlur ?? 56)
+    bg.style.filter = 'blur(56px) saturate(1.55) brightness(0.9)'
 
-    const bright = Number(s.bgBrightness ?? 45) / 100
-
-    bg.style.filter = `blur(${blur}px) saturate(1.35)`
-
-    bg.style.opacity = String(Math.max(0.35, Math.min(0.72, bright + 0.15)))
+    bg.style.opacity = '0.62'
 
   }
 
@@ -967,7 +976,7 @@ const Theme = (() => {
 
 
 
-        if (sat < 0.14) {
+        if (sat < 0.12) {
 
           grayPixels++
 
@@ -981,11 +990,11 @@ const Theme = (() => {
 
         const dist = Math.hypot(x - cx, y - cy) / maxDist
 
-        const centerBoost = 1.4 - dist * 0.55
+        const centerBoost = 1.58 - dist * 0.42
 
-        if (lum < 0.11 || lum > 0.93) continue
+        if (lum < 0.1 || lum > 0.94) continue
 
-        if (sat < 0.2) continue
+        if (sat < 0.18) continue
 
 
 
@@ -993,7 +1002,9 @@ const Theme = (() => {
 
         const bucket = Math.floor(hue / 12) * 12
 
-        const weight = sat * centerBoost * (1 - Math.abs(sl - 0.46) * 0.55)
+        const satW = sat * sat
+
+        const weight = satW * centerBoost * (1 - Math.abs(sl - 0.44) * 0.5)
 
         const prev = hues.get(bucket) || { r: 0, g: 0, b: 0, w: 0, s: 0 }
 
@@ -1099,15 +1110,43 @@ const Theme = (() => {
 
 
 
+    let fr = cluster.r / cluster.w
+
+    let fg = cluster.g / cluster.w
+
+    let fb = cluster.b / cluster.w
+
+    let fsat = cluster.s / cluster.w
+
+
+
+    if (entries.length > 1 && entries[1][1].w > totalW * 0.2) {
+
+      const second = entries[1][1]
+
+      const mix = Math.min(0.36, second.w / totalW)
+
+      fr = fr * (1 - mix) + (second.r / second.w) * mix
+
+      fg = fg * (1 - mix) + (second.g / second.w) * mix
+
+      fb = fb * (1 - mix) + (second.b / second.w) * mix
+
+      fsat = fsat * (1 - mix) + (second.s / second.w) * mix
+
+    }
+
+
+
     return {
 
-      r: Math.round(cluster.r / cluster.w),
+      r: Math.round(fr),
 
-      g: Math.round(cluster.g / cluster.w),
+      g: Math.round(fg),
 
-      b: Math.round(cluster.b / cluster.w),
+      b: Math.round(fb),
 
-      sat: cluster.s / cluster.w,
+      sat: fsat,
 
       muted: grayRatio > 0.48 || clusterW < totalW * 0.42,
 

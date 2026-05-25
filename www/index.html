@@ -20,6 +20,9 @@
     <div class="app-orb app-orb--1"></div>
     <div class="app-orb app-orb--2"></div>
     <div class="app-orb app-orb--3"></div>
+    <div class="app-orb app-orb--4"></div>
+    <div class="app-orb app-orb--5"></div>
+    <div class="app-orb app-orb--6"></div>
   </div>
   <div id="setup-gate" class="setup-gate" hidden>
     <div class="setup-gate__scroll safe-top safe-bottom">
@@ -85,18 +88,22 @@
           <div class="wave-moods" id="wave-moods" role="group" aria-label="Настроение волны"></div>
           </div>
         </div>
-        <div class="section section--likes">
-          <button type="button" class="home-likes-pill" id="btn-home-likes-play">
-            <span class="home-likes-pill__covers" id="home-likes-covers"></span>
-            <span class="home-likes-pill__meta">
-              <span class="home-likes-pill__title">Любимые</span>
-              <span class="home-likes-pill__count" id="home-likes-count">0 треков</span>
-            </span>
-          </button>
-        </div>
-        <div class="section">
-          <div class="section-head"><h2 class="section-title">Недавние</h2></div>
-          <div class="h-scroll" id="recent-list" data-track-list></div>
+        <div class="section section--home-strips">
+          <div class="home-strips">
+            <div class="home-strip">
+              <div class="home-strip__head">
+                <span class="home-strip__title">Недавние</span>
+              </div>
+              <div class="h-scroll home-strip__scroll" id="recent-list" data-track-list></div>
+            </div>
+            <div class="home-strip home-strip--likes">
+              <button type="button" class="home-strip__head" id="btn-home-likes-play">
+                <span class="home-strip__title">Любимые</span>
+                <span class="home-strip__count" id="home-likes-count">0</span>
+              </button>
+              <div class="h-scroll home-strip__scroll" id="home-likes-scroll" data-track-list></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -175,22 +182,6 @@
               </div>
             </div>
           </div>
-          <div class="settings-group">
-            <h3 class="settings-label">Фон плеера</h3>
-            <p class="settings-hint">Размытый фон full player (отдельно от обложки)</p>
-            <div class="bg-presets" id="bg-presets"></div>
-            <button type="button" class="secondary-btn" id="cfg-player-bg-pick">Своё фото</button>
-            <button type="button" class="link-btn settings-clear-link" id="cfg-player-bg-clear">Сбросить фон</button>
-            <div class="player-cover-preview player-bg-preview" id="player-bg-preview" hidden></div>
-          </div>
-          <label class="slider-field">
-            <span class="slider-field__head"><span>Размытие фона</span><span id="cfg-blur-val">56</span></span>
-            <input type="range" id="cfg-bg-blur" min="0" max="80" value="56" />
-          </label>
-          <label class="slider-field">
-            <span class="slider-field__head"><span>Яркость фона</span><span id="cfg-bright-val">45</span></span>
-            <input type="range" id="cfg-bg-brightness" min="15" max="75" value="45" />
-          </label>
         </div>
 
         <div id="settings-services" class="settings-pane" hidden>
@@ -275,6 +266,11 @@
     </nav>
 
   <div class="full-player" id="full-player" hidden>
+    <div class="full-player__ambient" id="full-player-ambient" aria-hidden="true">
+      <div class="fp-orb fp-orb--1"></div>
+      <div class="fp-orb fp-orb--2"></div>
+      <div class="fp-orb fp-orb--3"></div>
+    </div>
     <div class="full-player__bg" id="full-bg"></div>
     <div class="full-player__sheet">
       <div class="fp-header">
@@ -302,29 +298,28 @@
           </div>
           <p class="fp-artist" id="full-artist">—</p>
         </div>
-      </div>
-      <div class="fp-wave-block" id="progress-row">
-        <div class="waveform" id="waveform" aria-hidden="true"></div>
-        <div class="fp-times">
-          <span class="time" id="time-current">0:00</span>
-          <span class="time" id="time-total">0:00</span>
+        <div class="fp-wave-block" id="progress-row">
+          <div class="waveform" id="waveform" aria-hidden="true"></div>
+          <div class="fp-times">
+            <span class="time" id="time-current">0:00</span>
+            <span class="time" id="time-total">0:00</span>
+          </div>
+          <input type="range" class="seek seek--wave" id="seek" min="0" max="1000" value="0" />
         </div>
-        <input type="range" class="seek seek--wave" id="seek" min="0" max="1000" value="0" />
+        <div class="fp-controls-panel">
+          <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
+          <button type="button" class="icon-btn icon-btn--lg" id="full-prev" data-icon="skip-back"></button>
+          <button type="button" class="icon-btn icon-btn--xl" id="full-play" data-icon="play"></button>
+          <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
+          <button type="button" class="icon-btn" id="full-repeat" data-icon="repeat" aria-label="Repeat"></button>
+        </div>
       </div>
-      </div>
-      <div class="fp-controls-panel">
-        <button type="button" class="icon-btn" id="full-shuffle" data-icon="shuffle" aria-label="Shuffle"></button>
-        <button type="button" class="icon-btn icon-btn--lg" id="full-prev" data-icon="skip-back"></button>
-        <button type="button" class="icon-btn icon-btn--xl" id="full-play" data-icon="play"></button>
-        <button type="button" class="icon-btn icon-btn--lg" id="full-next" data-icon="skip-forward"></button>
-        <button type="button" class="icon-btn" id="full-repeat" data-icon="repeat" aria-label="Repeat"></button>
       </div>
     </div>
   </div>
 
   <input type="file" id="playlist-cover-input" accept="image/*" hidden />
   <input type="file" id="player-cover-input" accept="image/*" hidden />
-  <input type="file" id="player-bg-input" accept="image/*" hidden />
 
   <div class="service-sheet" id="service-sheet" hidden>
     <div class="service-sheet__scroll">

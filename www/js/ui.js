@@ -176,9 +176,23 @@ const UI = (() => {
     </button>`
   }
 
+  function stripTileHtml(track) {
+    return `<button type="button" class="strip-tile" data-key="${Store.trackKey(track)}">
+      <div class="strip-tile__cover">${coverBlock(track.source, track.cover)}</div>
+    </button>`
+  }
+
+  function likesStripHtml(tracks) {
+    const slice = tracks.slice(0, 10)
+    if (!slice.length) {
+      return '<span class="strip-tile strip-tile--ph"><span data-icon="heart" data-icon-class="ui-icon"></span></span>'
+    }
+    return slice.map((t) => stripTileHtml(t)).join('')
+  }
+
   function highlightPlayingTrack(track) {
     const key = track ? Store.trackKey(track) : ''
-    document.querySelectorAll('.card-tile, .track-row, .pl-track-row').forEach((el) => {
+    document.querySelectorAll('.card-tile, .strip-tile, .track-row, .pl-track-row').forEach((el) => {
       el.classList.toggle('is-playing', !!key && el.dataset.key === key)
     })
     const from = Player.playingFrom() || ''
@@ -627,12 +641,14 @@ const UI = (() => {
   function applyPlayerVisuals(track) {
     if (!track) return
     const s = Store.get()
-    const bg = document.getElementById('full-bg')
-    const preset = NexoryConfig?.BG_PRESETS?.find((p) => p.id === s.playerBgPreset)
-    if (preset && bg) {
-      bg.style.backgroundImage = 'none'
-      bg.style.background = preset.css
+    if (s.playerBgOverride) {
+      const bg = document.getElementById('full-bg')
+      if (bg) {
+        bg.style.background = ''
+        bg.style.backgroundImage = `url(${s.playerBgOverride})`
+      }
     } else {
+      const bg = document.getElementById('full-bg')
       if (bg) bg.style.background = ''
       Theme.setFullBgImage(getPlayerBgUrl(track))
     }
@@ -653,7 +669,7 @@ const UI = (() => {
       void fp.offsetWidth
       fp.classList.add('is-opening')
       document.body.classList.add('player-open')
-      fpOpenTimer = setTimeout(() => fp.classList.remove('is-opening'), 440)
+      fpOpenTimer = setTimeout(() => fp.classList.remove('is-opening'), 560)
     } else if (!fp.hidden) {
       fp.classList.remove('is-opening')
       fp.classList.add('is-closing')
@@ -662,7 +678,7 @@ const UI = (() => {
         fp.hidden = true
         fp.classList.remove('is-closing')
         syncShellLayout()
-      }, 360)
+      }, 420)
       syncShellLayout()
       return
     }
@@ -881,15 +897,6 @@ const UI = (() => {
     }
   }
 
-  function likesCoversHtml(tracks) {
-    const slice = tracks.slice(0, 3)
-    if (!slice.length) {
-      return '<span class="home-likes-pill__ph"><span data-icon="heart" data-icon-class="ui-icon"></span></span>'
-    }
-    return slice.map((t, i) => (
-      `<span class="home-likes-pill__cover home-likes-pill__cover--${i + 1}">${coverOnly(t.cover)}</span>`
-    )).join('')
-  }
 
   function formatTrackCount(n) {
     if (!n) return '0 треков'
@@ -904,17 +911,17 @@ const UI = (() => {
     const s = Store.get()
     const recentEl = $('#recent-list')
     if (recentEl) {
-      const items = s.recent.slice(0, 12)
-      recentEl.innerHTML = items.length ? items.map((t) => cardHtml(t)).join('') : '<div class="empty-hint">Включи волну или найди трек</div>'
+      const items = s.recent.slice(0, 10)
+      recentEl.innerHTML = items.length ? items.map((t) => stripTileHtml(t)).join('') : '<span class="strip-tile strip-tile--ph"><span data-icon="music-2" data-icon-class="ui-icon"></span></span>'
       bindTrackClicks(recentEl, items, 'Недавние')
-      setupScrollTitles(recentEl)
     }
-    const likesCovers = $('#home-likes-covers')
+    const likesScroll = $('#home-likes-scroll')
     const likesCount = $('#home-likes-count')
-    if (likesCount) likesCount.textContent = formatTrackCount(s.likes.length)
-    if (likesCovers) {
-      likesCovers.innerHTML = likesCoversHtml(s.likes)
-      Icons.mount(likesCovers)
+    if (likesCount) likesCount.textContent = String(s.likes.length || 0)
+    if (likesScroll) {
+      likesScroll.innerHTML = likesStripHtml(s.likes)
+      bindTrackClicks(likesScroll, s.likes.slice(0, 10), 'Любимые')
+      Icons.mount(likesScroll)
     }
     renderWaveMoods()
     highlightPlayingTrack(Player.current())
@@ -1230,12 +1237,7 @@ const UI = (() => {
     $('#cfg-gateway').value = s.gatewayUrl || ''
     $('#cfg-secret').value = s.gatewaySecret || ''
     $('#cfg-accent-cover').checked = !!s.accentFromCover
-    $('#cfg-bg-blur').value = String(s.bgBlur ?? 56)
-    $('#cfg-bg-brightness').value = String(s.bgBrightness ?? 45)
-    $('#cfg-blur-val').textContent = String(s.bgBlur ?? 56)
-    $('#cfg-bright-val').textContent = String(s.bgBrightness ?? 45)
     renderThemeCards()
-    renderBgPresets()
     const preview = $('#player-cover-preview')
     const ph = preview?.querySelector('.player-cover-preview__ph')
     if (preview) {
@@ -1250,16 +1252,6 @@ const UI = (() => {
           ph.hidden = false
           Icons.mount(ph)
         }
-      }
-    }
-    const bgPreview = $('#player-bg-preview')
-    if (bgPreview) {
-      if (s.playerBgOverride) {
-        bgPreview.hidden = false
-        bgPreview.style.backgroundImage = `url(${s.playerBgOverride})`
-      } else {
-        bgPreview.hidden = true
-        bgPreview.style.backgroundImage = ''
       }
     }
     updateServiceStates()
@@ -1411,7 +1403,7 @@ const UI = (() => {
 
   function wireEvents() {
     document.addEventListener('click', (e) => {
-      const el = e.target.closest('.track-row, .card-tile, .pl-track-row')
+      const el = e.target.closest('.track-row, .card-tile, .strip-tile, .pl-track-row')
       if (!el?.dataset.key) return
       const container = el.closest('[data-track-list]')
       if (!container) return
@@ -1621,16 +1613,6 @@ const UI = (() => {
       renderSettingsForm()
     })
 
-    $('#bg-presets')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-bg-preset]')
-      if (!btn) return
-      saveCustomization({ playerBgPreset: btn.dataset.bgPreset, playerBgOverride: '' })
-      renderSettingsForm()
-      const track = Player.current()
-      if (track) applyPlayerVisuals(track)
-      toast('Фон плеера обновлён')
-    })
-
     $('#cfg-accent-cover')?.addEventListener('change', (e) => {
       saveCustomization({ accentFromCover: e.target.checked })
       const track = Player.current()
@@ -1642,16 +1624,6 @@ const UI = (() => {
       }
     })
 
-    $('#cfg-bg-blur')?.addEventListener('input', (e) => {
-      $('#cfg-blur-val').textContent = e.target.value
-      saveCustomization({ bgBlur: Number(e.target.value) })
-    })
-
-    $('#cfg-bg-brightness')?.addEventListener('input', (e) => {
-      $('#cfg-bright-val').textContent = e.target.value
-      saveCustomization({ bgBrightness: Number(e.target.value) })
-    })
-
     $('#cfg-player-cover-pick')?.addEventListener('click', () => $('#player-cover-input')?.click())
     $('#cfg-player-cover-clear')?.addEventListener('click', () => {
       saveCustomization({ playerCoverOverride: '' })
@@ -1659,15 +1631,6 @@ const UI = (() => {
       const track = Player.current()
       if (track) updatePlayerUI(track)
       toast('Обложка сброшена')
-    })
-
-    $('#cfg-player-bg-pick')?.addEventListener('click', () => $('#player-bg-input')?.click())
-    $('#cfg-player-bg-clear')?.addEventListener('click', () => {
-      saveCustomization({ playerBgOverride: '', playerBgPreset: '' })
-      renderSettingsForm()
-      const track = Player.current()
-      if (track) applyPlayerVisuals(track)
-      toast('Фон сброшен')
     })
 
     $('#player-cover-input')?.addEventListener('change', (e) => {
@@ -1680,21 +1643,6 @@ const UI = (() => {
         const track = Player.current()
         if (track) updatePlayerUI(track)
         toast('Обложка обновлена')
-      }
-      reader.readAsDataURL(file)
-      e.target.value = ''
-    })
-
-    $('#player-bg-input')?.addEventListener('change', (e) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      const reader = new FileReader()
-      reader.onload = () => {
-        saveCustomization({ playerBgOverride: String(reader.result || ''), playerBgPreset: '' })
-        renderSettingsForm()
-        const track = Player.current()
-        if (track) applyPlayerVisuals(track)
-        toast('Фон обновлён')
       }
       reader.readAsDataURL(file)
       e.target.value = ''
