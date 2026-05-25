@@ -398,9 +398,23 @@ const Player = (() => {
     await playQueue(out.tracks, 0, 'Моя волна')
   }
 
+  let lastListenTick = 0
   audio.addEventListener('timeupdate', () => {
     emit('time', { current: audio.currentTime, duration: audio.duration || 0 })
     updateMediaSessionPosition()
+    if (!audio.paused && !audio.ended) {
+      const now = Date.now()
+      if (!lastListenTick) lastListenTick = now
+      else {
+        const dt = (now - lastListenTick) / 1000
+        if (dt >= 0.9) {
+          Store.addListenSeconds(Math.min(dt, 4))
+          lastListenTick = now
+        }
+      }
+    } else {
+      lastListenTick = 0
+    }
   })
   audio.addEventListener('play', () => {
     document.getElementById('waveform')?.classList.remove('paused')

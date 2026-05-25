@@ -36,6 +36,8 @@ const Store = (() => {
       playerBgPreset: '',
       bgBlur: 56,
       bgBrightness: 45,
+      listenSeconds: 0,
+      listenTrackCount: 0,
     }
   }
 
@@ -137,7 +139,17 @@ const Store = (() => {
     const s = get()
     const k = trackKey(track)
     const recent = [{ ...track, playedAt: Date.now() }, ...s.recent.filter((x) => trackKey(x) !== k)].slice(0, 40)
-    return patch({ recent })
+    return patch({
+      recent,
+      listenTrackCount: Math.max(0, Number(s.listenTrackCount) || 0) + 1,
+    })
+  }
+
+  function addListenSeconds(delta) {
+    const sec = Math.max(0, Number(delta) || 0)
+    if (sec < 0.25) return get()
+    const s = get()
+    return patch({ listenSeconds: Math.max(0, Number(s.listenSeconds) || 0) + sec })
   }
 
   function setRotor(meta) {
@@ -239,7 +251,7 @@ const Store = (() => {
   }
 
   return {
-    get, patch, trackKey, normalizeTrack, normalizeTracks, isLiked, toggleLike, pushRecent, setRotor,
+    get, patch, trackKey, normalizeTrack, normalizeTracks, isLiked, toggleLike, pushRecent, addListenSeconds, setRotor,
     addPlaylist, importPlaylists, mergeLikes, getPlaylist, updatePlaylist, deletePlaylist, addTrackToPlaylist,
     removeTrackFromPlaylist, setPlaylistTracks,
   }

@@ -303,6 +303,12 @@ const Api = (() => {
     )
   }
 
+  async function soundCloudReleases() {
+    const cid = String(cfg().scClientId || '').trim()
+    if (!cid) throw new Error('Укажи SoundCloud Client ID в настройках')
+    return DirectApi.fetchSoundCloudReleases(cid)
+  }
+
   return {
     search,
     resolve,
@@ -312,6 +318,7 @@ const Api = (() => {
     waveFetch,
     waveFeedback,
     fetchLyrics,
+    soundCloudReleases,
     tokens,
     health,
     isConfigured,

@@ -380,6 +380,59 @@ const DirectApi = (() => {
       }))
   }
 
+  function mapSoundCloudTrack(t, cid) {
+    const trans = (t.media?.transcodings || []).find((x) => x?.format?.protocol === 'progressive')
+      || (t.media?.transcodings || [])[0]
+    return {
+      title: t.title || 'Без названия',
+      artist: t.user?.username || '—',
+      url: t.stream_url ? `${t.stream_url}?client_id=${cid}` : null,
+      scTranscoding: trans?.url || null,
+      scClientId: cid,
+      cover: t.artwork_url ? String(t.artwork_url).replace('-large', '-t300x300') : null,
+      source: 'soundcloud',
+      id: String(t.id || ''),
+    }
+  }
+
+  async function fetchSoundCloudReleases(clientId) {
+    const cid = String(clientId || '').trim()
+    if (!cid) throw new Error('Укажи SoundCloud Client ID в настройках')
+    const chartKinds = ['new', 'trending']
+    const chartsParams = (kind) => new URLSearchParams({
+      genre: 'soundcloud:genres:all-music',
+      kind,
+      limit: '20',
+      client_id: cid,
+    })
+    const headers = {
+      Accept: 'application/json',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15',
+    }
+    let rows = []
+    for (const kind of chartKinds) {
+      const chartsUrl = `https://api-v2.soundcloud.com/charts?${chartsParams(kind)}`
+      const charts = await fetchJson(chartsUrl, { headers, timeout: 18000 })
+      const coll = charts.data?.collection || charts.data
+      if (Array.isArray(coll)) {
+        rows = coll.map((item) => item?.track || item).filter(Boolean)
+        if (rows.length) break
+      }
+    }
+    if (!rows.length) {
+      const spotUrl = `https://api-v2.soundcloud.com/spotlight?${new URLSearchParams({
+        limit: '20',
+        client_id: cid,
+      })}`
+      const spot = await fetchJson(spotUrl, { headers, timeout: 18000 })
+      const spotColl = spot.data?.collection || spot.data
+      if (Array.isArray(spotColl)) rows = spotColl
+    }
+    return rows
+      .map((t) => mapSoundCloudTrack(t, cid))
+      .filter((t) => t.scTranscoding || t.url)
+  }
+
   async function searchSoundCloud(q, clientId) {
     const cid = String(clientId || '').trim()
     if (!cid) throw new Error('Укажи SoundCloud Client ID в настройках')
@@ -400,20 +453,7 @@ const DirectApi = (() => {
     }
     const rows = Array.isArray(r.data) ? r.data : r.data?.collection || []
     return rows
-      .map((t) => {
-        const trans = (t.media?.transcodings || []).find((x) => x?.format?.protocol === 'progressive')
-          || (t.media?.transcodings || [])[0]
-        return {
-          title: t.title || 'Без названия',
-          artist: t.user?.username || '—',
-          url: t.stream_url ? `${t.stream_url}?client_id=${cid}` : null,
-          scTranscoding: trans?.url || null,
-          scClientId: cid,
-          cover: t.artwork_url ? String(t.artwork_url).replace('-large', '-t300x300') : null,
-          source: 'soundcloud',
-          id: String(t.id || ''),
-        }
-      })
+      .map((t) => mapSoundCloudTrack(t, cid))
       .filter((t) => t.scTranscoding || t.url)
   }
 
@@ -733,21 +773,89 @@ const DirectApi = (() => {
     return out
   }
 
+  function isYandexLikesPlaylistKind(kind) {
+    return /^lk\./i.test(String(kind || '').trim())
+  }
+
+  async function fetchYandexUserLikesTracksForImport(headers, uid) {
+    const user = encodeURIComponent(String(uid || '').trim())
+    if (!user) return { name: 'Мне нравится', tracks: [] }
+    const paths = [
+      `/users/${user}/likes/tracks?if-modified-since-revision=0`,
+      `/users/${user}/likes/tracks`,
+    ]
+    let rows = []
+    for (const p of paths) {
+      const r = await fetchJson(`${YM}${p}`, { headers, timeout: 40000 })
+      const res = r.data?.result
+      let lib = null
+      if (res && typeof res === 'object') {
+        if (res.library && typeof res.library === 'object') lib = res.library
+        else if (Array.isArray(res.tracks)) lib = res
+      }
+      rows = Array.isArray(lib?.tracks) ? lib.tracks : []
+      if (rows.length) break
+    }
+    if (!rows.length) return { name: 'Мне нравится', tracks: [] }
+    const seen = new Set()
+    const batchIds = []
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue
+      const id = row.id != null ? String(row.id).trim() : ''
+      const aid = row.albumId != null ? String(row.albumId).trim() : ''
+      const spec = id && aid ? `${id}:${aid}` : id
+      if (!spec || seen.has(spec)) continue
+      seen.add(spec)
+      batchIds.push(spec)
+    }
+    const tracks = await fetchYandexTracksByIds(headers, batchIds)
+    return { name: 'Мне нравится', tracks }
+  }
+
   async function fetchYandexPlaylistImport(headers, owner, kind) {
-    const uid = encodeURIComponent(String(owner || '').trim())
-    const k = encodeURIComponent(String(kind || '').trim())
+    const uid = String(owner || '').trim()
+    const k = String(kind || '').trim()
+    if (!uid || !k) return { name: 'Плейлист', tracks: [] }
+    if (isYandexLikesPlaylistKind(k)) {
+      return fetchYandexUserLikesTracksForImport(headers, uid)
+    }
+    const pathKind = encodeURIComponent(k)
     const load = (pl) => ({
       name: String(pl?.title || 'Плейлист'),
       tracks: mapYandexImportRows(Array.isArray(pl?.tracks) ? pl.tracks : []),
       pl,
     })
-    const rRich = await fetchJson(`${YM}/users/${uid}/playlists/${k}?rich-tracks=true`, { headers, timeout: 28000 })
+    let lastPlWithTrackRows = null
+    const rememberRowsPl = (p) => {
+      if (p && typeof p === 'object' && Array.isArray(p.tracks) && p.tracks.length) lastPlWithTrackRows = p
+    }
+    const rRich = await fetchJson(`${YM}/users/${encodeURIComponent(uid)}/playlists/${pathKind}?rich-tracks=true`, { headers, timeout: 28000 })
     let { name, tracks, pl } = load(rRich.data?.result)
+    rememberRowsPl(pl)
     if (tracks.length) return { name, tracks }
-    const rPlain = await fetchJson(`${YM}/users/${uid}/playlists/${k}`, { headers, timeout: 20000 })
+    try {
+      const form = new URLSearchParams()
+      form.set('kinds', k)
+      form.set('mixed', 'false')
+      form.set('rich-tracks', 'true')
+      const postR = await fetchJson(`${YM}/users/${encodeURIComponent(uid)}/playlists`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString(),
+        timeout: 40000,
+      })
+      const raw = postR.data?.result
+      const first = Array.isArray(raw) ? raw[0] : raw
+      ;({ name, tracks, pl } = load(first))
+      rememberRowsPl(pl)
+      if (tracks.length) return { name, tracks }
+    } catch {}
+    const rPlain = await fetchJson(`${YM}/users/${encodeURIComponent(uid)}/playlists/${pathKind}`, { headers, timeout: 20000 })
     ;({ name, tracks, pl } = load(rPlain.data?.result))
+    rememberRowsPl(pl)
     if (tracks.length) return { name, tracks }
-    const batchIds = collectYandexBatchIds(pl?.tracks || [])
+    const sourcePl = lastPlWithTrackRows || pl
+    const batchIds = collectYandexBatchIds(sourcePl?.tracks || [])
     if (batchIds.length) {
       const fromBatch = await fetchYandexTracksByIds(headers, batchIds)
       if (fromBatch.length) return { name, tracks: fromBatch }
@@ -818,5 +926,6 @@ const DirectApi = (() => {
     waveFeedback,
     parseYandexLink,
     importPlaylistLink,
+    fetchSoundCloudReleases,
   }
 })()

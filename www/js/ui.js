@@ -28,6 +28,8 @@ const UI = (() => {
   let plLongPressHandled = false
   let pickPlaylistTrack = null
   let editingPlaylistId = null
+  let homePopularTracks = null
+  let homePopularLoading = false
   let trackActionPlaylistId = null
   let trackActionKey = null
   const trackLists = new WeakMap()
@@ -1034,6 +1036,60 @@ const UI = (() => {
     return `${n} треков`
   }
 
+  function formatListenDuration(sec) {
+    const total = Math.max(0, Math.floor(Number(sec) || 0))
+    const h = Math.floor(total / 3600)
+    const m = Math.floor((total % 3600) / 60)
+    if (h > 0) return `${h} ч ${m} м`
+    if (m > 0) return `${m} м`
+    return '0 м'
+  }
+
+  function renderHomeListenStats() {
+    const s = Store.get()
+    const tracksEl = $('#home-stats-tracks')
+    const timeEl = $('#home-stats-time')
+    const count = Math.max(0, Number(s.listenTrackCount) || 0)
+    if (tracksEl) tracksEl.textContent = String(count)
+    if (timeEl) timeEl.textContent = formatListenDuration(s.listenSeconds || 0)
+  }
+
+  async function loadHomePopular() {
+    const el = $('#home-popular-scroll')
+    if (!el || homePopularLoading) return
+    if (!String(Store.get().scClientId || '').trim()) {
+      el.innerHTML = '<p class="empty-hint empty-hint--inline">Добавь SoundCloud Client ID в настройках</p>'
+      return
+    }
+    if (homePopularTracks?.length) {
+      el.innerHTML = homePopularTracks.map(cardHtml).join('')
+      bindTrackClicks(el, homePopularTracks, 'Популярные треки')
+      Icons.mount(el)
+      setupScrollTitles(el)
+      highlightPlayingTrack(Player.current())
+      return
+    }
+    homePopularLoading = true
+    el.innerHTML = '<p class="empty-hint empty-hint--inline">Загрузка…</p>'
+    try {
+      const tracks = await Api.soundCloudReleases()
+      homePopularTracks = (tracks || []).slice(0, 20)
+      if (!homePopularTracks.length) {
+        el.innerHTML = '<p class="empty-hint empty-hint--inline">Нет треков</p>'
+        return
+      }
+      el.innerHTML = homePopularTracks.map(cardHtml).join('')
+      bindTrackClicks(el, homePopularTracks, 'Популярные треки')
+      Icons.mount(el)
+      setupScrollTitles(el)
+      highlightPlayingTrack(Player.current())
+    } catch (e) {
+      el.innerHTML = `<p class="empty-hint empty-hint--inline">${esc(String(e.message || e))}</p>`
+    } finally {
+      homePopularLoading = false
+    }
+  }
+
   function renderHome() {
     const s = Store.get()
     const recentCovers = $('#home-recent-covers')
@@ -1051,6 +1107,7 @@ const UI = (() => {
       Icons.mount(likesCovers)
     }
     renderWaveMoods()
+    renderHomeListenStats()
     highlightPlayingTrack(Player.current())
   }
 
@@ -2065,6 +2122,10 @@ const UI = (() => {
       $('#service-token-status').textContent = 'Очищено'
       updateServiceStates()
       renderHome()
+      if (openServiceId === 'soundcloud') {
+        homePopularTracks = null
+        loadHomePopular()
+      }
       updateGatewayBanner()
     })
 
@@ -2098,6 +2159,10 @@ const UI = (() => {
         }
         updateServiceStates()
         renderHome()
+        if (openServiceId === 'soundcloud') {
+          homePopularTracks = null
+          loadHomePopular()
+        }
         updateGatewayBanner()
         toast('Сохранено')
       } catch (e) {
@@ -2189,6 +2254,7 @@ const UI = (() => {
     Player.on('playing', ({ track }) => {
       highlightPlayingTrack(track)
       setPlayIcon(false)
+      renderHomeListenStats()
     })
     Player.on('state', ({ paused }) => {
       setPlayIcon(paused)
@@ -2284,6 +2350,7 @@ const UI = (() => {
     renderSetupGateForm()
     updateSetupGate()
     renderHome()
+    loadHomePopular()
     renderLibrary()
     renderSearchSourceButton()
     wireEvents()
