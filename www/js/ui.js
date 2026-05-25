@@ -28,13 +28,12 @@ const UI = (() => {
   let plLongPressHandled = false
   let pickPlaylistTrack = null
   let editingPlaylistId = null
-  const homeScCache = { popular: null, mixes: null, new: null }
-  const homeScLoading = { popular: false, mixes: false, new: false }
+  const homeScCache = { popular: null, mixes: null }
+  const homeScLoading = { popular: false, mixes: false }
 
   function resetHomeScCache() {
     homeScCache.popular = null
     homeScCache.mixes = null
-    homeScCache.new = null
   }
   let trackActionPlaylistId = null
   let trackActionKey = null
@@ -1210,12 +1209,6 @@ const UI = (() => {
         elId: '#home-mixes-scroll',
         title: 'Миксы',
         fetcher: () => Api.soundCloudCisMixes(20),
-      }),
-      loadHomeScRow({
-        key: 'new',
-        elId: '#home-new-scroll',
-        title: 'Новинки',
-        fetcher: () => Api.soundCloudChartKind('new', 20),
       }),
     ])
   }

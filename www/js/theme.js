@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 9
+  const PALETTE_VERSION = 10
 
   const THEMES = {
 
@@ -393,9 +393,9 @@ const Theme = (() => {
       playerGlow3: hexToRgba(accent, 0.22 * glowMul),
       playerOverlay: mono
         ? [
-          `radial-gradient(ellipse 90% 55% at 50% 8%, rgba(255,255,255,0.14) 0%, transparent 58%)`,
-          `radial-gradient(ellipse 55% 42% at 88% 78%, rgba(255,255,255,0.08) 0%, transparent 52%)`,
-          `linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(40,40,44,0.35) 35%, rgba(0,0,0,0.92) 100%)`,
+          `radial-gradient(ellipse 92% 58% at 50% 6%, rgba(255,255,255,${coverLum < 0.14 ? '0.28' : '0.18'}) 0%, transparent 62%)`,
+          `radial-gradient(ellipse 55% 42% at 88% 78%, rgba(255,255,255,0.12) 0%, transparent 52%)`,
+          `linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(72,72,78,0.42) 38%, rgba(0,0,0,0.9) 100%)`,
         ].join(', ')
         : dark
           ? [
@@ -435,10 +435,11 @@ const Theme = (() => {
 
   function buildMonochromeCoverTheme(coverLum, meta = {}) {
     const lum = Math.max(0.05, Math.min(0.92, coverLum != null ? coverLum : 0.22))
-    const accentL = Math.max(0.52, Math.min(0.82, 0.48 + lum * 0.42))
+    const inkBlack = lum < 0.14
+    const accentL = inkBlack ? 0.74 : Math.max(0.52, Math.min(0.82, 0.48 + lum * 0.42))
     const accent = hslToHex(0, 0, accentL)
-    const accent2 = hslToHex(0, 0, Math.min(0.9, accentL + 0.06))
-    const bg = hslToHex(0, 0, Math.max(0.04, lum * 0.1 + 0.03))
+    const accent2 = hslToHex(0, 0, Math.min(0.92, accentL + 0.08))
+    const bg = hslToHex(0, 0, inkBlack ? 0.12 : Math.max(0.04, lum * 0.1 + 0.03))
     const text = '#f8fafc'
     const textDim = '#a1a1aa'
     const textMuted = '#71717a'
@@ -492,7 +493,11 @@ const Theme = (() => {
 
     const coverLum = meta.coverLum != null ? meta.coverLum : relLum(r, g, b)
 
-    if (meta.monochrome || (meta.avgSat != null && meta.avgSat < 0.11 && meta.avgChroma < 18)) {
+    if (
+      meta.monochrome
+      || (meta.avgSat != null && meta.avgSat < 0.14 && meta.avgChroma < 22)
+      || coverLum < 0.16
+    ) {
       return buildMonochromeCoverTheme(coverLum, meta)
     }
 
@@ -1168,7 +1173,7 @@ const Theme = (() => {
     const avgLum = sumLum / allN
     const avgSat = sumSat / allN
     const avgChroma = sumChroma / allN
-    const monochrome = avgSat < 0.11 && avgChroma < 18
+    const monochrome = (avgSat < 0.14 && avgChroma < 22) || avgLum < 0.16
     const isDark = avgLum < 0.38
     const ar = allR / allN
     const ag = allG / allN
