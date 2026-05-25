@@ -1879,13 +1879,24 @@ html.cover-theme-mono .full-player::after {
 html.cover-theme-mono .full-player__bg {
   filter: blur(72px) saturate(0) brightness(0.92) contrast(1.02);
 }
-html.cover-theme-mono .full-player__bg-layer.is-active {
-  opacity: 0.32;
-}
-html.cover-theme-dark .full-player__bg-layer.is-active {
-  opacity: 0.52;
-}
 html.cover-theme-mono .fp-orb { opacity: 0.35; filter: blur(64px) grayscale(1); }
+/* Без боковых «ушей» размытого фона у обложки */
+html.cover-theme-on .full-player__bg {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 7%,
+    #000 93%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 7%,
+    #000 93%,
+    transparent 100%
+  );
+}
 .full-player[hidden] { display: none !important; }
 body.player-open #app,
 body.player-open #app-bg { visibility: hidden; pointer-events: none; }
@@ -1963,10 +1974,16 @@ html.cover-theme-dark .full-player__bg {
   pointer-events: none;
 }
 .full-player__bg-layer.is-active {
-  opacity: 0.68;
+  opacity: 0.55;
+}
+html.cover-theme-on .full-player__bg-layer.is-active {
+  opacity: 0.45;
 }
 html.cover-theme-dark .full-player__bg-layer.is-active {
-  opacity: 0.78;
+  opacity: 0.52;
+}
+html.cover-theme-mono .full-player__bg-layer.is-active {
+  opacity: 0.28;
 }
 .full-player__bg::before {
   content: ''; position: absolute; inset: -15%;
@@ -2037,7 +2054,7 @@ html.cover-theme-dark .full-player__bg-layer.is-active {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   overflow: visible;
   isolation: isolate;
 }
@@ -2163,7 +2180,7 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
   display: flex;
   justify-content: center;
   width: 100%;
-  margin: 0 auto 4px;
+  margin: 0 auto;
   flex-shrink: 0;
   overflow: visible;
   background: transparent;
@@ -2217,18 +2234,6 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
   justify-content: center;
   margin: 0;
   opacity: 0.2;
-  pointer-events: none;
-}
-/* Тонкая маска на шве обложки — не плашка на весь блок */
-.fp-cover-block::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(10px + min(92vw, 400px) - 3px);
-  height: 8px;
-  background: var(--player-bg, #07080d);
-  z-index: 6;
   pointer-events: none;
 }
 .fp-meta.is-fading {
