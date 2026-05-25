@@ -176,18 +176,35 @@ const UI = (() => {
     </button>`
   }
 
-  function stripTileHtml(track) {
-    return `<button type="button" class="strip-tile" data-key="${Store.trackKey(track)}">
-      <div class="strip-tile__cover">${coverBlock(track.source, track.cover)}</div>
-    </button>`
+  function plaqueCoversHtml(tracks, emptyIcon = 'music-2') {
+    const slice = tracks.slice(0, 2)
+    if (!slice.length) {
+      return `<span class="home-plaque__ph"><span data-icon="${emptyIcon}" data-icon-class="ui-icon"></span></span>`
+    }
+    return slice.map((t, i) => (
+      `<span class="home-plaque__cover home-plaque__cover--${i + 1}">${coverOnly(t.cover)}</span>`
+    )).join('')
   }
 
-  function likesStripHtml(tracks) {
-    const slice = tracks.slice(0, 10)
-    if (!slice.length) {
-      return '<span class="strip-tile strip-tile--ph"><span data-icon="heart" data-icon-class="ui-icon"></span></span>'
+  function openRecentSheet(open) {
+    const sheet = $('#recent-sheet')
+    const list = $('#recent-sheet-list')
+    if (!sheet) return
+    if (!open) {
+      sheet.hidden = true
+      return
     }
-    return slice.map((t) => stripTileHtml(t)).join('')
+    const items = Store.get().recent.slice(0, 40)
+    if (list) {
+      list.innerHTML = items.length
+        ? items.map((t, i) => trackRowHtml(t, i)).join('')
+        : '<p class="empty-hint sheet-list__empty">Пока пусто — включи волну или найди трек</p>'
+      bindTrackClicks(list, items, 'Недавние')
+      setupScrollTitles(list)
+      Icons.mount(list)
+    }
+    sheet.hidden = false
+    Icons.mount(sheet)
   }
 
   function highlightPlayingTrack(track) {
@@ -591,6 +608,7 @@ const UI = (() => {
     toast('Загружаем…')
     try {
       await Player.playQueue(tracks, idx, playAllFrom)
+      if (container?.id === 'recent-sheet-list') openRecentSheet(false)
     } catch (e) {
       toast(e.message || 'Ошибка воспроизведения')
     } finally {
@@ -909,19 +927,19 @@ const UI = (() => {
 
   function renderHome() {
     const s = Store.get()
-    const recentEl = $('#recent-list')
-    if (recentEl) {
-      const items = s.recent.slice(0, 10)
-      recentEl.innerHTML = items.length ? items.map((t) => stripTileHtml(t)).join('') : '<span class="strip-tile strip-tile--ph"><span data-icon="music-2" data-icon-class="ui-icon"></span></span>'
-      bindTrackClicks(recentEl, items, 'Недавние')
+    const recentCovers = $('#home-recent-covers')
+    const recentCount = $('#home-recent-count')
+    if (recentCount) recentCount.textContent = formatTrackCount(s.recent.length)
+    if (recentCovers) {
+      recentCovers.innerHTML = plaqueCoversHtml(s.recent, 'music-2')
+      Icons.mount(recentCovers)
     }
-    const likesScroll = $('#home-likes-scroll')
+    const likesCovers = $('#home-likes-covers')
     const likesCount = $('#home-likes-count')
-    if (likesCount) likesCount.textContent = String(s.likes.length || 0)
-    if (likesScroll) {
-      likesScroll.innerHTML = likesStripHtml(s.likes)
-      bindTrackClicks(likesScroll, s.likes.slice(0, 10), 'Любимые')
-      Icons.mount(likesScroll)
+    if (likesCount) likesCount.textContent = formatTrackCount(s.likes.length)
+    if (likesCovers) {
+      likesCovers.innerHTML = plaqueCoversHtml(s.likes, 'heart')
+      Icons.mount(likesCovers)
     }
     renderWaveMoods()
     highlightPlayingTrack(Player.current())
@@ -1492,6 +1510,11 @@ const UI = (() => {
       const s = Store.get()
       openPlaylistView({ id: '__likes', name: 'Любимые', tracks: s.likes }, { isLikes: true })
     })
+
+    $('#btn-home-recent')?.addEventListener('click', () => {
+      openRecentSheet(true)
+    })
+    $('#recent-sheet-close')?.addEventListener('click', () => openRecentSheet(false))
 
     $('#btn-home-likes-play')?.addEventListener('click', async () => {
       const likes = Store.get().likes

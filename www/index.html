@@ -88,21 +88,22 @@
           <div class="wave-moods" id="wave-moods" role="group" aria-label="Настроение волны"></div>
           </div>
         </div>
-        <div class="section section--home-strips">
-          <div class="home-strips">
-            <div class="home-strip">
-              <div class="home-strip__head">
-                <span class="home-strip__title">Недавние</span>
-              </div>
-              <div class="h-scroll home-strip__scroll" id="recent-list" data-track-list></div>
-            </div>
-            <div class="home-strip home-strip--likes">
-              <button type="button" class="home-strip__head" id="btn-home-likes-play">
-                <span class="home-strip__title">Любимые</span>
-                <span class="home-strip__count" id="home-likes-count">0</span>
-              </button>
-              <div class="h-scroll home-strip__scroll" id="home-likes-scroll" data-track-list></div>
-            </div>
+        <div class="section section--home-plaques">
+          <div class="home-plaques">
+            <button type="button" class="home-plaque" id="btn-home-recent">
+              <span class="home-plaque__covers" id="home-recent-covers"></span>
+              <span class="home-plaque__meta">
+                <span class="home-plaque__title">Недавние</span>
+                <span class="home-plaque__count" id="home-recent-count">0 треков</span>
+              </span>
+            </button>
+            <button type="button" class="home-plaque home-plaque--likes" id="btn-home-likes-play">
+              <span class="home-plaque__covers" id="home-likes-covers"></span>
+              <span class="home-plaque__meta">
+                <span class="home-plaque__title">Любимые</span>
+                <span class="home-plaque__count" id="home-likes-count">0 треков</span>
+              </span>
+            </button>
           </div>
         </div>
       </section>
@@ -240,6 +241,7 @@
   </div>
 
   <footer class="mini-player" id="mini-player" hidden>
+    <div class="mini-player__inner">
       <button type="button" class="mini-player__main" id="mini-open-full">
         <div class="mini-cover-wrap" id="mini-cover-wrap">
           <img class="mini-cover" id="mini-cover" alt="" hidden />
@@ -253,11 +255,14 @@
         </div>
       </button>
       <div class="mini-controls" aria-label="Управление">
-        <button type="button" class="icon-btn icon-btn--sm" id="mini-prev" data-icon="skip-back" aria-label="Назад"></button>
-        <button type="button" class="icon-btn icon-btn--sm" id="mini-play" data-icon="play"></button>
-        <button type="button" class="icon-btn icon-btn--sm" id="mini-next" data-icon="skip-forward" aria-label="Вперёд"></button>
+        <button type="button" class="icon-btn icon-btn--sm mini-ctrl" id="mini-prev" data-icon="skip-back" aria-label="Назад"></button>
+        <button type="button" class="mini-play-btn" id="mini-play" aria-label="Play">
+          <span data-icon="play" data-icon-class="ui-icon"></span>
+        </button>
+        <button type="button" class="icon-btn icon-btn--sm mini-ctrl" id="mini-next" data-icon="skip-forward" aria-label="Вперёд"></button>
       </div>
-    </footer>
+    </div>
+  </footer>
 
     <nav class="tab-bar" id="tab-bar">
       <button type="button" class="tab tab--active" data-tab="home" data-icon="home"><span>Главная</span></button>
@@ -450,6 +455,15 @@
       <div class="pl-actions-group">
         <button type="button" class="pl-action pl-action--danger" id="pl-action-delete"><span data-icon="trash-2" data-icon-class="ui-icon"></span><span>Удалить</span></button>
       </div>
+    </div>
+  </div>
+
+  <div class="sheet sheet--list" id="recent-sheet" hidden>
+    <div class="sheet__backdrop" id="recent-sheet-close"></div>
+    <div class="sheet__panel sheet__panel--list safe-bottom">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <h2 class="sheet__title sheet__title--pixel">Недавние</h2>
+      <div class="sheet-list v-list v-list--tracks" id="recent-sheet-list" data-track-list></div>
     </div>
   </div>
 

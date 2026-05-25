@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 4
+  const PALETTE_VERSION = 5
 
   const THEMES = {
 
@@ -362,9 +362,12 @@ const Theme = (() => {
 
 
 
-  function decorFromAccent(accent, accent2, bg) {
+  function decorFromAccent(accent, accent2, bg, opts = {}) {
     const shellBase = bg || BASE_BG
-    const tintedPlayer = mixHex(BASE_BG, accent, 0.18)
+    const dark = !!opts.dark
+    const tintMix = dark ? 0.28 : 0.18
+    const tintedPlayer = mixHex(BASE_BG, accent, tintMix)
+    const glowMul = dark ? 1.35 : 1
     return {
       homeOrb1: hexToRgba(accent, 0.18),
       homeOrb2: hexToRgba(accent2, 0.12),
@@ -375,14 +378,20 @@ const Theme = (() => {
       waveLine2: hexToRgba(accent2, 0.28),
       waveLine3: hexToRgba(accent, 0.34),
       playerBg: tintedPlayer,
-      playerGlow1: hexToRgba(accent, 0.42),
-      playerGlow2: hexToRgba(accent2, 0.32),
-      playerGlow3: hexToRgba(accent, 0.22),
-      playerOverlay: [
-        `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
-        `radial-gradient(ellipse 55% 42% at 92% 78%, ${hexToRgba(accent2, 0.2)} 0%, transparent 52%)`,
-        `linear-gradient(180deg, ${hexToRgba(accent, 0.12)} 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.9) 100%)`,
-      ].join(', '),
+      playerGlow1: hexToRgba(accent, 0.42 * glowMul),
+      playerGlow2: hexToRgba(accent2, 0.32 * glowMul),
+      playerGlow3: hexToRgba(accent, 0.22 * glowMul),
+      playerOverlay: dark
+        ? [
+          `radial-gradient(ellipse 95% 58% at 50% 6%, ${hexToRgba(accent, 0.38)} 0%, transparent 62%)`,
+          `radial-gradient(ellipse 60% 48% at 88% 76%, ${hexToRgba(accent2, 0.28)} 0%, transparent 54%)`,
+          `linear-gradient(180deg, ${hexToRgba(accent, 0.16)} 0%, rgba(0,0,0,0.35) 38%, rgba(0,0,0,0.88) 100%)`,
+        ].join(', ')
+        : [
+          `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
+          `radial-gradient(ellipse 55% 42% at 92% 78%, ${hexToRgba(accent2, 0.2)} 0%, transparent 52%)`,
+          `linear-gradient(180deg, ${hexToRgba(accent, 0.12)} 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.9) 100%)`,
+        ].join(', '),
       shellBg: `linear-gradient(180deg, ${hexToRgba(accent, 0.1)} 0%, rgba(10,10,14,0.9) 100%)`,
       shellBorder: hexToRgba(accent, 0.14),
       shellPanel: 'rgba(255,255,255,0.06)',
@@ -409,19 +418,27 @@ const Theme = (() => {
 
   function buildCoverThemeFromRgb(r, g, b, fallbackTheme, meta = {}) {
 
+    const coverLum = relLum(r, g, b)
+
+    const dark = meta.dark || coverLum < 0.22
+
     const muted = meta.muted || isDullCover(r, g, b)
 
     const [h, s] = rgbToHsl(r, g, b)
 
     const srcSat = meta.sat != null ? meta.sat : s
 
-    const accentS = muted
+    const accentS = dark
 
-      ? Math.max(0.24, Math.min(0.44, srcSat * 1.25 + 0.16))
+      ? Math.max(0.44, Math.min(0.78, srcSat * 1.35 + 0.22))
 
-      : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
+      : muted
 
-    const accentL = muted ? 0.5 : 0.54
+        ? Math.max(0.28, Math.min(0.5, srcSat * 1.25 + 0.18))
+
+        : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
+
+    const accentL = dark ? 0.62 : (muted ? 0.54 : 0.56)
 
     const accent = hslToHex(h, accentS, accentL)
 
@@ -431,7 +448,7 @@ const Theme = (() => {
 
     const tintedBg = hslToHex(h, ambientS, 0.07)
 
-    const bg = mixHex(BASE_BG, tintedBg, muted ? 0.26 : 0.34)
+    const bg = mixHex(BASE_BG, tintedBg, dark ? 0.2 : (muted ? 0.26 : 0.34))
 
     const text = '#f8fafc'
 
@@ -469,7 +486,7 @@ const Theme = (() => {
 
 
 
-    const decor = decorFromAccent(accent, accent2, bg)
+    const decor = decorFromAccent(accent, accent2, bg, { dark })
 
     return {
 
@@ -507,6 +524,8 @@ const Theme = (() => {
 
       ...decor,
 
+      dark,
+
       v: PALETTE_VERSION,
 
     }
@@ -529,7 +548,7 @@ const Theme = (() => {
 
     if (t.homeOrb1) return t
 
-    const decor = decorFromAccent(t.accent, t.accent2, t.bg)
+    const decor = decorFromAccent(t.accent, t.accent2, t.bg, { dark: t.dark })
 
     return { ...t, ...decor }
 
@@ -641,6 +660,8 @@ const Theme = (() => {
     document.body.classList.add('accent-from-cover')
 
     document.documentElement.classList.add('cover-theme-on')
+
+    document.documentElement.classList.toggle('cover-theme-dark', !!t.dark)
 
 
 
@@ -866,6 +887,8 @@ const Theme = (() => {
 
       document.documentElement.classList.remove('cover-theme-on')
 
+      document.documentElement.classList.remove('cover-theme-dark')
+
       if (s.accentCoverHex || s.accentCoverPalette) {
 
         Store.patch({ accentCoverHex: '', accentCoverPalette: null })
@@ -886,15 +909,19 @@ const Theme = (() => {
 
   function applyPlayerBg(settings) {
 
-    const s = settings || Store.get()
-
     const bg = document.getElementById('full-bg')
 
     if (!bg) return
 
-    bg.style.filter = 'blur(56px) saturate(1.55) brightness(0.9)'
+    const dark = document.documentElement.classList.contains('cover-theme-dark')
 
-    bg.style.opacity = '0.62'
+    bg.style.filter = dark
+
+      ? 'blur(56px) saturate(1.65) brightness(1.05)'
+
+      : 'blur(56px) saturate(1.55) brightness(0.92)'
+
+    bg.style.opacity = dark ? '0.72' : '0.62'
 
   }
 
@@ -929,6 +956,16 @@ const Theme = (() => {
     let avgB = 0
 
     let avgN = 0
+
+    let sumLum = 0
+
+    let brightR = 0
+
+    let brightG = 0
+
+    let brightB = 0
+
+    let brightW = 0
 
     const cx = (width - 1) / 2
 
@@ -974,6 +1011,8 @@ const Theme = (() => {
 
         avgN++
 
+        sumLum += lum
+
 
 
         if (sat < 0.12) {
@@ -991,6 +1030,20 @@ const Theme = (() => {
         const dist = Math.hypot(x - cx, y - cy) / maxDist
 
         const centerBoost = 1.58 - dist * 0.42
+
+        if (lum > 0.68 && sat > 0.1) {
+
+          const bw = sat * centerBoost
+
+          brightR += r * bw
+
+          brightG += g * bw
+
+          brightB += b * bw
+
+          brightW += bw
+
+        }
 
         if (lum < 0.1 || lum > 0.94) continue
 
@@ -1031,6 +1084,10 @@ const Theme = (() => {
 
 
     const grayRatio = grayPixels / Math.max(1, grayPixels + colorPixels)
+
+    const avgLum = sumLum / Math.max(1, avgN)
+
+    const isDark = avgLum < 0.34
 
     const fallbackRgb = {
 
@@ -1138,6 +1195,20 @@ const Theme = (() => {
 
 
 
+    if (isDark && brightW > 0.001) {
+
+      fr = brightR / brightW
+
+      fg = brightG / brightW
+
+      fb = brightB / brightW
+
+      fsat = Math.max(fsat, 0.35)
+
+    }
+
+
+
     return {
 
       r: Math.round(fr),
@@ -1149,6 +1220,8 @@ const Theme = (() => {
       sat: fsat,
 
       muted: grayRatio > 0.48 || clusterW < totalW * 0.42,
+
+      dark: isDark,
 
     }
 
