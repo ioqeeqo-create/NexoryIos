@@ -50,9 +50,11 @@ const UI = (() => {
     soundcloud: {
       logo: 'assets/source-soundcloud.png',
       storeKey: 'scClientId',
-      helpUrl: '',
-      helpText: '',
+      accessStoreKey: 'scAccessToken',
+      helpUrl: 'https://secure.soundcloud.com/authorize',
+      helpText: 'OAuth SoundCloud (как в Dotify)',
       optional: true,
+      oauth: true,
     },
   }
 
@@ -557,7 +559,7 @@ const UI = (() => {
         ok.push(t)
         continue
       }
-      if (t.source === 'yandex' && t.url) {
+      if (t.source === 'yandex' && (t.id || t.url)) {
         ok.push(t)
         continue
       }
@@ -807,7 +809,7 @@ const UI = (() => {
         fp.hidden = true
         fp.classList.remove('is-closing')
         syncShellLayout()
-      }, 420)
+      }, 500)
       syncShellLayout()
       return
     }
@@ -937,16 +939,17 @@ const UI = (() => {
         if (!active) return
         dx = e.clientX - startX
         dy = e.clientY - startY
-        if (dy <= 0 || dy < Math.abs(dx)) return
-        const shift = Math.min(dy, 220)
+        if (dy <= 0 || Math.abs(dx) > 12) return
+        if (Math.abs(dx) > dy * 0.45) return
+        const shift = Math.min(dy, 280)
         fullSheet.style.transform = `translateY(${shift}px)`
-        fullSheet.style.opacity = String(Math.max(0.62, 1 - shift / 420))
+        fullSheet.style.opacity = String(Math.max(0.55, 1 - shift / 480))
       })
       const finishFullSwipe = (e) => {
         if (!active) return
         active = false
         fullSheet.releasePointerCapture?.(e.pointerId)
-        const commit = dy > 120 && dy > Math.abs(dx)
+        const commit = dy > 100 && dy > Math.abs(dx) * 1.2
         fullSheet.style.transform = ''
         fullSheet.style.opacity = ''
         full.classList.remove('is-dragging')
@@ -1511,6 +1514,16 @@ const UI = (() => {
       }
     }
     const tracks = out.tracks || []
+    if (out.service === 'yandex' && tracks.length) {
+      const norm = Store.normalizeTracks(tracks)
+      importState.failed = []
+      return {
+        name: out.name || 'Импорт',
+        tracks: norm,
+        coverData: out.coverData || out.cover || '',
+        multi: null,
+      }
+    }
     showImportProgress(0, tracks.length, 'Проверка треков…')
     const { ok, failed } = await validatePlaylistTracks(tracks, (d, t) => {
       showImportProgress(d, t, `Проверка ${d}/${t}`)
@@ -1679,7 +1692,7 @@ const UI = (() => {
     const sc = $('#svc-sc-state')
     if (y) y.textContent = s.yandexToken ? 'Подключено' : 'Не настроено'
     if (v) v.textContent = s.vkToken ? 'Подключено' : 'Не настроено'
-    if (sc) sc.textContent = s.scClientId ? 'Настроено' : 'Опционально'
+    if (sc) sc.textContent = (s.scAccessToken || s.scClientId) ? 'Настроено' : 'Опционально'
   }
 
   function showSettingsPane(name) {
@@ -1704,8 +1717,17 @@ const UI = (() => {
     if (logo) logo.src = meta.logo
     if (input) {
       input.type = 'password'
-      input.value = Store.get()[meta.storeKey] || ''
+      const s = Store.get()
+      if (id === 'soundcloud') {
+        input.value = s.scAccessToken || s.scClientId || ''
+        const label = document.querySelector('#service-token-input')?.closest('.token-field')?.querySelector('.token-field__label')
+        if (label) label.textContent = 'Client ID или OAuth access_token'
+      } else {
+        input.value = s[meta.storeKey] || ''
+      }
     }
+    const scOAuthBtn = $('#service-sc-oauth')
+    if (scOAuthBtn) scOAuthBtn.hidden = id !== 'soundcloud'
     if (help) {
       if (meta.helpUrl) {
         help.href = meta.helpUrl
@@ -2116,7 +2138,11 @@ const UI = (() => {
     $('#service-token-clear')?.addEventListener('click', () => {
       const meta = SERVICE_META[openServiceId]
       if (!meta) return
-      Store.patch({ [meta.storeKey]: '' })
+      if (openServiceId === 'soundcloud') {
+        Store.patch({ scClientId: '', scAccessToken: '' })
+      } else {
+        Store.patch({ [meta.storeKey]: '' })
+      }
       const input = $('#service-token-input')
       if (input) input.value = ''
       $('#service-token-status').textContent = 'Очищено'
@@ -2129,11 +2155,25 @@ const UI = (() => {
       updateGatewayBanner()
     })
 
+    $('#service-sc-oauth')?.addEventListener('click', async () => {
+      const status = $('#service-token-status')
+      try {
+        if (status) status.textContent = 'Открываем OAuth…'
+        const url = await Api.prepareSoundCloudOAuth()
+        window.open(url, '_blank', 'noopener')
+        if (status) {
+          status.textContent = 'Войди в SoundCloud, скопируй access_token или ссылку с code и вставь выше'
+        }
+        toast('После входа вставь токен или redirect-URL')
+      } catch (e) {
+        if (status) status.textContent = e.message
+      }
+    })
+
     $('#service-token-save')?.addEventListener('click', async () => {
       const meta = SERVICE_META[openServiceId]
       if (!meta) return
       const token = $('#service-token-input').value.trim()
-      Store.patch({ [meta.storeKey]: token })
       saveGatewayFromForm()
       const status = $('#service-token-status')
       if (!token && !meta.optional) {
@@ -2141,6 +2181,8 @@ const UI = (() => {
         return
       }
       if (!token && meta.optional) {
+        if (openServiceId === 'soundcloud') Store.patch({ scClientId: '', scAccessToken: '' })
+        else Store.patch({ [meta.storeKey]: '' })
         status.textContent = 'Сохранено'
         updateServiceStates()
         toast('Сохранено')
@@ -2149,12 +2191,26 @@ const UI = (() => {
       status.textContent = 'Проверяем…'
       try {
         if (openServiceId === 'yandex') {
+          Store.patch({ [meta.storeKey]: token })
           const r = await Api.validateYandex(token)
           status.textContent = r.ok ? `✓ ${r.login || 'OK'}` : r.error
         } else if (openServiceId === 'vk') {
+          Store.patch({ [meta.storeKey]: token })
           const r = await Api.validateVk(token)
           status.textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error
+        } else if (openServiceId === 'soundcloud') {
+          const r = await Api.validateSoundCloud(token)
+          if (r.ok) {
+            Store.patch({
+              scClientId: r.scClientId || '',
+              scAccessToken: r.scAccessToken || '',
+            })
+            status.textContent = r.username ? `✓ ${r.username}` : '✓ SoundCloud OK'
+          } else {
+            status.textContent = r.error || 'Ошибка'
+          }
         } else {
+          Store.patch({ [meta.storeKey]: token })
           status.textContent = '✓ Сохранено'
         }
         updateServiceStates()

@@ -117,15 +117,15 @@
           </div>
         </div>
         <div class="section section--home-popular">
-          <h2 class="section-title section-title--pixel">Популярные треки</h2>
+          <h2 class="section-title">Популярные треки</h2>
           <div class="h-scroll home-popular-scroll" id="home-popular-scroll"></div>
         </div>
         <div class="section section--home-stats">
           <div class="home-stats-board" id="home-stats-board" aria-label="Статистика прослушивания">
-            <span class="home-stats-board__count pixel" id="home-stats-tracks">0</span>
-            <span class="home-stats-board__note pixel" aria-hidden="true">♪</span>
-            <span class="home-stats-board__label pixel">за</span>
-            <span class="home-stats-board__time pixel" id="home-stats-time">0 м</span>
+            <span class="home-stats-board__count" id="home-stats-tracks">0</span>
+            <span class="home-stats-board__note" aria-hidden="true">♪</span>
+            <span class="home-stats-board__label">за</span>
+            <span class="home-stats-board__time" id="home-stats-time">0 м</span>
           </div>
         </div>
       </section>
@@ -359,6 +359,7 @@
             <button type="button" class="token-field__eye" id="service-token-eye" data-icon="eye" aria-label="Показать"></button>
           </div>
         </label>
+        <button type="button" class="token-btn token-btn--oauth" id="service-sc-oauth" hidden>Войти в SoundCloud (OAuth)</button>
         <button type="button" class="token-btn token-btn--save" id="service-token-save">Сохранить и проверить</button>
         <button type="button" class="token-btn token-btn--clear" id="service-token-clear">Очистить</button>
         <a class="token-link" id="service-token-help" href="#" target="_blank" rel="noopener">

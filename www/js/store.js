@@ -21,6 +21,7 @@ const Store = (() => {
       yandexToken: '',
       vkToken: '',
       scClientId: '',
+      scAccessToken: '',
       waveSource: 'yandex',
       waveMood: 'default',
       likes: [],
@@ -95,6 +96,7 @@ const Store = (() => {
     if (t.source === 'yandex' && t.url) delete t.url
     if (t.source === 'soundcloud') {
       if (!t.scClientId && get().scClientId) t.scClientId = get().scClientId
+      if (!t.scAccessToken && get().scAccessToken) t.scAccessToken = get().scAccessToken
       if (t.sc_transcoding && !t.scTranscoding) t.scTranscoding = t.sc_transcoding
       const link = String(t.url || t.permalink_url || t.permalink || t.id || '')
       const num =

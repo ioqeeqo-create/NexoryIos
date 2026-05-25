@@ -63,6 +63,7 @@ const Api = (() => {
       yandexToken: c.yandexToken,
       vkToken: c.vkToken,
       soundcloudClientId: c.scClientId,
+      soundcloudAccessToken: c.scAccessToken,
     }
   }
 
@@ -199,13 +200,22 @@ const Api = (() => {
     const isYandex = /(^|\/\/)(music\.)?yandex\./i.test(link) || /(^|\/\/)yandex\.[^/]+/i.test(link)
     const hasYm = Boolean(String(cfg().yandexToken || '').trim())
     const mode = apiMode()
+    if (isYandex && hasYm && mode !== 'gateway') {
+      try {
+        const out = await DirectApi.importPlaylistLink({ url: link })
+        if (out?.ok) return out
+        if (mode === 'direct') return out
+      } catch (e) {
+        if (mode === 'direct') throw e
+      }
+    }
     if (hasGateway() && mode !== 'direct') {
       try {
         const out = await post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
         if (out?.ok) return out
         if (mode === 'gateway') throw new Error(out?.error || 'Импорт не удался')
       } catch (e) {
-        if (mode === 'gateway' || !isYandex || !hasYm) throw e
+        if (mode === 'gateway') throw e
       }
     }
     if (isYandex && hasYm) {
@@ -304,9 +314,15 @@ const Api = (() => {
   }
 
   async function soundCloudReleases() {
-    const cid = String(cfg().scClientId || '').trim()
-    if (!cid) throw new Error('Укажи SoundCloud Client ID в настройках')
-    return DirectApi.fetchSoundCloudReleases(cid)
+    return DirectApi.fetchSoundCloudReleases()
+  }
+
+  async function validateSoundCloud(token) {
+    return DirectApi.validateSoundCloud(token)
+  }
+
+  async function prepareSoundCloudOAuth() {
+    return DirectApi.prepareSoundCloudOAuth()
   }
 
   return {
@@ -319,6 +335,8 @@ const Api = (() => {
     waveFeedback,
     fetchLyrics,
     soundCloudReleases,
+    validateSoundCloud,
+    prepareSoundCloudOAuth,
     tokens,
     health,
     isConfigured,

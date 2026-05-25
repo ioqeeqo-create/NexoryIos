@@ -1,6 +1,8 @@
-# Nexory — как устроено приложение
+# Nexory iOS — краткая справка
 
-Документ описывает работу Nexory на **iPhone** (Capacitor) и на **ПК** (браузер / gateway). Версия UI: `www/` в репозитории NexoryIos.
+Полное описание **Desktop + iOS + Gateway**: см. **[`../HOW-IT-WORKS.md`](../HOW-IT-WORKS.md)** в корне `flow_fixed/`.
+
+Ниже — краткая версия для мобильного репозитория. UI: `www/` в NexoryIos.
 
 ---
 
