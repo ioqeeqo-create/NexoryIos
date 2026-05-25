@@ -383,9 +383,9 @@ const Theme = (() => {
       playerGlow3: hexToRgba(accent, 0.22 * glowMul),
       playerOverlay: dark
         ? [
-          `radial-gradient(ellipse 95% 58% at 50% 6%, ${hexToRgba(accent, 0.38)} 0%, transparent 62%)`,
-          `radial-gradient(ellipse 60% 48% at 88% 76%, ${hexToRgba(accent2, 0.28)} 0%, transparent 54%)`,
-          `linear-gradient(180deg, ${hexToRgba(accent, 0.16)} 0%, rgba(0,0,0,0.35) 38%, rgba(0,0,0,0.88) 100%)`,
+          `radial-gradient(ellipse 95% 58% at 50% 6%, ${hexToRgba(accent, 0.48)} 0%, transparent 62%)`,
+          `radial-gradient(ellipse 60% 48% at 88% 76%, ${hexToRgba(accent2, 0.34)} 0%, transparent 54%)`,
+          `linear-gradient(180deg, ${hexToRgba(accent, 0.22)} 0%, rgba(0,0,0,0.28) 38%, rgba(0,0,0,0.82) 100%)`,
         ].join(', ')
         : [
           `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
@@ -430,29 +430,21 @@ const Theme = (() => {
 
     const grayish = meta.muted || muted
 
-    const monochrome = dark && (srcSat < 0.14 || grayish)
+    const lowChroma = srcSat < 0.14 || grayish
 
-    const accentHue = monochrome ? 308 : h
+    const accentHue = h
 
-    const accentS = monochrome
+    const accentS = dark
 
-      ? Math.max(0.5, Math.min(0.68, 0.52 + srcSat * 0.4))
+      ? Math.max(0.46, Math.min(0.74, srcSat * 1.45 + (lowChroma ? 0.32 : 0.24)))
 
-      : dark && grayish
+      : muted
 
-        ? Math.max(0.42, Math.min(0.58, srcSat * 1.2 + 0.28))
+        ? Math.max(0.32, Math.min(0.54, srcSat * 1.25 + 0.2))
 
-        : dark
+        : Math.max(0.4, Math.min(0.72, srcSat * 1.22 + 0.12))
 
-          ? Math.max(0.36, Math.min(0.62, srcSat * 1.1 + 0.18))
-
-          : muted
-
-            ? Math.max(0.28, Math.min(0.5, srcSat * 1.25 + 0.18))
-
-            : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
-
-    const accentL = monochrome ? 0.6 : (dark && grayish ? 0.62 : (dark ? 0.64 : (muted ? 0.54 : 0.56)))
+    const accentL = dark ? 0.58 : (muted ? 0.54 : 0.56)
 
     const accent = hslToHex(accentHue, accentS, accentL)
 
@@ -460,9 +452,9 @@ const Theme = (() => {
 
     const ambientS = Math.min(0.42, Math.max(0.22, accentS * 0.55))
 
-    const tintedBg = hslToHex(accentHue, ambientS, monochrome ? 0.1 : (dark && grayish ? 0.09 : 0.07))
+    const tintedBg = hslToHex(accentHue, ambientS, dark ? 0.1 : 0.07)
 
-    const bg = mixHex(BASE_BG, tintedBg, monochrome ? 0.2 : (dark && grayish ? 0.26 : (dark ? 0.28 : (muted ? 0.26 : 0.34))))
+    const bg = mixHex(BASE_BG, tintedBg, dark ? 0.22 : (muted ? 0.26 : 0.34))
 
     const text = '#f8fafc'
 
@@ -985,356 +977,101 @@ const Theme = (() => {
 
 
   function extractAccentRgb(data, width, height) {
-
-    const hues = new Map()
-
-    let grayPixels = 0
-
-    let colorPixels = 0
-
-    let avgR = 0
-
-    let avgG = 0
-
-    let avgB = 0
-
-    let avgN = 0
-
+    const buckets = new Map()
     let sumLum = 0
-
-    let brightR = 0
-
-    let brightG = 0
-
-    let brightB = 0
-
-    let brightW = 0
-
-    let darkHiR = 0
-
-    let darkHiG = 0
-
-    let darkHiB = 0
-
-    let darkHiW = 0
-
-    let darkHiSat = 0
-
+    let avgN = 0
+    let chromaR = 0
+    let chromaG = 0
+    let chromaB = 0
+    let chromaW = 0
     const cx = (width - 1) / 2
-
     const cy = (height - 1) / 2
-
     const maxDist = Math.hypot(cx, cy) || 1
 
-
-
     for (let y = 0; y < height; y++) {
-
       for (let x = 0; x < width; x++) {
-
         const i = (y * width + x) * 4
-
         const r = data[i]
-
         const g = data[i + 1]
-
         const b = data[i + 2]
-
         const a = data[i + 3]
-
-        if (a < 96) continue
-
+        if (a < 80) continue
         const max = Math.max(r, g, b)
-
         const min = Math.min(r, g, b)
-
-        const sat = max === 0 ? 0 : (max - min) / max
-
+        const chroma = max - min
+        const sat = max === 0 ? 0 : chroma / max
         const lum = max / 255
-
-
-
-        if (lum >= 0.06) {
-          avgR += r
-          avgG += g
-          avgB += b
-          avgN++
-          sumLum += lum
-        }
-
-
-
-        if (sat < 0.12) {
-
-          grayPixels++
-
-          continue
-
-        }
-
-        colorPixels++
-
-
-
+        if (lum < 0.04) continue
+        sumLum += lum
+        avgN++
         const dist = Math.hypot(x - cx, y - cy) / maxDist
-
-        const centerBoost = 1.58 - dist * 0.42
-
-        if (lum > 0.68 && sat > 0.1) {
-
-          const bw = sat * centerBoost
-
-          brightR += r * bw
-
-          brightG += g * bw
-
-          brightB += b * bw
-
-          brightW += bw
-
-        }
-
-        if (lum > 0.34 && lum < 0.98) {
-
-          const bw = lum * lum * centerBoost * Math.max(0.22, sat)
-
-          darkHiR += r * bw
-
-          darkHiG += g * bw
-
-          darkHiB += b * bw
-
-          darkHiSat += sat * bw
-
-          darkHiW += bw
-
-        }
-
-        if (lum < 0.1 || lum > 0.94) continue
-
-        if (sat < 0.18) continue
-
-
-
-        const [hue, sl] = rgbToHsl(r, g, b)
-
-        const bucket = Math.floor(hue / 12) * 12
-
-        const satW = sat * sat
-
-        const weight = satW * centerBoost * (1 - Math.abs(sl - 0.44) * 0.5)
-
-        const prev = hues.get(bucket) || { r: 0, g: 0, b: 0, w: 0, s: 0 }
-
+        const centerBoost = 1.45 - dist * 0.38
+        const chromaBoost = chroma > 28 ? 1.85 : (chroma > 12 ? 1.2 : 0.35)
+        const weight = centerBoost * chromaBoost * (sat * sat + 0.06) * (0.35 + lum * 0.75)
+        if (weight < 0.008) continue
+        const key = `${r >> 4},${g >> 4},${b >> 4}`
+        const prev = buckets.get(key) || { r: 0, g: 0, b: 0, w: 0, s: 0, c: 0 }
         prev.r += r * weight
-
         prev.g += g * weight
-
         prev.b += b * weight
-
         prev.s += sat * weight
-
+        prev.c += chroma * weight
         prev.w += weight
-
-        hues.set(bucket, prev)
-
+        buckets.set(key, prev)
+        if (chroma > 18 && sat > 0.14) {
+          chromaR += r * weight
+          chromaG += g * weight
+          chromaB += b * weight
+          chromaW += weight
+        }
       }
-
     }
-
-
 
     if (!avgN) return null
+    const avgLum = sumLum / avgN
+    const isDark = avgLum < 0.36
+    const ranked = [...buckets.values()]
+      .map((b) => ({
+        ...b,
+        avgSat: b.s / Math.max(0.001, b.w),
+        avgChroma: b.c / Math.max(0.001, b.w),
+        score: b.w * (1 + (b.s / Math.max(0.001, b.w)) * (isDark ? 2.4 : 1.2)),
+      }))
+      .sort((a, b) => b.score - a.score)
 
-
-
-    const grayRatio = grayPixels / Math.max(1, grayPixels + colorPixels)
-
-    const avgLum = sumLum / Math.max(1, avgN)
-
-    const isDark = avgLum < 0.38
-
-    const fallbackRgb = {
-
-      r: Math.round(avgR / avgN),
-
-      g: Math.round(avgG / avgN),
-
-      b: Math.round(avgB / avgN),
-
-    }
-
-
-
-    if (isDark && darkHiW > 0.004) {
-
-      const dr = darkHiR / darkHiW
-
-      const dg = darkHiG / darkHiW
-
-      const db = darkHiB / darkHiW
-
-      const ds = darkHiSat / darkHiW
-
-      return {
-
-        r: Math.round(dr),
-
-        g: Math.round(dg),
-
-        b: Math.round(db),
-
-        sat: Math.max(0.22, ds),
-
-        muted: ds < 0.16,
-
-        dark: true,
-
+    let pick = ranked.find((b) => b.avgSat > 0.16 && b.avgChroma > 14) || ranked[0]
+    if (chromaW > 0.002 && (!pick || pick.avgSat < 0.14)) {
+      pick = {
+        r: chromaR,
+        g: chromaG,
+        b: chromaB,
+        w: chromaW,
+        s: chromaW * 0.35,
+        avgSat: 0.35,
+        avgChroma: 40,
       }
-
     }
-
-    if (!hues.size || colorPixels < 6 || grayRatio > 0.68) {
-
-      const [, fs] = rgbToHsl(fallbackRgb.r, fallbackRgb.g, fallbackRgb.b)
-
-      return { ...fallbackRgb, sat: Math.max(0.16, fs), muted: true, dark: isDark }
-
-    }
-
-
-
-    const entries = [...hues.entries()].sort((a, b) => b[1].w - a[1].w)
-
-    const top = entries[0]
-
-    let cluster = { ...top[1] }
-
-    let clusterW = top[1].w
-
-    const totalW = entries.reduce((n, [, v]) => n + v.w, 0)
-
-
-
-    if (entries.length > 1 && top[1].w < totalW * 0.38) {
-
-      const h0 = top[0]
-
-      for (let k = 1; k < Math.min(3, entries.length); k++) {
-
-        const hk = entries[k][0]
-
-        const diff = Math.min(Math.abs(hk - h0), 360 - Math.abs(hk - h0))
-
-        if (diff <= 24) {
-
-          const v = entries[k][1]
-
-          cluster.r += v.r
-
-          cluster.g += v.g
-
-          cluster.b += v.b
-
-          cluster.s += v.s
-
-          cluster.w += v.w
-
-          clusterW += v.w
-
-        }
-
-      }
-
-    }
-
-
-
-    if (cluster.w < 0.001) {
-
-      const [, fs] = rgbToHsl(fallbackRgb.r, fallbackRgb.g, fallbackRgb.b)
-
-      return { ...fallbackRgb, sat: Math.max(0.16, fs), muted: true }
-
-    }
-
-
-
-    let fr = cluster.r / cluster.w
-
-    let fg = cluster.g / cluster.w
-
-    let fb = cluster.b / cluster.w
-
-    let fsat = cluster.s / cluster.w
-
-
-
-    if (entries.length > 1 && entries[1][1].w > totalW * 0.2) {
-
-      const second = entries[1][1]
-
-      const mix = Math.min(0.36, second.w / totalW)
-
-      fr = fr * (1 - mix) + (second.r / second.w) * mix
-
-      fg = fg * (1 - mix) + (second.g / second.w) * mix
-
-      fb = fb * (1 - mix) + (second.b / second.w) * mix
-
-      fsat = fsat * (1 - mix) + (second.s / second.w) * mix
-
-    }
-
-
-
-    if (isDark && brightW > 0.001) {
-
-      fr = brightR / brightW
-
-      fg = brightG / brightW
-
-      fb = brightB / brightW
-
-      fsat = Math.max(fsat, 0.38)
-
-    } else if (isDark && darkHiW > 0.004) {
-
-      fr = darkHiR / darkHiW
-
-      fg = darkHiG / darkHiW
-
-      fb = darkHiB / darkHiW
-
-      fsat = Math.max(fsat, darkHiSat / darkHiW, 0.24)
-
-    }
-
-
-
+    if (!pick || pick.w < 0.001) return null
+
+    const fr = pick.r / pick.w
+    const fg = pick.g / pick.w
+    const fb = pick.b / pick.w
+    const fsat = pick.s / pick.w
     return {
-
       r: Math.round(fr),
-
       g: Math.round(fg),
-
       b: Math.round(fb),
-
-      sat: fsat,
-
-      muted: grayRatio > 0.48 || clusterW < totalW * 0.42,
-
+      sat: Math.max(0.14, fsat),
+      muted: fsat < 0.14,
       dark: isDark,
-
     }
-
   }
 
 
 
   function sampleCoverThemeFromImage(img) {
 
-    const size = 64
+    const size = 96
 
     const canvas = document.createElement('canvas')
 

@@ -379,9 +379,14 @@ body[data-screen="home"] .screen[data-screen="home"] #gateway-banner {
   padding-left: 18px;
   padding-right: 18px;
 }
-body[data-screen="home"] .screen[data-screen="home"] .h-scroll {
+body[data-screen="home"] .home-scroll-inner .h-scroll {
   padding-left: 18px;
-  padding-right: 6px;
+  padding-right: 12px;
+}
+body[data-screen="home"] .home-scroll-inner .section,
+body[data-screen="home"] .home-scroll-inner #gateway-banner {
+  padding-left: 18px;
+  padding-right: 18px;
 }
 .top-bar { padding-left: 18px; padding-right: 18px; }
 body[data-screen="search"] .screen[data-screen="search"],
@@ -435,14 +440,12 @@ body.has-mini { --mini-h-active: var(--mini-h); }
 body.has-mini .screen {
   padding-bottom: calc(24px + var(--tab-h) + var(--mini-h) + var(--safe-bottom));
 }
-body.has-mini .screen[data-screen="home"] {
-  padding-bottom: calc(48px + var(--tab-h) + var(--mini-h) + var(--safe-bottom) + 48px);
-}
+body.has-mini .screen[data-screen="home"],
 body:not(.has-mini) .screen[data-screen="home"] {
-  padding-bottom: calc(32px + var(--tab-h) + var(--safe-bottom) + 32px);
+  padding-bottom: 0;
 }
 .home-scroll-spacer {
-  height: 28px;
+  height: 48px;
   flex-shrink: 0;
 }
 body.player-open { --mini-h-active: 0px; }
@@ -481,22 +484,31 @@ body.player-open { --mini-h-active: 0px; }
 }
 
 .screen[data-screen="home"] {
-  display: block;
+  display: flex;
+  flex-direction: column;
   padding-top: 0;
   position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+.home-scroll-inner {
+  flex: 1;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  padding-bottom: calc(var(--tab-h) + var(--mini-h-active) + var(--safe-bottom) + 72px);
 }
 .home-hero,
-.screen[data-screen="home"] .section,
-.screen[data-screen="home"] #gateway-banner {
+.home-scroll-inner .section,
+.home-scroll-inner #gateway-banner {
   position: relative;
   z-index: 1;
 }
 .home-hero {
-  margin: 40px 0 28px;
+  margin: 36px 0 32px;
   padding: 0;
   animation: hero-in 0.55s var(--ease-out) both;
 }
@@ -666,10 +678,10 @@ body.accent-from-cover .wave-mood--active {
 body.accent-from-cover .wave-mood--active .wave-mood__icon { color: inherit; opacity: 1; }
 .wave-mood:active { transform: scale(0.97); }
 
-.section { margin-bottom: 28px; }
+.section { margin-bottom: 32px; }
 .section--home-stats {
-  margin-top: 12px;
-  padding-bottom: 4px;
+  margin-top: 20px;
+  padding-bottom: 8px;
 }
 .home-stats-board {
   display: grid;
@@ -721,24 +733,28 @@ body.accent-from-cover .wave-mood--active .wave-mood__icon { color: inherit; opa
   font-size: 22px;
 }
 .section--home-sc {
-  margin-top: 4px;
+  margin-top: 8px;
+  margin-bottom: 36px;
 }
-.section-title--pixel {
-  margin-bottom: 12px;
-  font-family: var(--font-pixel);
-  font-size: 18px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--text-pixel, var(--text));
-  line-height: 1.25;
+h2.section-title--pixel,
+.section-title.section-title--pixel {
+  margin: 0 0 14px;
+  padding: 0;
+  font-family: var(--font-pixel) !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: none !important;
+  color: var(--text-pixel, var(--text)) !important;
+  line-height: 1.2 !important;
 }
 .section--home-sc .card-tile__title {
   font-family: var(--font-pixel);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  font-size: 13px;
+  letter-spacing: 0.03em;
 }
 .screen[data-screen="home"] .section--home-plaques {
-  margin: 22px 0 30px;
+  margin: 8px 0 36px;
   padding: 0 14px;
 }
 .home-plaques {
@@ -846,11 +862,18 @@ body.accent-from-cover .home-plaque--likes .home-plaque__count {
   font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer;
 }
 
-.h-scroll { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; scroll-snap-type: x proximity; }
+.h-scroll {
+  display: flex; gap: 14px;
+  overflow-x: auto; scrollbar-width: none;
+  padding: 4px 0 8px;
+  scroll-snap-type: x proximity;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
 .h-scroll::-webkit-scrollbar { display: none; }
 
 .card-tile {
-  flex: 0 0 118px; width: 118px;
+  flex: 0 0 128px; width: 128px;
   display: flex; flex-direction: column;
   background: transparent; border: none;
   border-radius: 0; overflow: visible; cursor: pointer;
@@ -2003,13 +2026,14 @@ html.cover-theme-dark .full-player__bg-layer.is-active {
 .fp-header__pill .ui-icon { width: 16px; height: 16px; opacity: 0.85; flex-shrink: 0; stroke: rgba(255,255,255,0.8); }
 body.accent-from-cover .fp-header__pill .ui-icon { stroke: var(--accent); }
 .fp-cover-block {
-  margin: 8px 0 4px; flex-shrink: 0;
+  margin: 10px 0 8px; flex-shrink: 0;
   display: flex; flex-direction: column; align-items: center;
+  gap: 6px;
   transform: none;
 }
 .fp-cover-block .fp-meta { width: 100%; }
-.fp-cover-block .fp-wave-block { width: 100%; margin-top: 2px; margin-bottom: 6px; }
-.fp-cover-block .fp-controls-panel { width: 100%; margin-top: 4px; }
+.fp-cover-block .fp-wave-block { width: 100%; margin-top: 10px; margin-bottom: 10px; }
+.fp-cover-block .fp-controls-panel { width: 100%; margin-top: 8px; }
 .full-player--lyrics .fp-cover-block {
   display: flex; flex-direction: column; margin-top: 0;
 }
@@ -2062,7 +2086,7 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
   position: relative;
   width: min(92vw, 400px);
   aspect-ratio: 1;
-  margin: 0 auto 12px;
+  margin: 0 auto 18px;
   border-radius: 28px;
   overflow: hidden;
   background: rgba(255,255,255,0.04);
@@ -2100,8 +2124,8 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
 .fp-cover-btn--add { right: 12px; opacity: 1; pointer-events: auto; }
 .fp-cover-btn.is-active { color: var(--accent); }
 .fp-cover-btn.is-active .ui-icon { fill: var(--accent); stroke: var(--accent); }
-.fp-meta { text-align: center; padding: 0 8px; max-width: 100%; }
-.fp-title-wrap { margin: 0 auto 8px; max-width: 100%; }
+.fp-meta { text-align: center; padding: 6px 14px 0; max-width: 100%; }
+.fp-title-wrap { margin: 0 auto 10px; max-width: 100%; }
 .fp-title-wrap:not(.is-scrolling) { text-align: center; }
 .fp-title {
   font-size: 22px; margin: 0; line-height: 1.15;
