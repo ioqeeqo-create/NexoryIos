@@ -28,8 +28,14 @@ const UI = (() => {
   let plLongPressHandled = false
   let pickPlaylistTrack = null
   let editingPlaylistId = null
-  let homePopularTracks = null
-  let homePopularLoading = false
+  const homeScCache = { popular: null, mixes: null, new: null }
+  const homeScLoading = { popular: false, mixes: false, new: false }
+
+  function resetHomeScCache() {
+    homeScCache.popular = null
+    homeScCache.mixes = null
+    homeScCache.new = null
+  }
   let trackActionPlaylistId = null
   let trackActionKey = null
   const trackLists = new WeakMap()
@@ -692,6 +698,7 @@ const UI = (() => {
 
   function registerTrackList(container, tracks, playAllFrom) {
     if (!container) return
+    container.setAttribute('data-track-list', '')
     trackLists.set(container, { tracks: Store.normalizeTracks(tracks), playAllFrom })
     Icons.mount(container)
   }
@@ -1114,40 +1121,67 @@ const UI = (() => {
     if (timeEl) timeEl.textContent = formatListenDuration(s.listenSeconds || 0)
   }
 
-  async function loadHomePopular() {
-    const el = $('#home-popular-scroll')
-    if (!el || homePopularLoading) return
+  function scHomeHintHtml() {
+    return '<p class="empty-hint empty-hint--inline">Настройки → SoundCloud → «Найти Client ID»</p>'
+  }
+
+  async function loadHomeScRow({ key, elId, title, fetcher }) {
+    const el = $(elId)
+    if (!el || homeScLoading[key]) return
     if (!String(Store.get().scClientId || '').trim()) {
-      el.innerHTML = '<p class="empty-hint empty-hint--inline">Добавь SoundCloud Client ID в настройках</p>'
+      el.innerHTML = scHomeHintHtml()
       return
     }
-    if (homePopularTracks?.length) {
-      el.innerHTML = homePopularTracks.map(cardHtml).join('')
-      bindTrackClicks(el, homePopularTracks, 'Популярные треки')
+    if (homeScCache[key]?.length) {
+      el.innerHTML = homeScCache[key].map(cardHtml).join('')
+      bindTrackClicks(el, homeScCache[key], title)
       Icons.mount(el)
       setupScrollTitles(el)
       highlightPlayingTrack(Player.current())
       return
     }
-    homePopularLoading = true
+    homeScLoading[key] = true
     el.innerHTML = '<p class="empty-hint empty-hint--inline">Загрузка…</p>'
     try {
-      const tracks = await Api.soundCloudReleases()
-      homePopularTracks = (tracks || []).slice(0, 20)
-      if (!homePopularTracks.length) {
+      const tracks = (await fetcher()).slice(0, 20)
+      homeScCache[key] = tracks
+      if (!tracks.length) {
         el.innerHTML = '<p class="empty-hint empty-hint--inline">Нет треков</p>'
         return
       }
-      el.innerHTML = homePopularTracks.map(cardHtml).join('')
-      bindTrackClicks(el, homePopularTracks, 'Популярные треки')
+      el.innerHTML = tracks.map(cardHtml).join('')
+      bindTrackClicks(el, tracks, title)
       Icons.mount(el)
       setupScrollTitles(el)
       highlightPlayingTrack(Player.current())
     } catch (e) {
       el.innerHTML = `<p class="empty-hint empty-hint--inline">${esc(String(e.message || e))}</p>`
     } finally {
-      homePopularLoading = false
+      homeScLoading[key] = false
     }
+  }
+
+  function loadHomeSoundCloudSections() {
+    return Promise.all([
+      loadHomeScRow({
+        key: 'popular',
+        elId: '#home-popular-scroll',
+        title: 'Популярные треки',
+        fetcher: () => Api.soundCloudChartKind('trending', 20),
+      }),
+      loadHomeScRow({
+        key: 'mixes',
+        elId: '#home-mixes-scroll',
+        title: 'Миксы',
+        fetcher: () => Api.soundCloudMixes(20),
+      }),
+      loadHomeScRow({
+        key: 'new',
+        elId: '#home-new-scroll',
+        title: 'Новинки',
+        fetcher: () => Api.soundCloudChartKind('new', 20),
+      }),
+    ])
   }
 
   function renderHome() {
@@ -1784,16 +1818,20 @@ const UI = (() => {
     const scFields = $('#service-sc-fields')
     const scCid = $('#service-sc-client-id')
     const scSec = $('#service-sc-client-secret')
+    const tokenField = $('#service-token-field')
+    const tokenEye = $('#service-token-eye')
+    const isSc = id === 'soundcloud'
     if (logo) logo.src = meta.logo
-    if (scFields) scFields.hidden = id !== 'soundcloud'
+    if (scFields) scFields.hidden = !isSc
+    if (tokenField) tokenField.hidden = isSc
+    if (tokenEye) tokenEye.hidden = isSc
     if (input) {
       input.type = 'password'
       const s = Store.get()
-      if (id === 'soundcloud') {
+      if (isSc) {
         if (scCid) scCid.value = s.scClientId || ''
         if (scSec) scSec.value = s.scClientSecret || ''
-        input.value = s.scAccessToken || ''
-        if (label) label.textContent = 'OAuth access_token (опционально)'
+        input.value = ''
       } else {
         input.value = s[meta.storeKey] || ''
         if (label) label.textContent = 'Access Token'
@@ -1801,16 +1839,12 @@ const UI = (() => {
     }
     const scAutoBtn = $('#service-sc-autoid')
     const scOAuthBtn = $('#service-sc-oauth')
-    if (scAutoBtn) scAutoBtn.hidden = id !== 'soundcloud'
-    if (scOAuthBtn) scOAuthBtn.hidden = id !== 'soundcloud'
-    if (help) {
-      if (meta.helpUrl) {
-        help.href = meta.helpUrl
-        help.hidden = false
-        if (helpText) helpText.textContent = meta.helpText
-      } else {
-        help.hidden = true
-      }
+    if (scAutoBtn) scAutoBtn.hidden = !isSc
+    if (scOAuthBtn) scOAuthBtn.hidden = true
+    if (help) help.hidden = isSc || !meta.helpUrl
+    if (!isSc && help && meta.helpUrl) {
+      help.href = meta.helpUrl
+      if (helpText) helpText.textContent = meta.helpText
     }
     if (status) status.textContent = ''
     if (sheet) sheet.hidden = false
@@ -1842,8 +1876,8 @@ const UI = (() => {
         toast('SoundCloud подключён')
         updateServiceStates()
         renderHome()
-        homePopularTracks = null
-        loadHomePopular()
+        resetHomeScCache()
+        loadHomeSoundCloudSections()
       } else if (status) {
         status.textContent = r.error || 'Ошибка OAuth'
       }
@@ -2270,8 +2304,8 @@ const UI = (() => {
       updateServiceStates()
       renderHome()
       if (openServiceId === 'soundcloud') {
-        homePopularTracks = null
-        loadHomePopular()
+        resetHomeScCache()
+        loadHomeSoundCloudSections()
       }
       updateGatewayBanner()
     })
@@ -2289,8 +2323,8 @@ const UI = (() => {
           toast('SoundCloud Client ID подставлен')
           updateServiceStates()
           renderHome()
-          homePopularTracks = null
-          loadHomePopular()
+          resetHomeScCache()
+          loadHomeSoundCloudSections()
         } else if (status) {
           status.textContent = r.error || 'Не найден'
         }
@@ -2327,13 +2361,38 @@ const UI = (() => {
       const token = $('#service-token-input').value.trim()
       saveGatewayFromForm()
       const status = $('#service-token-status')
+      if (openServiceId === 'soundcloud') {
+        const scCid = $('#service-sc-client-id')?.value?.trim() || Store.get().scClientId || ''
+        if (!scCid) {
+          status.textContent = 'Сначала «Найти Client ID»'
+          return
+        }
+        status.textContent = 'Проверяем…'
+        try {
+          const r = await Api.validateSoundCloud(scCid)
+          if (r.ok) {
+            Store.patch({ scClientId: r.scClientId || scCid, scAccessToken: r.scAccessToken || '' })
+            status.textContent = r.username ? `✓ ${r.username}` : '✓ SoundCloud'
+          } else {
+            status.textContent = r.error || 'Ошибка'
+          }
+          updateServiceStates()
+          renderHome()
+          resetHomeScCache()
+          loadHomeSoundCloudSections()
+          updateGatewayBanner()
+          toast('Сохранено')
+        } catch (e) {
+          status.textContent = e.message
+        }
+        return
+      }
       if (!token && !meta.optional) {
         status.textContent = 'Введи токен'
         return
       }
       if (!token && meta.optional) {
-        if (openServiceId === 'soundcloud') Store.patch({ scClientId: '', scAccessToken: '' })
-        else Store.patch({ [meta.storeKey]: '' })
+        Store.patch({ [meta.storeKey]: '' })
         status.textContent = 'Сохранено'
         updateServiceStates()
         toast('Сохранено')
@@ -2349,21 +2408,6 @@ const UI = (() => {
           Store.patch({ [meta.storeKey]: token })
           const r = await Api.validateVk(token)
           status.textContent = r.ok ? `✓ ${r.name || r.userId}` : r.error
-        } else if (openServiceId === 'soundcloud') {
-          const scCid = $('#service-sc-client-id')?.value?.trim() || ''
-          const scSec = $('#service-sc-client-secret')?.value?.trim() || ''
-          if (scCid) Store.patch({ scClientId: scCid, scClientSecret: scSec })
-          const r = await Api.validateSoundCloud(token || scCid)
-          if (r.ok) {
-            Store.patch({
-              scClientId: r.scClientId || scCid,
-              scClientSecret: scSec,
-              scAccessToken: r.scAccessToken || '',
-            })
-            status.textContent = r.username ? `✓ ${r.username}` : '✓ SoundCloud OK'
-          } else {
-            status.textContent = r.error || 'Ошибка'
-          }
         } else {
           Store.patch({ [meta.storeKey]: token })
           status.textContent = '✓ Сохранено'
@@ -2371,8 +2415,8 @@ const UI = (() => {
         updateServiceStates()
         renderHome()
         if (openServiceId === 'soundcloud') {
-          homePopularTracks = null
-          loadHomePopular()
+          resetHomeScCache()
+          loadHomeSoundCloudSections()
         }
         updateGatewayBanner()
         toast('Сохранено')
@@ -2561,7 +2605,7 @@ const UI = (() => {
     renderSetupGateForm()
     updateSetupGate()
     renderHome()
-    loadHomePopular()
+    loadHomeSoundCloudSections()
     renderLibrary()
     renderSearchSourceButton()
     wireEvents()

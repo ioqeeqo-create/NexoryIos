@@ -317,6 +317,14 @@ const Api = (() => {
     return DirectApi.fetchSoundCloudReleases()
   }
 
+  async function soundCloudChartKind(kind, limit) {
+    return DirectApi.fetchSoundCloudChartKind(kind, limit)
+  }
+
+  async function soundCloudMixes(limit) {
+    return DirectApi.fetchSoundCloudMixes(limit)
+  }
+
   async function validateSoundCloud(token) {
     try {
       return await DirectApi.validateSoundCloud(token)
@@ -358,6 +366,8 @@ const Api = (() => {
     waveFeedback,
     fetchLyrics,
     soundCloudReleases,
+    soundCloudChartKind,
+    soundCloudMixes,
     validateSoundCloud,
     discoverSoundCloudClientId,
     prepareSoundCloudOAuth,

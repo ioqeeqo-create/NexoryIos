@@ -116,18 +116,31 @@
             </button>
           </div>
         </div>
-        <div class="section section--home-popular">
-          <h2 class="section-title">Популярные треки</h2>
-          <div class="h-scroll home-popular-scroll" id="home-popular-scroll"></div>
+        <div class="section section--home-sc">
+          <h2 class="section-title section-title--pixel">Популярные треки</h2>
+          <div class="h-scroll home-sc-scroll" id="home-popular-scroll" data-track-list></div>
+        </div>
+        <div class="section section--home-sc">
+          <h2 class="section-title section-title--pixel">Миксы</h2>
+          <div class="h-scroll home-sc-scroll" id="home-mixes-scroll" data-track-list></div>
+        </div>
+        <div class="section section--home-sc">
+          <h2 class="section-title section-title--pixel">Новинки</h2>
+          <div class="h-scroll home-sc-scroll" id="home-new-scroll" data-track-list></div>
         </div>
         <div class="section section--home-stats">
           <div class="home-stats-board" id="home-stats-board" aria-label="Статистика прослушивания">
-            <span class="home-stats-board__count" id="home-stats-tracks">0</span>
-            <span class="home-stats-board__note" aria-hidden="true">♪</span>
-            <span class="home-stats-board__label">за</span>
-            <span class="home-stats-board__time" id="home-stats-time">0 м</span>
+            <div class="home-stats-card">
+              <span class="home-stats-card__value pixel-text" id="home-stats-tracks">0</span>
+              <span class="home-stats-card__label">треков</span>
+            </div>
+            <div class="home-stats-card home-stats-card--time">
+              <span class="home-stats-card__value pixel-text" id="home-stats-time">0 м</span>
+              <span class="home-stats-card__label">в эфире</span>
+            </div>
           </div>
         </div>
+        <div class="home-scroll-spacer" aria-hidden="true"></div>
       </section>
 
       <section class="screen" data-screen="search">
@@ -357,18 +370,10 @@
       <div class="service-sheet__body">
         <img class="service-sheet__logo" id="service-sheet-logo" src="" alt="" />
         <div class="service-sc-fields" id="service-sc-fields" hidden>
-          <label class="token-field">
-            <span class="token-field__label">Client ID (soundcloud.com/you/apps)</span>
-            <input type="text" class="token-field__input token-field__input--plain" id="service-sc-client-id" autocomplete="off" autocapitalize="off" />
-          </label>
-          <label class="token-field">
-            <span class="token-field__label">Client Secret (для OAuth)</span>
-            <input type="password" class="token-field__input token-field__input--plain" id="service-sc-client-secret" autocomplete="off" />
-          </label>
-          <p class="field-hint field-hint--sc">Redirect URI (если есть Developer): <strong>nexory://oauth/soundcloud</strong></p>
-          <p class="field-hint field-hint--sc">Новые приложения SC требуют Artist Pro — можно нажать «Найти Client ID» без OAuth.</p>
+          <input type="hidden" id="service-sc-client-id" value="" />
+          <input type="hidden" id="service-sc-client-secret" value="" />
         </div>
-        <label class="token-field">
+        <label class="token-field" id="service-token-field">
           <span class="token-field__label" id="service-token-label">Access Token</span>
           <div class="token-field__wrap">
             <input type="password" class="token-field__input" id="service-token-input" autocomplete="off" autocapitalize="off" />
@@ -377,9 +382,9 @@
         </label>
         <button type="button" class="token-btn token-btn--oauth" id="service-sc-autoid" hidden>Найти Client ID автоматически</button>
         <button type="button" class="token-btn token-btn--oauth-secondary" id="service-sc-oauth" hidden>OAuth (нужен Developer)</button>
-        <button type="button" class="token-btn token-btn--save" id="service-token-save">Сохранить и проверить</button>
+        <button type="button" class="token-btn token-btn--save" id="service-token-save">Сохранить</button>
         <button type="button" class="token-btn token-btn--clear" id="service-token-clear">Очистить</button>
-        <a class="token-link" id="service-token-help" href="https://soundcloud.com/you/apps" target="_blank" rel="noopener">
+        <a class="token-link" id="service-token-help" href="https://soundcloud.com/you/apps" target="_blank" rel="noopener" hidden>
           <span data-icon="external-link" data-icon-class="ui-icon"></span>
           <span id="service-token-help-text">Создать приложение SoundCloud</span>
         </a>

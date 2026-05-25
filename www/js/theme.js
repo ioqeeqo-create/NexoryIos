@@ -430,31 +430,39 @@ const Theme = (() => {
 
     const grayish = meta.muted || muted
 
-    const accentS = dark && grayish
+    const monochrome = dark && (srcSat < 0.14 || grayish)
 
-      ? Math.max(0.2, Math.min(0.38, srcSat * 0.9 + 0.14))
+    const accentHue = monochrome ? 308 : h
 
-      : dark
+    const accentS = monochrome
 
-        ? Math.max(0.36, Math.min(0.62, srcSat * 1.1 + 0.18))
+      ? Math.max(0.5, Math.min(0.68, 0.52 + srcSat * 0.4))
 
-        : muted
+      : dark && grayish
 
-          ? Math.max(0.28, Math.min(0.5, srcSat * 1.25 + 0.18))
+        ? Math.max(0.42, Math.min(0.58, srcSat * 1.2 + 0.28))
 
-          : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
+        : dark
 
-    const accentL = dark && grayish ? 0.62 : (dark ? 0.64 : (muted ? 0.54 : 0.56))
+          ? Math.max(0.36, Math.min(0.62, srcSat * 1.1 + 0.18))
 
-    const accent = hslToHex(h, accentS, accentL)
+          : muted
 
-    const accent2 = hslToHex((h + 16) % 360, accentS * 0.9, accentL + 0.04)
+            ? Math.max(0.28, Math.min(0.5, srcSat * 1.25 + 0.18))
 
-    const ambientS = Math.min(0.36, Math.max(0.18, accentS * 0.48))
+            : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
 
-    const tintedBg = hslToHex(h, ambientS, dark && grayish ? 0.08 : 0.07)
+    const accentL = monochrome ? 0.6 : (dark && grayish ? 0.62 : (dark ? 0.64 : (muted ? 0.54 : 0.56)))
 
-    const bg = mixHex(BASE_BG, tintedBg, dark && grayish ? 0.34 : (dark ? 0.28 : (muted ? 0.26 : 0.34)))
+    const accent = hslToHex(accentHue, accentS, accentL)
+
+    const accent2 = hslToHex((accentHue + 16) % 360, accentS * 0.9, accentL + 0.04)
+
+    const ambientS = Math.min(0.42, Math.max(0.22, accentS * 0.55))
+
+    const tintedBg = hslToHex(accentHue, ambientS, monochrome ? 0.1 : (dark && grayish ? 0.09 : 0.07))
+
+    const bg = mixHex(BASE_BG, tintedBg, monochrome ? 0.2 : (dark && grayish ? 0.26 : (dark ? 0.28 : (muted ? 0.26 : 0.34))))
 
     const text = '#f8fafc'
 
@@ -1002,6 +1010,16 @@ const Theme = (() => {
 
     let brightW = 0
 
+    let darkHiR = 0
+
+    let darkHiG = 0
+
+    let darkHiB = 0
+
+    let darkHiW = 0
+
+    let darkHiSat = 0
+
     const cx = (width - 1) / 2
 
     const cy = (height - 1) / 2
@@ -1026,8 +1044,6 @@ const Theme = (() => {
 
         if (a < 96) continue
 
-
-
         const max = Math.max(r, g, b)
 
         const min = Math.min(r, g, b)
@@ -1038,15 +1054,13 @@ const Theme = (() => {
 
 
 
-        avgR += r
-
-        avgG += g
-
-        avgB += b
-
-        avgN++
-
-        sumLum += lum
+        if (lum >= 0.06) {
+          avgR += r
+          avgG += g
+          avgB += b
+          avgN++
+          sumLum += lum
+        }
 
 
 
@@ -1077,6 +1091,22 @@ const Theme = (() => {
           brightB += b * bw
 
           brightW += bw
+
+        }
+
+        if (lum > 0.34 && lum < 0.98) {
+
+          const bw = lum * lum * centerBoost * Math.max(0.22, sat)
+
+          darkHiR += r * bw
+
+          darkHiG += g * bw
+
+          darkHiB += b * bw
+
+          darkHiSat += sat * bw
+
+          darkHiW += bw
 
         }
 
@@ -1136,11 +1166,39 @@ const Theme = (() => {
 
 
 
+    if (isDark && darkHiW > 0.004) {
+
+      const dr = darkHiR / darkHiW
+
+      const dg = darkHiG / darkHiW
+
+      const db = darkHiB / darkHiW
+
+      const ds = darkHiSat / darkHiW
+
+      return {
+
+        r: Math.round(dr),
+
+        g: Math.round(dg),
+
+        b: Math.round(db),
+
+        sat: Math.max(0.22, ds),
+
+        muted: ds < 0.16,
+
+        dark: true,
+
+      }
+
+    }
+
     if (!hues.size || colorPixels < 6 || grayRatio > 0.68) {
 
       const [, fs] = rgbToHsl(fallbackRgb.r, fallbackRgb.g, fallbackRgb.b)
 
-      return { ...fallbackRgb, sat: Math.max(0.16, fs), muted: true }
+      return { ...fallbackRgb, sat: Math.max(0.16, fs), muted: true, dark: isDark }
 
     }
 
@@ -1238,7 +1296,17 @@ const Theme = (() => {
 
       fb = brightB / brightW
 
-      fsat = Math.max(fsat, 0.35)
+      fsat = Math.max(fsat, 0.38)
+
+    } else if (isDark && darkHiW > 0.004) {
+
+      fr = darkHiR / darkHiW
+
+      fg = darkHiG / darkHiW
+
+      fb = darkHiB / darkHiW
+
+      fsat = Math.max(fsat, darkHiSat / darkHiW, 0.24)
 
     }
 

@@ -422,7 +422,41 @@ const DirectApi = (() => {
       cover: t.artwork_url ? String(t.artwork_url).replace('-large', '-t300x300') : null,
       source: 'soundcloud',
       id: String(t.id || ''),
+      durationMs: Number(t.duration || t.full_duration || 0) || undefined,
     }
+  }
+
+  async function fetchSoundCloudChartKind(kind, limit = 20) {
+    const auth = scAuth()
+    if (!auth.clientId && !auth.oauth) throw new Error('Укажи SoundCloud Client ID')
+    const u = new URL(soundCloudRequestUrl('/charts'))
+    u.searchParams.set('genre', 'soundcloud:genres:all-music')
+    u.searchParams.set('kind', String(kind || 'trending'))
+    u.searchParams.set('limit', String(limit))
+    const charts = await fetchJson(u.toString(), { headers: soundCloudHeaders(auth), timeout: 18000 })
+    const coll = charts.data?.collection || charts.data
+    const rows = Array.isArray(coll) ? coll.map((item) => item?.track || item).filter(Boolean) : []
+    return rows.map((t) => mapSoundCloudTrack(t, auth)).filter((t) => t.scTranscoding || t.url)
+  }
+
+  async function fetchSoundCloudMixes(limit = 20) {
+    const auth = scAuth()
+    if (!auth.clientId && !auth.oauth) throw new Error('Укажи SoundCloud Client ID')
+    const spotU = new URL(soundCloudRequestUrl('/spotlight'))
+    spotU.searchParams.set('limit', String(limit))
+    const spot = await fetchJson(spotU.toString(), { headers: soundCloudHeaders(auth), timeout: 18000 })
+    let rows = []
+    const spotColl = spot.data?.collection || spot.data
+    if (Array.isArray(spotColl)) rows = spotColl.map((item) => item?.track || item).filter(Boolean)
+    if (!rows.length) {
+      const u = new URL(soundCloudRequestUrl('/search/tracks'))
+      u.searchParams.set('q', 'mix')
+      u.searchParams.set('limit', String(limit))
+      const r = await fetchJson(u.toString(), { headers: soundCloudHeaders(auth), timeout: 18000 })
+      const found = Array.isArray(r.data) ? r.data : r.data?.collection || []
+      rows = found
+    }
+    return rows.map((t) => mapSoundCloudTrack(t, auth)).filter((t) => t.scTranscoding || t.url)
   }
 
   function soundCloudRequestUrl(path, auth) {
@@ -662,33 +696,7 @@ const DirectApi = (() => {
   }
 
   async function fetchSoundCloudReleases() {
-    const auth = scAuth()
-    if (!auth.clientId && !auth.oauth) throw new Error('Укажи SoundCloud Client ID или OAuth-токен')
-    const chartKinds = ['new', 'trending']
-    let rows = []
-    for (const kind of chartKinds) {
-      const u = new URL(soundCloudRequestUrl('/charts'))
-      u.searchParams.set('genre', 'soundcloud:genres:all-music')
-      u.searchParams.set('kind', kind)
-      u.searchParams.set('limit', '20')
-      const charts = await fetchJson(u.toString(), { headers: soundCloudHeaders(auth), timeout: 18000 })
-      const coll = charts.data?.collection || charts.data
-      if (Array.isArray(coll)) {
-        rows = coll.map((item) => item?.track || item).filter(Boolean)
-        if (rows.length) break
-      }
-    }
-    if (!rows.length) {
-      const spotU = new URL(soundCloudRequestUrl('/spotlight'))
-      spotU.searchParams.set('limit', '20')
-      const spot = await fetchJson(spotU.toString(), {
-        headers: soundCloudHeaders(auth),
-        timeout: 18000,
-      })
-      const spotColl = spot.data?.collection || spot.data
-      if (Array.isArray(spotColl)) rows = spotColl
-    }
-    return rows.map((t) => mapSoundCloudTrack(t, auth)).filter((t) => t.scTranscoding || t.url)
+    return fetchSoundCloudChartKind('trending', 20)
   }
 
   async function searchSoundCloud(q) {
@@ -1211,6 +1219,8 @@ const DirectApi = (() => {
     parseYandexLink,
     importPlaylistLink,
     fetchSoundCloudReleases,
+    fetchSoundCloudChartKind,
+    fetchSoundCloudMixes,
     validateSoundCloud,
     discoverSoundCloudClientId,
     prepareSoundCloudOAuth,
