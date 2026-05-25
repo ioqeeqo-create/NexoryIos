@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 10
+  const PALETTE_VERSION = 11
 
   const THEMES = {
 
@@ -362,11 +362,25 @@ const Theme = (() => {
 
 
 
+  function rgbToHex(r, g, b) {
+    return `#${[r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('')}`
+  }
+
   function decorFromAccent(accent, accent2, bg, opts = {}) {
     const shellBase = bg || BASE_BG
     const dark = !!opts.dark
     const mono = !!opts.monochrome
     const coverLum = opts.coverLum ?? 0.28
+    const hiStr = opts.highlightStrength || 0
+    const lit = hiStr > 0.055 && (mono ? hiStr > 0.08 : true)
+    const hiX = opts.highlightX ?? 50
+    const hiY = Math.min(42, opts.highlightY ?? 20)
+    const topHex = rgbToHex(
+      opts.topHighlightR ?? opts.highlightR ?? 255,
+      opts.topHighlightG ?? opts.highlightG ?? 255,
+      opts.topHighlightB ?? opts.highlightB ?? 255,
+    )
+    const hiHex = rgbToHex(opts.highlightR ?? 255, opts.highlightG ?? 255, opts.highlightB ?? 255)
     const tintMix = mono ? 0.12 : (dark ? 0.22 + coverLum * 0.18 : 0.18)
     let tintedPlayer = mixHex(BASE_BG, accent, tintMix)
     if (opts.shadowRgb) {
@@ -374,24 +388,18 @@ const Theme = (() => {
       const shadowHex = `#${[sr, sg, sb].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
       tintedPlayer = mixHex(tintedPlayer, shadowHex, mono ? 0.55 : (dark ? 0.42 : 0.18))
     }
+    if (lit) {
+      tintedPlayer = mixHex(tintedPlayer, topHex, mono ? 0.14 + hiStr * 0.12 : 0.1 + hiStr * 0.22)
+    }
     const glowMul = mono ? 0.85 : (dark ? 1.35 : 1)
+    const litBoost = lit ? 0.55 + hiStr * 0.95 : 1
     const shadowGlow = opts.shadowRgb
       ? `#${opts.shadowRgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
       : accent2
-    return {
-      homeOrb1: hexToRgba(accent, 0.18),
-      homeOrb2: hexToRgba(accent2, 0.12),
-      homeOrb3: hexToRgba(accent, 0.1),
-      homeCardTint: `linear-gradient(160deg, ${hexToRgba(accent, 0.1)} 0%, rgba(255,255,255,0.04) 100%)`,
-      homeCardBorder: hexToRgba(accent, 0.18),
-      waveLine1: hexToRgba(accent, 0.42),
-      waveLine2: hexToRgba(accent2, 0.28),
-      waveLine3: hexToRgba(accent, 0.34),
-      playerBg: tintedPlayer,
-      playerGlow1: hexToRgba(accent, 0.42 * glowMul),
-      playerGlow2: hexToRgba(accent2, 0.32 * glowMul),
-      playerGlow3: hexToRgba(accent, 0.22 * glowMul),
-      playerOverlay: mono
+    let playerGlow1 = hexToRgba(accent, 0.42 * glowMul)
+    let playerGlow2 = hexToRgba(accent2, 0.32 * glowMul)
+    let playerGlow3 = hexToRgba(accent, 0.22 * glowMul)
+    let playerOverlay = mono
         ? [
           `radial-gradient(ellipse 92% 58% at 50% 6%, rgba(255,255,255,${coverLum < 0.14 ? '0.28' : '0.18'}) 0%, transparent 62%)`,
           `radial-gradient(ellipse 55% 42% at 88% 78%, rgba(255,255,255,0.12) 0%, transparent 52%)`,
@@ -408,7 +416,41 @@ const Theme = (() => {
             `radial-gradient(ellipse 90% 55% at 50% 8%, ${hexToRgba(accent, 0.28)} 0%, transparent 58%)`,
             `radial-gradient(ellipse 55% 42% at 92% 78%, ${hexToRgba(accent2, 0.2)} 0%, transparent 52%)`,
             `linear-gradient(180deg, ${hexToRgba(accent, 0.12)} 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.9) 100%)`,
-          ].join(', '),
+          ].join(', ')
+    if (lit) {
+      const topA = mono ? 0.38 : 0.68
+      const midA = mono ? 0.22 : 0.52
+      playerGlow1 = hexToRgba(topHex, topA * litBoost)
+      playerGlow2 = hexToRgba(hiHex, midA * litBoost)
+      playerGlow3 = hexToRgba(accent2, 0.34 * litBoost)
+      playerOverlay = [
+        `radial-gradient(ellipse 115% 78% at ${hiX}% ${hiY}%, ${hexToRgba(topHex, mono ? 0.42 : 0.78)} 0%, transparent 62%)`,
+        `radial-gradient(ellipse 82% 58% at ${hiX}% ${Math.min(58, hiY + 16)}%, ${hexToRgba(hiHex, mono ? 0.28 : 0.55)} 0%, transparent 58%)`,
+        `radial-gradient(ellipse 58% 44% at 88% 74%, ${hexToRgba(accent2, 0.32)} 0%, transparent 54%)`,
+        `linear-gradient(180deg, ${hexToRgba(topHex, mono ? 0.16 : 0.32)} 0%, ${hexToRgba(accent, 0.14)} 30%, rgba(0,0,0,0.86) 100%)`,
+      ].join(', ')
+    }
+    return {
+      homeOrb1: hexToRgba(accent, 0.18),
+      homeOrb2: hexToRgba(accent2, 0.12),
+      homeOrb3: hexToRgba(accent, 0.1),
+      homeCardTint: `linear-gradient(160deg, ${hexToRgba(accent, 0.1)} 0%, rgba(255,255,255,0.04) 100%)`,
+      homeCardBorder: hexToRgba(accent, 0.18),
+      waveLine1: hexToRgba(accent, 0.42),
+      waveLine2: hexToRgba(accent2, 0.28),
+      waveLine3: hexToRgba(accent, 0.34),
+      playerBg: tintedPlayer,
+      playerGlow1,
+      playerGlow2,
+      playerGlow3,
+      playerOverlay,
+      playerHighlightX: `${hiX}%`,
+      playerHighlightY: `${hiY}%`,
+      playerGlowSpot: lit
+        ? `radial-gradient(ellipse 100% 72% at ${hiX}% ${hiY}%, ${hexToRgba(topHex, mono ? 0.5 : 0.82)} 0%, transparent 60%)`
+        : '',
+      playerLit: lit,
+      highlightStrength: hiStr,
       shellBg: `linear-gradient(180deg, ${hexToRgba(accent, 0.1)} 0%, rgba(10,10,14,0.9) 100%)`,
       shellBorder: hexToRgba(accent, 0.14),
       shellPanel: 'rgba(255,255,255,0.06)',
@@ -464,6 +506,15 @@ const Theme = (() => {
       coverLum: lum,
       shadowRgb,
       monochrome: true,
+      highlightR: meta.highlightR,
+      highlightG: meta.highlightG,
+      highlightB: meta.highlightB,
+      highlightX: meta.highlightX,
+      highlightY: meta.highlightY,
+      highlightStrength: meta.highlightStrength,
+      topHighlightR: meta.topHighlightR,
+      topHighlightG: meta.topHighlightG,
+      topHighlightB: meta.topHighlightB,
     })
     return {
       bg,
@@ -590,6 +641,15 @@ const Theme = (() => {
       dark: dark || grayish,
       coverLum,
       shadowRgb,
+      highlightR: meta.highlightR,
+      highlightG: meta.highlightG,
+      highlightB: meta.highlightB,
+      highlightX: meta.highlightX,
+      highlightY: meta.highlightY,
+      highlightStrength: meta.highlightStrength,
+      topHighlightR: meta.topHighlightR,
+      topHighlightG: meta.topHighlightG,
+      topHighlightB: meta.topHighlightB,
     })
 
     return {
@@ -707,6 +767,9 @@ const Theme = (() => {
     setVar('--player-glow-1', t.playerGlow1 || hexToRgba(t.accent, 0.35))
     setVar('--player-glow-2', t.playerGlow2 || hexToRgba(t.accent2, 0.25))
     setVar('--player-glow-3', t.playerGlow3 || hexToRgba(t.accent, 0.18))
+    setVar('--player-hi-x', t.playerHighlightX || '50%')
+    setVar('--player-hi-y', t.playerHighlightY || '18%')
+    setVar('--player-glow-spot', t.playerGlowSpot || 'none')
   }
 
 
@@ -767,6 +830,7 @@ const Theme = (() => {
 
     document.documentElement.classList.toggle('cover-theme-dark', !!t.dark && !t.monochrome)
     document.documentElement.classList.toggle('cover-theme-mono', !!t.monochrome)
+    document.documentElement.classList.toggle('cover-theme-lit', !!t.playerLit)
 
 
 
@@ -996,6 +1060,7 @@ const Theme = (() => {
 
       document.documentElement.classList.remove('cover-theme-dark')
       document.documentElement.classList.remove('cover-theme-mono')
+      document.documentElement.classList.remove('cover-theme-lit')
 
       if (s.accentCoverHex || s.accentCoverPalette) {
 
@@ -1021,14 +1086,21 @@ const Theme = (() => {
 
     if (!bg) return
 
+    const lit = document.documentElement.classList.contains('cover-theme-lit')
     const dark = document.documentElement.classList.contains('cover-theme-dark')
+    const mono = document.documentElement.classList.contains('cover-theme-mono')
 
-    bg.style.filter = dark
-
-      ? 'blur(72px) saturate(1.2) brightness(0.72) contrast(1.05)'
-
-      : 'blur(64px) saturate(1.5) brightness(0.88)'
-
+    if (lit) {
+      bg.style.filter = mono
+        ? 'blur(68px) saturate(0.35) brightness(1.02) contrast(1.03)'
+        : 'blur(68px) saturate(1.75) brightness(1.1) contrast(1.04)'
+    } else if (mono) {
+      bg.style.filter = 'blur(72px) saturate(0) brightness(0.92) contrast(1.02)'
+    } else if (dark) {
+      bg.style.filter = 'blur(72px) saturate(1.2) brightness(0.72) contrast(1.05)'
+    } else {
+      bg.style.filter = 'blur(64px) saturate(1.5) brightness(0.88)'
+    }
   }
 
 
@@ -1110,6 +1182,18 @@ const Theme = (() => {
     let chromaG = 0
     let chromaB = 0
     let chromaW = 0
+    let hiR = 0
+    let hiG = 0
+    let hiB = 0
+    let hiW = 0
+    let hiX = 0
+    let hiY = 0
+    let topR = 0
+    let topG = 0
+    let topB = 0
+    let topW = 0
+    let topX = 0
+    let topY = 0
     let sumSat = 0
     let sumChroma = 0
     const cx = (width - 1) / 2
@@ -1166,6 +1250,24 @@ const Theme = (() => {
           chromaB += b * weight
           chromaW += weight
         }
+
+        if (lum > 0.44) {
+          const hw = Math.pow(lum - 0.4, 1.2) * (0.45 + sat * 1.8) * (1 + chroma / 65)
+          hiR += r * hw
+          hiG += g * hw
+          hiB += b * hw
+          hiX += x * hw
+          hiY += y * hw
+          hiW += hw
+          if (y / height < 0.44) {
+            topR += r * hw
+            topG += g * hw
+            topB += b * hw
+            topX += x * hw
+            topY += y * hw
+            topW += hw
+          }
+        }
       }
     }
 
@@ -1181,6 +1283,41 @@ const Theme = (() => {
     const shadowR = darkW > 0 ? darkR / darkW : ar
     const shadowG = darkW > 0 ? darkG / darkW : ag
     const shadowB = darkW > 0 ? darkB / darkW : ab
+
+    const highlightStrength = hiW > 0 ? Math.min(1, hiW / Math.max(10, allN * 0.05)) : 0
+    let highlightR = 255
+    let highlightG = 255
+    let highlightB = 255
+    let highlightX = 50
+    let highlightY = 20
+    let topHighlightR = 255
+    let topHighlightG = 255
+    let topHighlightB = 255
+    if (hiW > 0.001) {
+      highlightR = Math.round(hiR / hiW)
+      highlightG = Math.round(hiG / hiW)
+      highlightB = Math.round(hiB / hiW)
+      highlightX = Math.round((hiX / hiW / width) * 100)
+      highlightY = Math.round((hiY / hiW / height) * 100)
+    }
+    if (topW > 0.001) {
+      topHighlightR = Math.round(topR / topW)
+      topHighlightG = Math.round(topG / topW)
+      topHighlightB = Math.round(topB / topW)
+      highlightX = Math.round((topX / topW / width) * 100)
+      highlightY = Math.round((topY / topW / height) * 100)
+    }
+    const hiFields = {
+      highlightR,
+      highlightG,
+      highlightB,
+      highlightX,
+      highlightY,
+      highlightStrength,
+      topHighlightR,
+      topHighlightG,
+      topHighlightB,
+    }
 
     const ranked = [...buckets.values()]
       .map((b) => ({
@@ -1220,6 +1357,7 @@ const Theme = (() => {
         shadowR: Math.round(shadowR),
         shadowG: Math.round(shadowG),
         shadowB: Math.round(shadowB),
+        ...hiFields,
       }
     }
 
@@ -1239,6 +1377,7 @@ const Theme = (() => {
         shadowR: Math.round(shadowR),
         shadowG: Math.round(shadowG),
         shadowB: Math.round(shadowB),
+        ...hiFields,
       }
     }
 
@@ -1273,6 +1412,7 @@ const Theme = (() => {
       shadowR: Math.round(shadowR),
       shadowG: Math.round(shadowG),
       shadowB: Math.round(shadowB),
+      ...hiFields,
     }
   }
 
