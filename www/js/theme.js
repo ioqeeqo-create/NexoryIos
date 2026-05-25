@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 2
+  const PALETTE_VERSION = 3
 
   const THEMES = {
 
@@ -399,25 +399,25 @@ const Theme = (() => {
 
 
 
-  function buildCoverThemeFromRgb(r, g, b, fallbackTheme) {
+  function buildCoverThemeFromRgb(r, g, b, fallbackTheme, meta = {}) {
 
-    if (isDullCover(r, g, b)) {
-
-      const fb = fallbackTheme || THEMES.dark
-
-      return buildCoverThemeFromHex(fb.accent, fb)
-
-    }
-
-
+    const muted = meta.muted || isDullCover(r, g, b)
 
     const [h, s] = rgbToHsl(r, g, b)
 
-    const accentS = Math.max(0.38, Math.min(0.62, s < 0.18 ? 0.5 : s * 0.88))
+    const srcSat = meta.sat != null ? meta.sat : s
 
-    const accent = hslToHex(h, accentS, 0.54)
+    const accentS = muted
 
-    const accent2 = hslToHex((h + 18) % 360, accentS * 0.88, 0.58)
+      ? Math.max(0.22, Math.min(0.4, srcSat * 1.15 + 0.14))
+
+      : Math.max(0.32, Math.min(0.58, srcSat * 0.92 + 0.06))
+
+    const accentL = muted ? 0.5 : 0.54
+
+    const accent = hslToHex(h, accentS, accentL)
+
+    const accent2 = hslToHex((h + 16) % 360, accentS * 0.9, accentL + 0.04)
 
     const ambientS = Math.min(0.28, Math.max(0.14, accentS * 0.35))
 
@@ -909,137 +909,105 @@ const Theme = (() => {
 
     const hues = new Map()
 
-    let sumR = 0
+    let grayPixels = 0
 
-    let sumG = 0
+    let colorPixels = 0
 
-    let sumB = 0
+    let avgR = 0
 
-    let sumW = 0
+    let avgG = 0
 
+    let avgB = 0
 
+    let avgN = 0
 
-    const cornerIdx = [
+    const cx = (width - 1) / 2
 
-      0,
+    const cy = (height - 1) / 2
 
-      (width - 1) * 4,
+    const maxDist = Math.hypot(cx, cy) || 1
 
-      (height - 1) * width * 4,
 
-      ((height - 1) * width + (width - 1)) * 4,
 
-    ]
+    for (let y = 0; y < height; y++) {
 
+      for (let x = 0; x < width; x++) {
 
+        const i = (y * width + x) * 4
 
-    for (const i of cornerIdx) {
+        const r = data[i]
 
-      const r = data[i]
+        const g = data[i + 1]
 
-      const g = data[i + 1]
+        const b = data[i + 2]
 
-      const b = data[i + 2]
+        const a = data[i + 3]
 
-      const a = data[i + 3]
+        if (a < 96) continue
 
-      if (a < 128) continue
 
-      const max = Math.max(r, g, b)
 
-      const min = Math.min(r, g, b)
+        const max = Math.max(r, g, b)
 
-      const sat = max === 0 ? 0 : (max - min) / max
+        const min = Math.min(r, g, b)
 
-      if (sat < 0.08) continue
+        const sat = max === 0 ? 0 : (max - min) / max
 
-      sumR += r * sat
+        const lum = max / 255
 
-      sumG += g * sat
 
-      sumB += b * sat
 
-      sumW += sat
+        avgR += r
 
-    }
+        avgG += g
 
+        avgB += b
 
+        avgN++
 
-    for (let i = 0; i < data.length; i += 4) {
 
-      const r = data[i]
 
-      const g = data[i + 1]
+        if (sat < 0.14) {
 
-      const b = data[i + 2]
+          grayPixels++
 
-      const a = data[i + 3]
+          continue
 
-      if (a < 100) continue
+        }
 
+        colorPixels++
 
 
-      const max = Math.max(r, g, b)
 
-      const min = Math.min(r, g, b)
+        const dist = Math.hypot(x - cx, y - cy) / maxDist
 
-      const sat = max === 0 ? 0 : (max - min) / max
+        const centerBoost = 1.4 - dist * 0.55
 
-      const lum = max / 255
+        if (lum < 0.11 || lum > 0.93) continue
 
-      if (lum < 0.1 || lum > 0.96) continue
+        if (sat < 0.2) continue
 
 
 
-      if (sat > 0.1) {
+        const [hue, sl] = rgbToHsl(r, g, b)
 
-        sumR += r * sat
+        const bucket = Math.floor(hue / 12) * 12
 
-        sumG += g * sat
+        const weight = sat * centerBoost * (1 - Math.abs(sl - 0.46) * 0.55)
 
-        sumB += b * sat
+        const prev = hues.get(bucket) || { r: 0, g: 0, b: 0, w: 0, s: 0 }
 
-        sumW += sat
+        prev.r += r * weight
 
-      }
+        prev.g += g * weight
 
-      if (sat < 0.16) continue
+        prev.b += b * weight
 
+        prev.s += sat * weight
 
+        prev.w += weight
 
-      const [hue] = rgbToHsl(r, g, b)
-
-      const bucket = Math.floor(hue / 14) * 14
-
-      const weight = sat * (1 - Math.abs(lum - 0.52) * 0.75)
-
-      const prev = hues.get(bucket) || { r: 0, g: 0, b: 0, w: 0 }
-
-      prev.r += r * weight
-
-      prev.g += g * weight
-
-      prev.b += b * weight
-
-      prev.w += weight
-
-      hues.set(bucket, prev)
-
-    }
-
-
-
-    let best = null
-
-    let bestW = 0
-
-    for (const v of hues.values()) {
-
-      if (v.w > bestW) {
-
-        bestW = v.w
-
-        best = [v.r / v.w, v.g / v.w, v.b / v.w]
+        hues.set(bucket, prev)
 
       }
 
@@ -1047,15 +1015,103 @@ const Theme = (() => {
 
 
 
-    if (!best && sumW > 0) {
+    if (!avgN) return null
 
-      best = [sumR / sumW, sumG / sumW, sumB / sumW]
+
+
+    const grayRatio = grayPixels / Math.max(1, grayPixels + colorPixels)
+
+    const fallbackRgb = {
+
+      r: Math.round(avgR / avgN),
+
+      g: Math.round(avgG / avgN),
+
+      b: Math.round(avgB / avgN),
 
     }
 
-    if (!best) return null
 
-    return best.map((v) => Math.round(v))
+
+    if (!hues.size || colorPixels < 6 || grayRatio > 0.68) {
+
+      const [, fs] = rgbToHsl(fallbackRgb.r, fallbackRgb.g, fallbackRgb.b)
+
+      return { ...fallbackRgb, sat: Math.max(0.16, fs), muted: true }
+
+    }
+
+
+
+    const entries = [...hues.entries()].sort((a, b) => b[1].w - a[1].w)
+
+    const top = entries[0]
+
+    let cluster = { ...top[1] }
+
+    let clusterW = top[1].w
+
+    const totalW = entries.reduce((n, [, v]) => n + v.w, 0)
+
+
+
+    if (entries.length > 1 && top[1].w < totalW * 0.38) {
+
+      const h0 = top[0]
+
+      for (let k = 1; k < Math.min(3, entries.length); k++) {
+
+        const hk = entries[k][0]
+
+        const diff = Math.min(Math.abs(hk - h0), 360 - Math.abs(hk - h0))
+
+        if (diff <= 24) {
+
+          const v = entries[k][1]
+
+          cluster.r += v.r
+
+          cluster.g += v.g
+
+          cluster.b += v.b
+
+          cluster.s += v.s
+
+          cluster.w += v.w
+
+          clusterW += v.w
+
+        }
+
+      }
+
+    }
+
+
+
+    if (cluster.w < 0.001) {
+
+      const [, fs] = rgbToHsl(fallbackRgb.r, fallbackRgb.g, fallbackRgb.b)
+
+      return { ...fallbackRgb, sat: Math.max(0.16, fs), muted: true }
+
+    }
+
+
+
+    return {
+
+      r: Math.round(cluster.r / cluster.w),
+
+      g: Math.round(cluster.g / cluster.w),
+
+      b: Math.round(cluster.b / cluster.w),
+
+      sat: cluster.s / cluster.w,
+
+      muted: grayRatio > 0.48 || clusterW < totalW * 0.42,
+
+    }
 
   }
 
@@ -1077,13 +1133,13 @@ const Theme = (() => {
 
     const { data, width, height } = ctx.getImageData(0, 0, size, size)
 
-    const rgb = extractAccentRgb(data, width, height)
+    const sample = extractAccentRgb(data, width, height)
 
-    if (!rgb) return null
+    if (!sample) return null
 
     const base = THEMES[Store.get().theme] || THEMES.dark
 
-    return buildCoverThemeFromRgb(rgb[0], rgb[1], rgb[2], base)
+    return buildCoverThemeFromRgb(sample.r, sample.g, sample.b, base, sample)
 
   }
 
