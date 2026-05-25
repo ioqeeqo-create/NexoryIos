@@ -215,6 +215,20 @@ const Store = (() => {
     return patch({ playlists })
   }
 
+  function mergeLikes(tracks) {
+    const s = get()
+    const norm = normalizeTracks(tracks)
+    if (!norm.length) return s
+    const likes = [...s.likes]
+    for (const t of norm) {
+      const k = trackKey(t)
+      if (!likes.some((x) => trackKey(x) === k)) {
+        likes.unshift({ ...t, likedAt: Date.now() })
+      }
+    }
+    return patch({ likes })
+  }
+
   function setPlaylistTracks(playlistId, tracks) {
     const s = get()
     const playlists = s.playlists.map((p) => {
@@ -226,7 +240,7 @@ const Store = (() => {
 
   return {
     get, patch, trackKey, normalizeTrack, normalizeTracks, isLiked, toggleLike, pushRecent, setRotor,
-    addPlaylist, importPlaylists, getPlaylist, updatePlaylist, deletePlaylist, addTrackToPlaylist,
+    addPlaylist, importPlaylists, mergeLikes, getPlaylist, updatePlaylist, deletePlaylist, addTrackToPlaylist,
     removeTrackFromPlaylist, setPlaylistTracks,
   }
 })()

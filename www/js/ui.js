@@ -1,6 +1,21 @@
 const UI = (() => {
   let toastTimer = null
   let searchSource = 'yandex'
+
+  const IMPORT_SOURCES = {
+    yandex: { label: 'Яндекс Музыка', logo: 'assets/source-yandex-wave.svg' },
+    vk: { label: 'VK Музыка', logo: 'assets/source-vk.svg' },
+    soundcloud: { label: 'SoundCloud', logo: 'assets/flow-mark.svg' },
+    json: { label: 'Файл Nexory', logo: 'assets/flow-mark.svg' },
+  }
+
+  let importState = {
+    step: 'hub',
+    source: 'yandex',
+    preview: null,
+    destination: 'new',
+    failed: [],
+  }
   let busy = false
   let openPlaylistId = null
   let pendingCoverData = ''
@@ -1157,95 +1172,306 @@ const UI = (() => {
     })
   }
 
-  function openImportSheet(open) {
-    const sheet = $('#import-sheet')
-    if (!sheet) return
-    sheet.hidden = !open
-    if (open) $('#import-input')?.focus()
+  function detectImportSource(raw) {
+    const t = String(raw || '').trim()
+    if (!t) return null
+    if (/^[\[{]/.test(t)) return 'json'
+    const u = t.toLowerCase()
+    if (u.includes('music.yandex') || u.includes('yandex.ru/playlists') || u.includes('yandex.ru/album')) return 'yandex'
+    if (u.includes('vk.com') || u.includes('vk.ru') || u.includes('m.vk.com')) return 'vk'
+    if (u.includes('soundcloud.com')) return 'soundcloud'
+    return null
   }
 
-  async function runImport() {
-    const raw = String($('#import-input')?.value || '').trim()
-    if (!raw) return toast('Вставь ссылку или JSON')
+  function importSourceMeta(id) {
+    return IMPORT_SOURCES[id] || IMPORT_SOURCES.yandex
+  }
+
+  function setImportHubLogo(sourceId) {
+    const meta = importSourceMeta(sourceId || 'yandex')
+    const img = $('#import-logo-from')
+    if (img) img.src = meta.logo
+    importState.source = sourceId || 'yandex'
+  }
+
+  function setImportStep(step) {
+    importState.step = step
+    const flow = $('#import-flow')
+    if (!flow) return
+    flow.querySelectorAll('.import-step').forEach((el) => {
+      const on = el.dataset.importStep === step
+      el.hidden = !on
+      el.classList.toggle('import-step--active', on)
+      el.classList.toggle('import-step--enter', on)
+    })
+    if (step === 'link') {
+      requestAnimationFrame(() => $('#import-link-input')?.focus())
+    }
+  }
+
+  function updateImportLinkUI() {
+    const raw = String($('#import-link-input')?.value || '').trim()
+    const src = detectImportSource(raw)
+    const step = $('#import-step-link')
+    const heroIdle = step?.querySelector('.import-link-hero__icon--idle')
+    const heroLogo = $('#import-link-hero-logo')
+    const heroImg = $('#import-link-hero-img')
+    const badge = $('#import-link-badge')
+    const badgeImg = $('#import-link-badge-img')
+    const loadBtn = $('#import-btn-load')
+    const meta = src ? importSourceMeta(src) : null
+
+    if (src && meta) {
+      importState.source = src
+      step?.classList.add('import-step-link--detected')
+      if (heroIdle) heroIdle.hidden = true
+      if (heroLogo) heroLogo.hidden = false
+      if (heroImg) heroImg.src = meta.logo
+      if (badge) badge.hidden = false
+      if (badgeImg) badgeImg.src = meta.logo
+      setImportHubLogo(src)
+      const fromBox = document.querySelector('.import-transfer__logo--from')
+      if (fromBox) {
+        fromBox.classList.remove('import-transfer__logo--pulse')
+        void fromBox.offsetWidth
+        fromBox.classList.add('import-transfer__logo--pulse')
+      }
+    } else {
+      step?.classList.remove('import-step-link--detected')
+      if (heroIdle) heroIdle.hidden = false
+      if (heroLogo) heroLogo.hidden = true
+      if (badge) badge.hidden = true
+    }
+    if (loadBtn) loadBtn.disabled = !raw || (!src && !/^https?:\/\//i.test(raw))
+  }
+
+  function renderImportDestinations() {
+    const list = $('#import-dest-list')
+    if (!list) return
+    const s = Store.get()
+    const sel = importState.destination
+    const plOpts = s.playlists.map((p) => `
+      <button type="button" class="import-dest-opt" data-dest="pl:${esc(p.id)}" role="radio" aria-checked="${sel === `pl:${p.id}`}">
+        <span class="import-dest-opt__icon" data-icon="list-music" data-icon-class="ui-icon"></span>
+        <span class="import-dest-opt__text">
+          <span class="import-dest-opt__title pixel-text">${esc(p.name)}</span>
+          <span class="import-dest-opt__hint">${p.tracks.length} треков</span>
+        </span>
+        <span class="import-dest-opt__mark">${sel === `pl:${p.id}` ? '<span data-icon="check" data-icon-class="ui-icon"></span>' : '<span data-icon="circle" data-icon-class="ui-icon"></span>'}</span>
+      </button>
+    `).join('')
+
+    list.innerHTML = `
+      <button type="button" class="import-dest-opt${sel === 'new' ? ' import-dest-opt--active' : ''}" data-dest="new" role="radio" aria-checked="${sel === 'new'}">
+        <span class="import-dest-opt__icon" data-icon="plus" data-icon-class="ui-icon"></span>
+        <span class="import-dest-opt__text">
+          <span class="import-dest-opt__title pixel-text">Создать новый плейлист</span>
+        </span>
+        <span class="import-dest-opt__mark">${sel === 'new' ? '<span data-icon="check" data-icon-class="ui-icon"></span>' : '<span data-icon="circle" data-icon-class="ui-icon"></span>'}</span>
+      </button>
+      <button type="button" class="import-dest-opt${sel === 'likes' ? ' import-dest-opt--active' : ''}" data-dest="likes" role="radio" aria-checked="${sel === 'likes'}">
+        <span class="import-dest-opt__icon import-dest-opt__icon--heart" data-icon="heart" data-icon-class="ui-icon"></span>
+        <span class="import-dest-opt__text">
+          <span class="import-dest-opt__title pixel-text">Любимые</span>
+        </span>
+        <span class="import-dest-opt__mark">${sel === 'likes' ? '<span data-icon="check" data-icon-class="ui-icon"></span>' : '<span data-icon="circle" data-icon-class="ui-icon"></span>'}</span>
+      </button>
+      ${s.playlists.length ? '<p class="import-dest-section pixel-text">Добавить в существующий</p>' : ''}
+      ${plOpts}
+    `
+    Icons.mount(list)
+  }
+
+  function showImportDestStep(preview) {
+    importState.preview = preview
+    importState.destination = 'new'
+    const cover = $('#import-dest-cover-img')
+    const ph = $('#import-dest-cover')?.querySelector('.import-dest-cover__ph')
+    const title = $('#import-dest-title')
+    const count = $('#import-dest-count')
+    if (title) title.textContent = preview.name || 'Плейлист'
+    if (count) count.textContent = formatTrackCount(preview.tracks?.length || 0)
+    if (preview.coverData && cover) {
+      cover.src = preview.coverData
+      cover.hidden = false
+      if (ph) ph.hidden = true
+    } else {
+      if (cover) { cover.hidden = true; cover.removeAttribute('src') }
+      if (ph) ph.hidden = false
+      Icons.mount($('#import-dest-cover'))
+    }
+    renderImportDestinations()
+    setImportStep('dest')
+  }
+
+  async function fetchImportPreview(raw) {
+    const isJson = /^[\[{]/.test(raw)
+    if (isJson) {
+      const local = parseFlowJsonLocal(raw)
+      if (!local?.playlists?.length) throw new Error('Не распознан JSON плейлистов')
+      const pl = local.playlists[0]
+      let allFailed = []
+      showImportProgress(0, pl.tracks.length, `Проверка «${pl.name}»…`)
+      const { ok, failed } = await validatePlaylistTracks(pl.tracks, (d, t) => {
+        showImportProgress(d, t, `Проверка ${d}/${t}`)
+      })
+      allFailed = failed
+      importState.failed = allFailed
+      renderImportFailures(allFailed)
+      return {
+        name: pl.name,
+        tracks: ok,
+        coverData: pl.coverData || '',
+        multi: local.playlists.length > 1 ? local.playlists : null,
+      }
+    }
+    const out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
+    if (!out.ok) throw new Error(out.error || 'Импорт не удался')
+    if (Array.isArray(out.playlists)) {
+      const pl = out.playlists[0]
+      showImportProgress(0, pl.tracks?.length || 0, `Проверка «${pl.name}»…`)
+      const { ok, failed } = await validatePlaylistTracks(pl.tracks || [], (d, t) => {
+        showImportProgress(d, t, `Проверка ${d}/${t}`)
+      })
+      importState.failed = failed
+      renderImportFailures(failed)
+      return {
+        name: pl.name,
+        tracks: ok,
+        coverData: pl.coverData || pl.cover || '',
+        multi: out.playlists.length > 1 ? out.playlists : null,
+      }
+    }
+    const tracks = out.tracks || []
+    showImportProgress(0, tracks.length, 'Проверка треков…')
+    const { ok, failed } = await validatePlaylistTracks(tracks, (d, t) => {
+      showImportProgress(d, t, `Проверка ${d}/${t}`)
+    })
+    importState.failed = failed
+    renderImportFailures(failed)
+    return {
+      name: out.name || 'Импорт',
+      tracks: ok,
+      coverData: out.coverData || out.cover || '',
+      multi: null,
+    }
+  }
+
+  async function confirmImportDestination() {
+    const preview = importState.preview
+    if (!preview?.tracks?.length) return toast('Нет треков для импорта')
+    const dest = importState.destination
+    const failed = importState.failed || []
+    if (preview.multi && dest === 'new') {
+      let allFailed = []
+      for (const pl of preview.multi) {
+        showImportProgress(0, pl.tracks.length, `Проверка «${pl.name}»…`)
+        const { ok, failed: f } = await validatePlaylistTracks(pl.tracks, (d, t) => {
+          showImportProgress(d, t, `Проверка ${d}/${t}`)
+        })
+        pl.tracks = ok
+        allFailed = allFailed.concat(f)
+      }
+      Store.importPlaylists(preview.multi.map((pl) => ({
+        name: pl.name,
+        tracks: pl.tracks,
+        coverData: pl.coverData || '',
+      })))
+      toast(allFailed.length ? `Импорт: ${preview.multi.length} пл., ${allFailed.length} без потока` : `Импортировано: ${preview.multi.length} плейлистов`)
+    } else if (dest === 'likes') {
+      Store.mergeLikes(preview.tracks)
+      toast(failed.length ? `В любимые: ${preview.tracks.length}, ${failed.length} без потока` : `Добавлено в любимые: ${preview.tracks.length}`)
+    } else if (dest.startsWith('pl:')) {
+      const id = dest.slice(3)
+      const pl = Store.getPlaylist(id)
+      if (!pl) return toast('Плейлист не найден')
+      const merged = [...pl.tracks]
+      for (const t of preview.tracks) {
+        const k = Store.trackKey(t)
+        if (!merged.some((x) => Store.trackKey(x) === k)) merged.push(t)
+      }
+      Store.setPlaylistTracks(id, merged)
+      toast(`Добавлено в «${pl.name}»: ${preview.tracks.length}`)
+    } else {
+      Store.addPlaylist(preview.name, preview.tracks, preview.coverData || '')
+      toast(failed.length ? `«${preview.name}»: ${preview.tracks.length}, ${failed.length} без потока` : `Создан «${preview.name}»`)
+    }
+    closeImportFlow()
+    renderLibrary()
+    renderHome()
+  }
+
+  function openImportFlow() {
+    const flow = $('#import-flow')
+    if (!flow) return
+    importState = { step: 'hub', source: 'yandex', preview: null, destination: 'new', failed: [] }
+    hideImportProgress()
+    const input = $('#import-link-input')
+    if (input) input.value = ''
+    setImportHubLogo('yandex')
+    updateImportLinkUI()
+    flow.hidden = false
+    document.body.classList.add('import-flow-open')
+    setImportStep('hub')
+    Icons.mount(flow)
+  }
+
+  function closeImportFlow() {
+    const flow = $('#import-flow')
+    if (flow) flow.hidden = true
+    document.body.classList.remove('import-flow-open')
+    hideImportProgress()
+    importState.preview = null
+  }
+
+  function openImportSheet(open) {
+    if (open) openImportFlow()
+    else closeImportFlow()
+  }
+
+  async function runImportLoad() {
+    const raw = String($('#import-link-input')?.value || '').trim()
+    if (!raw) return toast('Вставь ссылку')
     if (!Api.isConfigured()) {
-      toast('Сначала настрой сервер и токены')
+      toast('Сначала настрой сервер')
       showSetupGate()
       return
     }
-    const isJson = /^[\[{]/.test(raw)
     hideImportProgress()
-    toast('Импортируем…')
-    const btn = $('#btn-import-run')
+    const btn = $('#import-btn-load')
     if (btn) btn.disabled = true
     try {
-      if (isJson) {
-        const local = parseFlowJsonLocal(raw)
-        if (local?.playlists?.length) {
-          let allFailed = []
-          for (const pl of local.playlists) {
-            showImportProgress(0, pl.tracks.length, `Проверка «${pl.name}»…`)
-            const { ok, failed } = await validatePlaylistTracks(pl.tracks, (d, t) => {
-              showImportProgress(d, t, `Проверка ${d}/${t}`)
-            })
-            pl.tracks = ok
-            allFailed = allFailed.concat(failed)
-          }
-          Store.importPlaylists(local.playlists)
-          renderImportFailures(allFailed)
-          toast(
-            allFailed.length
-              ? `Импорт: ${local.playlists.length} пл., ${allFailed.length} без потока`
-              : `Импортировано плейлистов: ${local.playlists.length}`,
-          )
-          if (!allFailed.length) openImportSheet(false)
-          $('#import-input').value = ''
-          renderLibrary()
-          return
-        }
-      }
-      const out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
-      if (!out.ok) throw new Error(out.error || 'Импорт не удался')
-      if (Array.isArray(out.playlists)) {
-        let allFailed = []
-        const validated = []
-        for (const pl of out.playlists) {
-          showImportProgress(0, pl.tracks?.length || 0, `Проверка «${pl.name}»…`)
-          const { ok, failed } = await validatePlaylistTracks(pl.tracks || [], (d, t) => {
-            showImportProgress(d, t, `Проверка ${d}/${t}`)
-          })
-          validated.push({ ...pl, tracks: ok })
-          allFailed = allFailed.concat(failed)
-        }
-        Store.importPlaylists(validated)
-        renderImportFailures(allFailed)
-        toast(
-          allFailed.length
-            ? `Импорт: ${validated.length} пл., ${allFailed.length} без потока`
-            : `Импортировано плейлистов: ${validated.length}`,
-        )
-        if (!allFailed.length) openImportSheet(false)
-      } else {
-        const tracks = out.tracks || []
-        showImportProgress(0, tracks.length, 'Проверка треков…')
-        const { ok, failed } = await validatePlaylistTracks(tracks, (d, t) => {
-          showImportProgress(d, t, `Проверка ${d}/${t}`)
-        })
-        Store.addPlaylist(out.name || 'Импорт', ok, out.coverData || '')
-        renderImportFailures(failed)
-        toast(
-          failed.length
-            ? `«${out.name || 'Плейлист'}»: ${ok.length} ок, ${failed.length} без потока`
-            : `«${out.name || 'Плейлист'}»: ${ok.length} треков`,
-        )
-        if (!failed.length) openImportSheet(false)
-      }
-      $('#import-input').value = ''
-      renderLibrary()
+      const preview = await fetchImportPreview(raw)
+      showImportDestStep(preview)
     } catch (e) {
-      toast(e.message || 'Ошибка импорта')
+      toast(e.message || 'Не удалось загрузить')
     } finally {
       if (btn) btn.disabled = false
     }
+  }
+
+  function handleImportFile(file) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const raw = String(reader.result || '')
+      $('#import-link-input').value = raw.slice(0, 120)
+      importState.source = 'json'
+      updateImportLinkUI()
+      setImportStep('link')
+      if (!Api.isConfigured()) {
+        toast('Сначала настрой сервер')
+        return
+      }
+      hideImportProgress()
+      try {
+        const preview = await fetchImportPreview(raw)
+        showImportDestStep(preview)
+      } catch (e) {
+        toast(e.message || 'Не удалось прочитать файл')
+      }
+    }
+    reader.readAsText(file)
   }
 
   function renderSettingsForm() {
@@ -1548,10 +1774,29 @@ const UI = (() => {
       if (pl) openPlaylistView(pl)
     })
 
-    $('#btn-import-open')?.addEventListener('click', () => openImportSheet(true))
-    $('#import-sheet-close')?.addEventListener('click', () => openImportSheet(false))
-    $('#import-sheet-cancel')?.addEventListener('click', () => openImportSheet(false))
-    $('#btn-import-run')?.addEventListener('click', () => runImport())
+    $('#btn-import-open')?.addEventListener('click', () => openImportFlow())
+    $('#import-flow-close')?.addEventListener('click', () => closeImportFlow())
+    $('#import-link-back')?.addEventListener('click', () => setImportStep('hub'))
+    $('#import-dest-back')?.addEventListener('click', () => setImportStep('link'))
+    $('#import-btn-link-step')?.addEventListener('click', () => setImportStep('link'))
+    $('#import-btn-profile')?.addEventListener('click', () => toast('Импорт профиля — скоро'))
+    $('#import-link-input')?.addEventListener('input', updateImportLinkUI)
+    $('#import-link-input')?.addEventListener('paste', () => {
+      requestAnimationFrame(updateImportLinkUI)
+    })
+    $('#import-btn-load')?.addEventListener('click', () => runImportLoad())
+    $('#import-btn-file')?.addEventListener('click', () => $('#import-file-input')?.click())
+    $('#import-file-input')?.addEventListener('change', (e) => {
+      handleImportFile(e.target.files?.[0])
+      e.target.value = ''
+    })
+    $('#import-btn-confirm')?.addEventListener('click', () => confirmImportDestination())
+    $('#import-dest-list')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-dest]')
+      if (!btn) return
+      importState.destination = btn.dataset.dest
+      renderImportDestinations()
+    })
 
     $('#playlist-view-back')?.addEventListener('click', () => closePlaylistView())
 

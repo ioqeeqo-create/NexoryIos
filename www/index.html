@@ -138,8 +138,8 @@
         <button type="button" class="import-row ui-shell" id="btn-import-open">
           <span class="import-row__icon" data-icon="download"></span>
           <div class="import-row__text">
-            <div class="import-row__title">Импортировать по ссылке</div>
-            <div class="import-row__sub">VK / Яндекс или JSON из Nexory на ПК</div>
+            <div class="import-row__title">Импортировать из сервиса</div>
+            <div class="import-row__sub">Яндекс · VK · SoundCloud · файл</div>
           </div>
         </button>
         <div class="lib-toolbar ui-shell lib-toolbar--shell">
@@ -366,21 +366,98 @@
     </div>
   </div>
 
-  <div class="sheet" id="import-sheet" hidden>
-    <div class="sheet__backdrop" id="import-sheet-close"></div>
-    <div class="sheet__panel safe-bottom">
-      <h2 class="sheet__title">Импорт плейлиста</h2>
-      <p class="sheet__hint">Ссылка VK / Яндекс Музыки или JSON, экспортированный из Nexory на ПК (flow-playlists-v1).</p>
-      <textarea id="import-input" class="import-textarea" rows="4" placeholder="https://music.yandex.ru/... или вставь JSON"></textarea>
-      <div class="import-progress" id="import-progress" hidden>
-        <p class="import-progress__text" id="import-progress-text">Проверка…</p>
-        <div class="import-progress__bar"><span id="import-progress-fill"></span></div>
-        <ul class="import-failures" id="import-failures"></ul>
-      </div>
-      <button type="button" class="primary-btn" id="btn-import-run">Импортировать</button>
-      <button type="button" class="link-btn sheet__cancel" id="import-sheet-cancel">Отмена</button>
+  <div class="import-flow" id="import-flow" hidden>
+    <div class="import-flow__viewport">
+      <section class="import-step import-step--active" id="import-step-hub" data-import-step="hub">
+        <header class="import-flow__head">
+          <h1 class="import-flow__title pixel-text">Импортировать из сервиса</h1>
+          <p class="import-flow__sub">Создайте плейлист или импортируйте из сервиса</p>
+        </header>
+        <div class="import-transfer" id="import-transfer">
+          <div class="import-transfer__logo import-transfer__logo--from">
+            <img id="import-logo-from" src="assets/source-yandex-wave.svg" alt="" />
+          </div>
+          <span class="import-transfer__arrow" data-icon="arrow-left-right" data-icon-class="ui-icon"></span>
+          <div class="import-transfer__logo import-transfer__logo--to">
+            <img src="assets/nexory-icon.png" alt="Nexory" />
+          </div>
+        </div>
+        <div class="import-menu">
+          <button type="button" class="import-menu__item" id="import-btn-profile">
+            <span class="import-menu__icon" data-icon="user" data-icon-class="ui-icon"></span>
+            <span class="import-menu__text">
+              <span class="import-menu__title pixel-text">Импорт профиля</span>
+              <span class="import-menu__hint">Скоро</span>
+            </span>
+            <span class="import-menu__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
+          </button>
+          <button type="button" class="import-menu__item" id="import-btn-link-step">
+            <span class="import-menu__icon" data-icon="list-music" data-icon-class="ui-icon"></span>
+            <span class="import-menu__text">
+              <span class="import-menu__title pixel-text">Импортировать из сервиса</span>
+              <span class="import-menu__hint">Ссылка на плейлист</span>
+            </span>
+            <span class="import-menu__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
+          </button>
+        </div>
+        <button type="button" class="import-flow__back pixel-text" id="import-flow-close">Назад</button>
+      </section>
+
+      <section class="import-step" id="import-step-link" data-import-step="link" hidden>
+        <header class="import-flow__head">
+          <h1 class="import-flow__title pixel-text">Импортировать из сервиса</h1>
+          <p class="import-flow__sub" id="import-link-sub">Ссылка на плейлист</p>
+        </header>
+        <div class="import-link-hero" id="import-link-hero">
+          <div class="import-link-hero__icon import-link-hero__icon--idle" data-icon="list-music" data-icon-class="ui-icon lg"></div>
+          <div class="import-link-hero__logo" id="import-link-hero-logo" hidden>
+            <img id="import-link-hero-img" src="" alt="" />
+          </div>
+        </div>
+        <div class="import-link-actions">
+          <label class="import-link-field">
+            <span class="import-link-field__icon" data-icon="link" data-icon-class="ui-icon"></span>
+            <input type="url" class="import-link-field__input pixel-text" id="import-link-input" placeholder="Ссылка на плейлист" autocomplete="off" autocapitalize="off" spellcheck="false" />
+            <span class="import-link-field__badge" id="import-link-badge" hidden>
+              <img id="import-link-badge-img" src="" alt="" />
+            </span>
+          </label>
+          <button type="button" class="import-btn import-btn--primary pixel-text" id="import-btn-load" disabled>
+            <span data-icon="chevron-right" data-icon-class="ui-icon"></span>
+            Загрузить
+          </button>
+          <button type="button" class="import-btn import-btn--ghost pixel-text" id="import-btn-file">
+            <span data-icon="file-up" data-icon-class="ui-icon"></span>
+            Импорт из файла
+          </button>
+          <div class="import-progress import-progress--flow" id="import-progress" hidden>
+            <p class="import-progress__text" id="import-progress-text">Проверка…</p>
+            <div class="import-progress__bar"><span id="import-progress-fill"></span></div>
+            <ul class="import-failures" id="import-failures"></ul>
+          </div>
+          <button type="button" class="import-flow__back pixel-text" id="import-link-back">Назад</button>
+        </div>
+      </section>
+
+      <section class="import-step" id="import-step-dest" data-import-step="dest" hidden>
+        <div class="import-dest-hero">
+          <div class="import-dest-cover" id="import-dest-cover">
+            <span class="import-dest-cover__ph" data-icon="list-music" data-icon-class="ui-icon lg"></span>
+            <img id="import-dest-cover-img" alt="" hidden />
+          </div>
+          <h2 class="import-dest-title pixel-text" id="import-dest-title">—</h2>
+          <p class="import-dest-count pixel-text" id="import-dest-count">0 треков</p>
+        </div>
+        <div class="import-dest-list" id="import-dest-list" role="radiogroup" aria-label="Куда импортировать"></div>
+        <button type="button" class="import-btn import-btn--confirm pixel-text" id="import-btn-confirm">Подтвердить</button>
+        <button type="button" class="import-flow__back import-flow__back--inline pixel-text" id="import-dest-back">
+          <span data-icon="chevron-left" data-icon-class="ui-icon"></span>
+          Назад
+        </button>
+      </section>
     </div>
   </div>
+  <input type="file" id="import-file-input" accept=".json,application/json,text/plain" hidden />
 
   <div class="playlist-view" id="playlist-view" hidden>
     <div class="pl-view-hero" id="playlist-view-hero">
