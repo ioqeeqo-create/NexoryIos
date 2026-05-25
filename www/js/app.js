@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   try {
+    if (typeof Platform !== 'undefined') Platform.detect()
     Icons.mount()
     Viewport.bind()
     Viewport.onResize(() => {

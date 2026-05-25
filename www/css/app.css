@@ -2014,6 +2014,7 @@ html.cover-theme-dark .full-player__bg-layer.is-active {
   width: 100%;
 }
 .fp-cover-block {
+  position: relative;
   margin: 10px 0 8px;
   flex-shrink: 0;
   display: flex;
@@ -2022,6 +2023,21 @@ html.cover-theme-dark .full-player__bg-layer.is-active {
   gap: 10px;
   overflow: visible;
   isolation: isolate;
+}
+/* Закрывает углы: размытый full-player__bg не торчит по бокам под обложкой */
+.fp-cover-block::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  bottom: -4px;
+  width: min(92vw, 400px);
+  max-width: calc(100% - 8px);
+  transform: translateX(-50%);
+  background: var(--player-bg, #07080d);
+  border-radius: 24px;
+  z-index: 0;
+  pointer-events: none;
 }
 .fp-cover-block .fp-meta,
 .fp-cover-block .fp-wave-block,
@@ -2150,11 +2166,20 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
   overflow: hidden;
   background: #000;
   border: none;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: none;
   contain: layout paint;
   transform: translateZ(0);
-  -webkit-mask-image: -webkit-radial-gradient(white, white);
-  mask-image: radial-gradient(white, white);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.full-cover-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  z-index: 3;
 }
 .full-cover {
   width: 100%;
@@ -2171,9 +2196,20 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
   opacity: 0;
   border-radius: inherit;
   transition: opacity 0.5s var(--ease-out);
-  transform: translateZ(0);
+  transform: scale(1.04);
+  transform-origin: center center;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 .full-cover--layer.is-active { opacity: 1; }
+.full-cover--layer:not(.is-active) {
+  visibility: hidden;
+  pointer-events: none;
+}
+html.platform-ios .full-cover-wrap {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 .full-cover-ph {
   position: absolute;
   inset: 0;
@@ -2928,3 +2964,69 @@ body.import-flow-open { overflow: hidden; }
 .import-dest-opt__mark { opacity: 0.7; flex-shrink: 0; }
 .import-dest-opt__mark .ui-icon { width: 22px; height: 22px; }
 .import-dest-opt--active .import-dest-opt__mark { color: var(--accent, #fff); }
+
+/* ── Android: лёгкий режим (без тяжёлых blur/орбов в плеере) ── */
+html.platform-android.perf-lite #app-bg .app-orb,
+html.platform-android.perf-lite .home-edge-glow {
+  display: none !important;
+}
+html.platform-android.perf-lite .full-player__ambient {
+  display: none !important;
+}
+html.platform-android .full-player__bg {
+  filter: blur(18px) saturate(1.15) brightness(0.82) !important;
+  transition: filter 0.2s ease !important;
+}
+html.platform-android .full-player__bg-layer {
+  transform: scale(1.04) !important;
+  transition: opacity 0.2s ease !important;
+}
+html.platform-android .full-player__bg::before {
+  mix-blend-mode: normal;
+  opacity: 0.5;
+}
+html.platform-android .full-player,
+html.platform-android .full-player::before,
+html.platform-android .full-player::after {
+  transition-duration: 0.2s !important;
+}
+html.platform-android .fp-header__btn,
+html.platform-android .fp-header__pill,
+html.platform-android .fp-controls-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.platform-android .full-cover--layer {
+  transition: opacity 0.2s ease !important;
+}
+html.platform-android .full-player.is-opening,
+html.platform-android .full-player.is-closing {
+  animation-duration: 0.22s !important;
+}
+html.platform-android .full-player.is-opening .full-player__sheet,
+html.platform-android .full-player.is-opening .fp-header,
+html.platform-android .full-player.is-opening .fp-cover-block,
+html.platform-android .full-player.is-opening .fp-wave-block,
+html.platform-android .full-player.is-opening .fp-controls-panel {
+  animation-duration: 0.24s !important;
+  filter: none !important;
+}
+html.platform-android .full-player.is-closing .fp-cover-block,
+html.platform-android .full-player.is-closing .fp-wave-block,
+html.platform-android .full-player.is-closing .fp-controls-panel {
+  filter: none !important;
+}
+@keyframes fp-sheet-in-android {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+html.platform-android .full-player.is-opening .full-player__sheet {
+  animation-name: fp-sheet-in-android !important;
+}
+html.platform-android .wave-fine-lines__g {
+  animation: none !important;
+}
+html.platform-android .fp-cover-btn {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

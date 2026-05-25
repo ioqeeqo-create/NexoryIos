@@ -45,6 +45,9 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: Nexory iOS v1.0.${{ github.run_number }}
+          body: |
+            Сборка только для iPhone/iPad (unsigned IPA).
+            Android: https://github.com/ioqeeqo-create/NexoryApk/releases
           files: build/Nexory.ipa
           make_latest: true
           generate_release_notes: false

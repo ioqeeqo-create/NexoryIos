@@ -766,13 +766,39 @@ const UI = (() => {
     return a || b
   }
 
+  function setFullCoverInstant(url) {
+    const wrap = $('#full-cover-wrap')
+    const ph = wrap?.querySelector('[data-icon]')
+    const a = $('#full-cover-a')
+    const b = $('#full-cover-b')
+    if (!a && !b) return
+    if (!url) {
+      if (a) { a.hidden = true; a.classList.remove('is-active'); a.removeAttribute('src') }
+      if (b) { b.hidden = true; b.classList.remove('is-active'); b.removeAttribute('src') }
+      if (ph) ph.hidden = false
+      Icons.mount(wrap)
+      return
+    }
+    if (ph) ph.hidden = true
+    const img = a || b
+    if (b) { b.hidden = true; b.classList.remove('is-active') }
+    img.src = url
+    img.hidden = false
+    img.classList.add('is-active')
+    fullCoverLayer = img.id === 'full-cover-a' ? 'a' : 'b'
+  }
+
   function crossfadeFullCover(track) {
     const wrap = $('#full-cover-wrap')
     if (!wrap) return
+    const url = getPlayerCoverUrl(track)
+    if (typeof Platform !== 'undefined' && Platform.isAndroid()) {
+      setFullCoverInstant(url)
+      return
+    }
     const ph = wrap.querySelector('[data-icon]')
     const a = $('#full-cover-a')
     const b = $('#full-cover-b')
-    const url = getPlayerCoverUrl(track)
     if (!a && !b) return
     if (!url) {
       if (a) { a.hidden = true; a.classList.remove('is-active'); a.removeAttribute('src') }

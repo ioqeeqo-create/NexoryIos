@@ -845,7 +845,7 @@ const Theme = (() => {
 
     const start = performance.now()
 
-    const dur = 520
+    const dur = (typeof Platform !== 'undefined' && Platform.isAndroid()) ? 200 : 520
 
 
 
@@ -1034,7 +1034,26 @@ const Theme = (() => {
     const host = document.getElementById('full-bg')
     const a = document.getElementById('full-bg-a')
     const b = document.getElementById('full-bg-b')
+    const lite = typeof Platform !== 'undefined' && Platform.isAndroid()
     if (!host) return
+    if (lite && a) {
+      if (b) {
+        b.classList.remove('is-active')
+        b.style.backgroundImage = ''
+        b.dataset.bgUrl = ''
+      }
+      if (!url) {
+        a.classList.remove('is-active')
+        a.style.backgroundImage = ''
+        a.dataset.bgUrl = ''
+        return
+      }
+      a.dataset.bgUrl = url
+      a.style.backgroundImage = `url("${url}")`
+      a.classList.add('is-active')
+      fullBgLayer = 'a'
+      return
+    }
     if (!a || !b) {
       if (url) host.style.backgroundImage = `url("${url}")`
       else host.style.backgroundImage = ''
