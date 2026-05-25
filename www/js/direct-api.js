@@ -618,6 +618,196 @@ const DirectApi = (() => {
     return { ok: false, error: `Напрямую: источник ${source || '?'} не поддержан` }
   }
 
+  function parseYandexPlaylistRef(input) {
+    const raw = String(input || '').trim().replace(/^["']|["']$/g, '')
+    if (!raw) return null
+    const decodeSafe = (v) => {
+      try { return decodeURIComponent(String(v || '').trim()) } catch { return String(v || '').trim() }
+    }
+    const fromPath = (path = '') => {
+      const src = String(path || '')
+      const m1 = src.match(/(?:^|\/)users\/([^/?#]+)\/playlists\/([^/?#]+)/i)
+      if (m1) return { user: decodeSafe(m1[1]), kind: decodeSafe(m1[2]) }
+      const m2 = src.match(/(?:^|\/)playlist\/([^/?#]+)\/([^/?#]+)/i)
+      if (m2) return { user: decodeSafe(m2[1]), kind: decodeSafe(m2[2]) }
+      const m4 = src.match(/(?:^|\/)playlists\/([^/?#]+)/i)
+      if (m4) return { user: 'me', kind: decodeSafe(m4[1]) }
+      return null
+    }
+    try {
+      const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`)
+      const host = String(u.hostname || '').toLowerCase()
+      if (!/(^|\.)music\.yandex\./i.test(host) && !/(^|\.)yandex\./i.test(host)) return null
+      const direct = fromPath(u.pathname)
+      if (direct) return direct
+    } catch {}
+    return null
+  }
+
+  function parseYandexAlbumId(input) {
+    const raw = String(input || '').trim()
+    const m = raw.match(/\/album\/([0-9]{1,22})/i)
+    return m ? String(m[1]).trim() : null
+  }
+
+  function parseYandexLink(input) {
+    const albumId = parseYandexAlbumId(input)
+    if (albumId) return { albumId }
+    const playlist = parseYandexPlaylistRef(input)
+    if (playlist) return { playlist }
+    return null
+  }
+
+  function mapYandexImportTrack(t, row = {}) {
+    if (!t?.title) return null
+    const id = String(t.id ?? row.trackId ?? row.id ?? '').split(':')[0].trim()
+    if (!id) return null
+    return {
+      title: String(t.title).trim(),
+      artist: (t.artists || []).map((a) => a?.name).filter(Boolean).join(', ') || '—',
+      cover: t.coverUri ? `https://${String(t.coverUri).replace('%%', '300x300')}` : null,
+      source: 'yandex',
+      id,
+    }
+  }
+
+  function mapYandexImportRows(tracks = []) {
+    const out = []
+    for (const row of tracks) {
+      if (row?.error) continue
+      const t = row?.track || row
+      const mapped = mapYandexImportTrack(t, row)
+      if (mapped) out.push(mapped)
+    }
+    return out
+  }
+
+  async function getYandexAccountUid(headers) {
+    const r = await fetchJson(`${YM}/account/settings`, { headers, timeout: 12000 })
+    const res = r.data?.result
+    if (!res || typeof res !== 'object') return null
+    if (res.uid != null) return String(res.uid).trim()
+    if (typeof res.login === 'string' && res.login.trim()) return res.login.trim()
+    return null
+  }
+
+  async function fetchYandexTracksByIds(headers, trackIds) {
+    const ids = (Array.isArray(trackIds) ? trackIds : []).filter(Boolean)
+    if (!ids.length) return []
+    const merged = []
+    for (let i = 0; i < ids.length; i += 120) {
+      const chunk = ids.slice(i, i + 120)
+      const form = new URLSearchParams()
+      form.append('with-positions', 'true')
+      chunk.forEach((id) => form.append('track-ids', String(id)))
+      const r = await fetchJson(`${YM}/tracks`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString(),
+        timeout: 35000,
+      })
+      const list = Array.isArray(r.data?.result) ? r.data.result : []
+      list.forEach((t) => {
+        const mapped = mapYandexImportTrack(t)
+        if (mapped) merged.push(mapped)
+      })
+    }
+    return merged
+  }
+
+  function collectYandexBatchIds(tracks = []) {
+    const out = []
+    const seen = new Set()
+    for (const row of tracks) {
+      if (!row || typeof row !== 'object' || row.error) continue
+      if (row.track?.title) continue
+      let spec = null
+      if (typeof row.id === 'string' && row.id.includes(':')) spec = row.id
+      else if (row.trackId != null && row.albumId != null) spec = `${row.trackId}:${row.albumId}`
+      else if (row.trackId != null) spec = String(row.trackId)
+      if (spec && !seen.has(spec)) {
+        seen.add(spec)
+        out.push(spec)
+      }
+    }
+    return out
+  }
+
+  async function fetchYandexPlaylistImport(headers, owner, kind) {
+    const uid = encodeURIComponent(String(owner || '').trim())
+    const k = encodeURIComponent(String(kind || '').trim())
+    const load = (pl) => ({
+      name: String(pl?.title || 'Плейлист'),
+      tracks: mapYandexImportRows(Array.isArray(pl?.tracks) ? pl.tracks : []),
+      pl,
+    })
+    const rRich = await fetchJson(`${YM}/users/${uid}/playlists/${k}?rich-tracks=true`, { headers, timeout: 28000 })
+    let { name, tracks, pl } = load(rRich.data?.result)
+    if (tracks.length) return { name, tracks }
+    const rPlain = await fetchJson(`${YM}/users/${uid}/playlists/${k}`, { headers, timeout: 20000 })
+    ;({ name, tracks, pl } = load(rPlain.data?.result))
+    if (tracks.length) return { name, tracks }
+    const batchIds = collectYandexBatchIds(pl?.tracks || [])
+    if (batchIds.length) {
+      const fromBatch = await fetchYandexTracksByIds(headers, batchIds)
+      if (fromBatch.length) return { name, tracks: fromBatch }
+    }
+    return { name, tracks: [] }
+  }
+
+  function flattenYandexAlbum(result = {}) {
+    const out = []
+    const push = (item) => {
+      const mapped = mapYandexImportTrack(item?.track || item, item)
+      if (mapped) out.push(mapped)
+    }
+    const volumes = Array.isArray(result.volumes) ? result.volumes : []
+    for (const vol of volumes) {
+      if (Array.isArray(vol)) vol.forEach(push)
+      else if (vol && Array.isArray(vol.tracks)) vol.tracks.forEach(push)
+    }
+    if (!out.length && Array.isArray(result.tracks)) result.tracks.forEach(push)
+    return out
+  }
+
+  async function importYandexLink(link) {
+    const oauth = yandexOAuth(cfg().yandexToken)
+    if (!oauth) return { ok: false, error: 'Нужен токен Яндекса в настройках' }
+    const headers = yandexRotorHeaders(oauth)
+    const albumId = parseYandexAlbumId(link)
+    if (albumId) {
+      const r = await fetchJson(`${YM}/albums/${encodeURIComponent(albumId)}/with-tracks`, { headers, timeout: 28000 })
+      const result = r.data?.result || {}
+      const tracks = flattenYandexAlbum(result)
+      if (!tracks.length) return { ok: false, error: 'В альбоме нет треков' }
+      return { ok: true, service: 'yandex', name: String(result.title || `Альбом ${albumId}`), tracks }
+    }
+    const ref = parseYandexPlaylistRef(link)
+    if (!ref) return { ok: false, error: 'Не удалось распознать ссылку Яндекс Музыки' }
+    let owner = String(ref.user || '').trim()
+    if (!owner || /^me$/i.test(owner)) {
+      owner = await getYandexAccountUid(headers)
+      if (!owner) return { ok: false, error: 'Не удалось получить id аккаунта — проверь токен' }
+    }
+    const { name, tracks } = await fetchYandexPlaylistImport(headers, owner, ref.kind)
+    if (!tracks.length) return { ok: false, error: 'Плейлист пуст или API не вернул треки' }
+    return { ok: true, service: 'yandex', name, tracks }
+  }
+
+  async function importPlaylistLink({ url, json } = {}) {
+    if (json != null && json !== '') {
+      return { ok: false, error: 'JSON импортируется локально в приложении' }
+    }
+    const link = String(url || '').trim()
+    if (!link) return { ok: false, error: 'Укажите ссылку' }
+    if (/^[\[{]/.test(link)) {
+      return { ok: false, error: 'JSON импортируется локально в приложении' }
+    }
+    const isYandex = /(^|\/\/)(music\.)?yandex\./i.test(link) || /(^|\/\/)yandex\.[^/]+/i.test(link)
+    if (isYandex) return importYandexLink(link)
+    return { ok: false, error: 'Напрямую с телефона пока только Яндекс. VK — через Gateway.' }
+  }
+
   return {
     hasDirectTokens,
     validateYandex,
@@ -626,5 +816,7 @@ const DirectApi = (() => {
     resolve,
     waveFetch,
     waveFeedback,
+    parseYandexLink,
+    importPlaylistLink,
   }
 })()

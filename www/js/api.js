@@ -189,10 +189,32 @@ const Api = (() => {
   }
 
   async function importPlaylist({ url, json }) {
-    if (!hasGateway()) {
-      throw new Error('Импорт по ссылке нужен gateway на VPS (Настройки → Gateway)')
+    if (json != null && json !== '') {
+      if (hasGateway()) {
+        return post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
+      }
+      throw new Error('JSON импортируется в приложении без сервера')
     }
-    return post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
+    const link = String(url || '').trim()
+    const isYandex = /(^|\/\/)(music\.)?yandex\./i.test(link) || /(^|\/\/)yandex\.[^/]+/i.test(link)
+    const hasYm = Boolean(String(cfg().yandexToken || '').trim())
+    const mode = apiMode()
+    if (hasGateway() && mode !== 'direct') {
+      try {
+        const out = await post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
+        if (out?.ok) return out
+        if (mode === 'gateway') throw new Error(out?.error || 'Импорт не удался')
+      } catch (e) {
+        if (mode === 'gateway' || !isYandex || !hasYm) throw e
+      }
+    }
+    if (isYandex && hasYm) {
+      return DirectApi.importPlaylistLink({ url: link })
+    }
+    if (hasGateway()) {
+      return post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
+    }
+    throw new Error('Импорт: настрой Gateway или добавь токен Яндекса')
   }
 
   async function validateYandex(token) {

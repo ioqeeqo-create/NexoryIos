@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 6
+  const PALETTE_VERSION = 7
 
   const THEMES = {
 
@@ -428,17 +428,23 @@ const Theme = (() => {
 
     const srcSat = meta.sat != null ? meta.sat : s
 
-    const accentS = dark
+    const grayish = meta.muted || muted
 
-      ? Math.max(0.44, Math.min(0.78, srcSat * 1.35 + 0.22))
+    const accentS = dark && grayish
 
-      : muted
+      ? Math.max(0.2, Math.min(0.38, srcSat * 0.9 + 0.14))
 
-        ? Math.max(0.28, Math.min(0.5, srcSat * 1.25 + 0.18))
+      : dark
 
-        : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
+        ? Math.max(0.36, Math.min(0.62, srcSat * 1.1 + 0.18))
 
-    const accentL = dark ? 0.66 : (muted ? 0.54 : 0.56)
+        : muted
+
+          ? Math.max(0.28, Math.min(0.5, srcSat * 1.25 + 0.18))
+
+          : Math.max(0.38, Math.min(0.72, srcSat * 1.22 + 0.1))
+
+    const accentL = dark && grayish ? 0.62 : (dark ? 0.64 : (muted ? 0.54 : 0.56))
 
     const accent = hslToHex(h, accentS, accentL)
 
@@ -446,9 +452,9 @@ const Theme = (() => {
 
     const ambientS = Math.min(0.36, Math.max(0.18, accentS * 0.48))
 
-    const tintedBg = hslToHex(h, ambientS, 0.07)
+    const tintedBg = hslToHex(h, ambientS, dark && grayish ? 0.08 : 0.07)
 
-    const bg = mixHex(BASE_BG, tintedBg, dark ? 0.28 : (muted ? 0.26 : 0.34))
+    const bg = mixHex(BASE_BG, tintedBg, dark && grayish ? 0.34 : (dark ? 0.28 : (muted ? 0.26 : 0.34)))
 
     const text = '#f8fafc'
 
@@ -486,7 +492,7 @@ const Theme = (() => {
 
 
 
-    const decor = decorFromAccent(accent, accent2, bg, { dark })
+    const decor = decorFromAccent(accent, accent2, bg, { dark: dark || grayish })
 
     return {
 

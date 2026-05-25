@@ -3,10 +3,10 @@ const UI = (() => {
   let searchSource = 'yandex'
 
   const IMPORT_SOURCES = {
-    yandex: { label: 'Яндекс Музыка', logo: 'assets/source-yandex-wave.svg' },
+    yandex: { label: 'Яндекс Музыка', logo: 'assets/source-yandex-music.png' },
     vk: { label: 'VK Музыка', logo: 'assets/source-vk.svg' },
-    soundcloud: { label: 'SoundCloud', logo: 'assets/flow-mark.svg' },
-    json: { label: 'Файл Nexory', logo: 'assets/flow-mark.svg' },
+    soundcloud: { label: 'SoundCloud', logo: 'assets/source-soundcloud.png' },
+    json: { label: 'Файл Nexory', logo: 'assets/nexory-icon.png' },
   }
 
   let importState = {
@@ -215,6 +215,51 @@ const UI = (() => {
   }
 
   let recentSheetTimer = null
+  let recentDrag = null
+
+  function bindRecentSheetSwipe() {
+    const sheet = $('#recent-sheet')
+    const panel = sheet?.querySelector('.sheet__panel--recent')
+    if (!sheet || !panel || sheet.dataset.swipeBound) return
+    sheet.dataset.swipeBound = '1'
+    const startDrag = (e) => {
+      if (sheet.hidden) return
+      if (e.target.closest('.track-row, button, input')) return
+      recentDrag = {
+        pid: e.pointerId,
+        startY: e.clientY,
+        dy: 0,
+      }
+      panel.setPointerCapture?.(e.pointerId)
+      panel.classList.add('is-dragging')
+    }
+    const moveDrag = (e) => {
+      if (!recentDrag || recentDrag.pid !== e.pointerId) return
+      recentDrag.dy = Math.max(0, e.clientY - recentDrag.startY)
+      const shift = Math.min(recentDrag.dy, 280)
+      panel.style.transform = `translateY(${shift}px)`
+      panel.style.opacity = String(Math.max(0.55, 1 - shift / 420))
+      const backdrop = sheet.querySelector('.sheet__backdrop')
+      if (backdrop) backdrop.style.opacity = String(Math.max(0, 0.55 - shift / 500))
+    }
+    const endDrag = (e) => {
+      if (!recentDrag || recentDrag.pid !== e.pointerId) return
+      panel.releasePointerCapture?.(e.pointerId)
+      const commit = recentDrag.dy > 100
+      panel.style.transform = ''
+      panel.style.opacity = ''
+      const backdrop = sheet.querySelector('.sheet__backdrop')
+      if (backdrop) backdrop.style.opacity = ''
+      panel.classList.remove('is-dragging')
+      recentDrag = null
+      if (commit) openRecentSheet(false)
+    }
+    panel.addEventListener('pointerdown', startDrag)
+    panel.addEventListener('pointermove', moveDrag)
+    panel.addEventListener('pointerup', endDrag)
+    panel.addEventListener('pointercancel', endDrag)
+    sheet.querySelector('.sheet__grabber')?.addEventListener('pointerdown', startDrag)
+  }
 
   function openRecentSheet(open) {
     const sheet = $('#recent-sheet')
@@ -248,6 +293,7 @@ const UI = (() => {
     sheet.classList.add('is-opening')
     Icons.mount(sheet)
     recentSheetTimer = setTimeout(() => sheet.classList.remove('is-opening'), 480)
+    bindRecentSheetSwipe()
   }
 
   function highlightPlayingTrack(track) {
@@ -1225,7 +1271,7 @@ const UI = (() => {
     if (!t) return null
     if (/^[\[{]/.test(t)) return 'json'
     const u = t.toLowerCase()
-    if (u.includes('music.yandex') || u.includes('yandex.ru/playlists') || u.includes('yandex.ru/album')) return 'yandex'
+    if (u.includes('music.yandex') || u.includes('yandex.ru/playlists') || u.includes('yandex.ru/album') || u.includes('yandex.ru/playlist')) return 'yandex'
     if (u.includes('vk.com') || u.includes('vk.ru') || u.includes('m.vk.com')) return 'vk'
     if (u.includes('soundcloud.com')) return 'soundcloud'
     return null
@@ -1251,10 +1297,12 @@ const UI = (() => {
       el.hidden = !on
       el.classList.toggle('import-step--active', on)
       el.classList.toggle('import-step--enter', on)
+      if (on) {
+        void el.offsetWidth
+        el.classList.add('import-step--enter')
+        setTimeout(() => el.classList.remove('import-step--enter'), 450)
+      }
     })
-    if (step === 'link') {
-      requestAnimationFrame(() => $('#import-link-input')?.focus())
-    }
   }
 
   function updateImportLinkUI() {
@@ -1350,6 +1398,21 @@ const UI = (() => {
     }
     renderImportDestinations()
     setImportStep('dest')
+  }
+
+  function assertImportLink(raw) {
+    const t = String(raw || '').trim()
+    const src = detectImportSource(t)
+    if (!src || src === 'json') return
+    if (/^https?:\/\/((music\.)?yandex\.|yandex\.ru)\/?$/i.test(t)) {
+      throw new Error('Вставь полную ссылку на плейлист (не главную страницу)')
+    }
+    if (src === 'yandex' && DirectApi.parseYandexLink) {
+      const ref = DirectApi.parseYandexLink(t)
+      if (!ref?.playlist && !ref?.albumId) {
+        throw new Error('Не распознан плейлист Яндекса — открой плейлист → Поделиться → скопируй ссылку')
+      }
+    }
   }
 
   async function fetchImportPreview(raw) {
@@ -1480,8 +1543,9 @@ const UI = (() => {
   async function runImportLoad() {
     const raw = String($('#import-link-input')?.value || '').trim()
     if (!raw) return toast('Вставь ссылку')
-    if (!Api.isConfigured()) {
-      toast('Сначала настрой сервер')
+    const hasYm = Boolean(String(Store.get().yandexToken || '').trim())
+    if (!Api.isConfigured() && !hasYm) {
+      toast('Добавь токен Яндекса или Gateway в настройках')
       showSetupGate()
       return
     }
@@ -1489,6 +1553,7 @@ const UI = (() => {
     const btn = $('#import-btn-load')
     if (btn) btn.disabled = true
     try {
+      assertImportLink(raw)
       const preview = await fetchImportPreview(raw)
       showImportDestStep(preview)
     } catch (e) {

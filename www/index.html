@@ -12,11 +12,17 @@
 <body>
   <div id="splash" class="splash" aria-hidden="true">
     <div class="splash__orbit" aria-hidden="true">
-      <div class="splash__orbit-frame">
-        <span class="splash__comet splash__comet--1"></span>
-        <span class="splash__comet splash__comet--2"></span>
-        <span class="splash__comet splash__comet--3"></span>
-      </div>
+      <svg class="splash__orbit-svg" viewBox="0 0 220 220" aria-hidden="true">
+        <defs>
+          <linearGradient id="splash-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ec4899" />
+            <stop offset="35%" stop-color="#60a5fa" />
+            <stop offset="68%" stop-color="#a78bfa" />
+            <stop offset="100%" stop-color="#f43f5e" />
+          </linearGradient>
+        </defs>
+        <ellipse class="splash__orbit-bar" cx="110" cy="110" rx="82" ry="54" transform="rotate(-28 110 110)" fill="none" stroke="url(#splash-grad)" stroke-width="5.5" stroke-linecap="round" pathLength="100" stroke-dasharray="32 68" />
+      </svg>
     </div>
     <img class="splash__logo" src="assets/nexory-icon.png" alt="" />
     <p class="splash__name">Nexory</p>
@@ -385,7 +391,7 @@
         </header>
         <div class="import-transfer" id="import-transfer">
           <div class="import-transfer__logo import-transfer__logo--from">
-            <img id="import-logo-from" src="assets/source-yandex-wave.svg" alt="" />
+            <img id="import-logo-from" src="assets/source-yandex-music.png" alt="" />
           </div>
           <span class="import-transfer__arrow" data-icon="arrow-left-right" data-icon-class="ui-icon"></span>
           <div class="import-transfer__logo import-transfer__logo--to">
@@ -427,7 +433,7 @@
         <div class="import-link-actions">
           <label class="import-link-field">
             <span class="import-link-field__icon" data-icon="link" data-icon-class="ui-icon"></span>
-            <input type="url" class="import-link-field__input pixel-text" id="import-link-input" placeholder="Ссылка на плейлист" autocomplete="off" autocapitalize="off" spellcheck="false" />
+            <input type="url" class="import-link-field__input pixel-text" id="import-link-input" placeholder="Ссылка на плейлист" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" />
             <span class="import-link-field__badge" id="import-link-badge" hidden>
               <img id="import-link-badge-img" src="" alt="" />
             </span>
