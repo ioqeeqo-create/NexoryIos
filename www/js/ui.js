@@ -1748,7 +1748,6 @@ const UI = (() => {
       const btn = e.target.closest('[data-wave-mood]')
       if (!btn) return
       setWaveMood(btn.dataset.waveMood)
-      Store.setRotor(null)
     })
 
     $('#btn-wave-play')?.addEventListener('click', async () => {
