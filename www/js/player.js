@@ -8,6 +8,8 @@ const Player = (() => {
   let waveLoading = false
   let listeners = new Set()
   let audioPrimed = false
+  let playGen = 0
+  const STALE_PLAY = Symbol('stale-play')
 
   function primeAudio() {
     if (audioPrimed || !audio) return
@@ -183,8 +185,12 @@ const Player = (() => {
     } catch {}
   }
 
-  function waitForAudioReady(timeoutMs = 22000) {
+  function waitForAudioReady(timeoutMs = 22000, isStale) {
     return new Promise((resolve, reject) => {
+      if (isStale?.()) {
+        reject(STALE_PLAY)
+        return
+      }
       if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
         resolve()
         return
@@ -197,20 +203,39 @@ const Player = (() => {
         audio.removeEventListener('canplay', onReady)
         audio.removeEventListener('loadedmetadata', onReady)
         audio.removeEventListener('error', onErr)
+        if (isStale?.()) {
+          reject(STALE_PLAY)
+          return
+        }
         fn(val)
       }
       const onReady = () => finish(resolve)
       const onErr = () => {
+        if (isStale?.()) {
+          finish(reject, STALE_PLAY)
+          return
+        }
         const code = audio.error?.code
         const hint =
           code === 2 ? 'сеть' : code === 3 ? 'декодер' : code === 4 ? 'формат' : 'источник'
         finish(reject, new Error(`Поток недоступен (${hint})`))
       }
-      const timer = setTimeout(() => finish(reject, new Error('Таймаут загрузки трека')), timeoutMs)
+      const timer = setTimeout(() => {
+        if (isStale?.()) finish(reject, STALE_PLAY)
+        else finish(reject, new Error('Таймаут загрузки трека'))
+      }, timeoutMs)
       audio.addEventListener('canplay', onReady, { once: true })
       audio.addEventListener('loadedmetadata', onReady, { once: true })
       audio.addEventListener('error', onErr, { once: true })
     })
+  }
+
+  function prefetchQueueAhead(count = 2) {
+    for (let j = 1; j <= count; j++) {
+      const t = queue[index + j]
+      if (!t || t.url) continue
+      resolveUrl(t).catch(() => {})
+    }
   }
 
   async function resolveUrl(track) {
@@ -234,6 +259,8 @@ const Player = (() => {
 
   async function playTrackAt(i, fromLabel) {
     if (i < 0 || i >= queue.length) return
+    const gen = ++playGen
+    const stale = () => gen !== playGen
     index = i
     const track = queue[index]
     playingFrom = fromLabel || playingFrom
@@ -241,18 +268,25 @@ const Player = (() => {
     updateMediaSession(track)
     try {
       const url = await resolveUrl(track)
+      if (stale()) return
       audio.pause()
       audio.removeAttribute('src')
       audio.src = url
       audio.load()
-      await waitForAudioReady()
+      await waitForAudioReady(22000, stale)
+      if (stale()) return
       await audio.play().catch((e) => {
         const msg = String(e?.message || e)
         if (/not supported/i.test(msg)) throw new Error('Поток не поддерживается на iOS — попробуй другой трек')
         if (/interact|gesture|denied|permission/i.test(msg)) throw new Error('Нажми play ещё раз — iOS заблокировал автозапуск')
         throw e
       })
+      if (stale()) return
       Store.pushRecent(track)
+      if (waveMode && track?.id) {
+        const rotor = Store.get().yandexRotor || {}
+        Store.setRotor({ ...rotor, batchAnchorId: String(track.id) })
+      }
       if (track.source === 'yandex' && track.yandexRotor) {
         const rotor = Store.get().yandexRotor || {}
         Api.waveFeedback({
@@ -264,8 +298,10 @@ const Player = (() => {
         }).catch(() => {})
       }
       emit('playing', { track })
+      prefetchQueueAhead(2)
       if (track) Lyrics.prefetch?.(track, audio.duration || 0)
     } catch (e) {
+      if (e === STALE_PLAY) return
       const needRetry =
         (track?.source === 'soundcloud' || track?.source === 'yandex') &&
         !track.__streamRetried
@@ -317,7 +353,7 @@ const Player = (() => {
     const track = current()
     if (track?.source === 'yandex' && track.yandexRotor && manual) {
       const rotor = Store.get().yandexRotor || {}
-      await Api.waveFeedback({
+      Api.waveFeedback({
         type: 'skip',
         trackId: track.id,
         radioSessionId: track.yandexRotor.radioSessionId || rotor.radioSessionId,
@@ -359,19 +395,22 @@ const Player = (() => {
       const rotor = Store.get().yandexRotor || {}
       const mood = Store.get().waveMood || 'default'
       const moodChanged = rotor.mode && rotor.mode !== mood
+      const anchor = rotor.batchAnchorId || queue[index]?.id || ''
       const out = await Api.waveFetch({
         mode: mood,
-        resetSession: moodChanged || !rotor.radioSessionId,
+        resetSession: moodChanged,
         radioSessionId: moodChanged ? '' : rotor.radioSessionId,
-        batchAnchorId: moodChanged ? '' : rotor.batchAnchorId,
+        batchAnchorId: moodChanged ? '' : anchor,
       })
       if (!out.ok) throw new Error(out.error || 'Волна недоступна')
+      const last = (out.tracks || [])[out.tracks.length - 1]
       Store.setRotor({
         radioSessionId: out.radioSessionId,
         batchId: out.batchId,
-        batchAnchorId: out.batchAnchorId || out.nextQueueTrackId,
+        batchAnchorId: out.nextQueueTrackId || out.batchAnchorId || last?.id || anchor,
         radioStartedFrom: out.radioStartedFrom,
         mode: mood,
+        apiMode: out.apiMode,
       })
       const existing = new Set(queue.map((t) => Store.trackKey(t)))
       const fresh = (out.tracks || []).filter((t) => !existing.has(Store.trackKey(t)))
@@ -388,12 +427,14 @@ const Player = (() => {
     const mood = Store.get().waveMood || 'default'
     const out = await Api.waveFetch({ resetSession: true, mode: mood })
     if (!out.ok || !out.tracks?.length) throw new Error(out.error || 'Не удалось запустить волну')
+    const last = (out.tracks || [])[out.tracks.length - 1]
     Store.setRotor({
       radioSessionId: out.radioSessionId,
       batchId: out.batchId,
-      batchAnchorId: out.batchAnchorId,
+      batchAnchorId: out.nextQueueTrackId || out.batchAnchorId || last?.id,
       radioStartedFrom: out.radioStartedFrom,
       mode: mood,
+      apiMode: out.apiMode,
     })
     await playQueue(out.tracks, 0, 'Моя волна')
   }

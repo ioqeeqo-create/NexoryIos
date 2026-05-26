@@ -911,76 +911,247 @@ const DirectApi = (() => {
       source: 'yandex',
       id,
       durationMs: Number(t.durationMs || 0) || undefined,
-      yandexRotor: { batchId, sessionBatchId: batchId, radioSessionId },
+      yandexRotor: {
+        batchId,
+        sessionBatchId: batchId,
+        radioSessionId,
+        station: YM_WAVE,
+      },
     }
   }
 
-  function parseRotorBody(data) {
+  function parseRotorBody(data, mode = 'default') {
     const res = data?.result != null ? data.result : data
-    const radioSessionId = String(res?.radioSessionId || '').trim()
-    const batchId = String(res?.batchId || '').trim()
+    const radioSessionId = String(res?.radioSessionId || res?.radio_session_id || '').trim()
+    const batchId = String(res?.batchId || res?.batch_id || '').trim()
     const tracks = []
     for (const item of res?.sequence || []) {
       if (String(item?.type).toLowerCase() !== 'track' || !item?.track) continue
-      const row = mapRotorTrack(item.track, String(item.batchId || batchId), radioSessionId)
+      const itemBatch = String(item.batchId || item.batch_id || batchId || '').trim()
+      const row = mapRotorTrack(item.track, itemBatch, radioSessionId)
       if (row) tracks.push(row)
+    }
+    const lastTrack = tracks.length ? tracks[tracks.length - 1] : null
+    const batchAnchorId = lastTrack?.id ? String(lastTrack.id) : ''
+    let radioStartedFrom = 'radio-mobile-user-onyourwave-default'
+    const desc = res?.descriptionSeed || res?.description_seed
+    if (desc && typeof desc === 'object') {
+      const typ = String(desc.type || 'user').trim() || 'user'
+      const tag = String(desc.tag || 'onyourwave').trim() || 'onyourwave'
+      radioStartedFrom = `radio-mobile-${typ}-${tag}-default`
     }
     return {
       radioSessionId,
       batchId,
       tracks,
-      batchAnchorId: tracks[0]?.id || '',
-      radioStartedFrom: 'radio-mobile-user-onyourwave-default',
+      batchAnchorId,
+      nextQueueTrackId: batchAnchorId,
+      radioStartedFrom,
+      moodEnergy: mapWaveModeToMoodEnergy(mode),
+      mode: mode || 'default',
+    }
+  }
+
+  function parseRotorStationTracksBody(data) {
+    const res = data?.result != null ? data.result : data
+    if (!res || typeof res !== 'object') return { tracks: [], batchId: '', batchAnchorId: '', nextQueueTrackId: '' }
+    let batchId = String(res.batchId || res.batch_id || '').trim()
+    const sequence = Array.isArray(res.sequence) ? res.sequence : []
+    if (!batchId && sequence.length) {
+      batchId = String(sequence[0]?.batchId || sequence[0]?.batch_id || '').trim()
+    }
+    const tracks = []
+    for (const item of sequence) {
+      if (String(item?.type).toLowerCase() !== 'track' || !item?.track) continue
+      const row = mapRotorTrack(item.track, batchId, '')
+      if (row) tracks.push(row)
+    }
+    const lastTrack = tracks.length ? tracks[tracks.length - 1] : null
+    const batchAnchorId = lastTrack?.id ? String(lastTrack.id) : ''
+    return { tracks, batchId, batchAnchorId, nextQueueTrackId: batchAnchorId }
+  }
+
+  async function applyRotorStationMoodSettings(oauth, mode) {
+    const moodEnergy = mapWaveModeToMoodEnergy(mode)
+    const form = new URLSearchParams()
+    form.set('moodEnergy', moodEnergy)
+    form.set('diversity', mode === 'romantic' ? 'favorite' : 'discover')
+    form.set('language', 'any')
+    form.set('type', 'rotor')
+    await fetchJson(`${YM}/rotor/station/${encodeURIComponent(YM_WAVE)}/settings3`, {
+      method: 'POST',
+      headers: { ...yandexHeaders(oauth), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+      timeout: 15000,
+    })
+  }
+
+  async function rotorStationFeedback(oauth, type, fields = {}, batchId = '') {
+    const form = new URLSearchParams()
+    form.set('type', String(type || ''))
+    form.set('timestamp', String(Math.floor(Date.now() / 1000)))
+    if (fields.from) form.set('from', String(fields.from))
+    if (fields.trackId != null) form.set('trackId', String(fields.trackId))
+    if (fields.totalPlayedSeconds != null) form.set('totalPlayedSeconds', String(fields.totalPlayedSeconds))
+    const path =
+      `/rotor/station/${encodeURIComponent(YM_WAVE)}/feedback` +
+      (batchId ? `?batch-id=${encodeURIComponent(batchId)}` : '')
+    const r = await fetchJson(`${YM}${path}`, {
+      method: 'POST',
+      headers: { ...yandexHeaders(oauth), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+      timeout: 15000,
+    })
+    const okBody =
+      r.data?.result === 'ok' ||
+      r.data === 'ok' ||
+      String(r.data?.result || '').toLowerCase() === 'ok'
+    return okBody || (r.status >= 200 && r.status < 300 && !r.data?.error)
+  }
+
+  async function waveFetchLegacy(oauth, opts = {}) {
+    const mode = opts.mode || 'default'
+    const moodEnergy = mapWaveModeToMoodEnergy(mode)
+    const resetSession = !!opts.resetSession
+    const queueId = resetSession ? '' : String(opts.batchAnchorId || '').trim()
+
+    if (resetSession) {
+      try {
+        await applyRotorStationMoodSettings(oauth, mode)
+      } catch (e) {
+        return { ok: false, error: `Не удалось применить настроение: ${e.message || e}` }
+      }
+      await new Promise((r) => setTimeout(r, 220))
+      try {
+        await rotorStationFeedback(oauth, 'radioStarted', {
+          from: String(opts.radioFrom || `nexory-wave-${moodEnergy}-${Date.now()}`).slice(0, 120),
+        })
+      } catch (_) {}
+    }
+
+    let path = `/rotor/station/${encodeURIComponent(YM_WAVE)}/tracks?settings2=true`
+    if (queueId) path += `&queue=${encodeURIComponent(queueId)}`
+    const r = await fetchJson(`${YM}${path}`, {
+      method: 'GET',
+      headers: yandexHeaders(oauth),
+      timeout: 28000,
+    })
+    if (r.data?.error) {
+      return { ok: false, error: String(r.data.error?.message || r.data.error?.name || 'rotor/tracks') }
+    }
+    const parsed = parseRotorStationTracksBody(r.data)
+    if (!parsed.tracks.length) return { ok: false, error: 'Яндекс волна: пустой ответ' }
+    return {
+      ok: true,
+      apiMode: 'legacy',
+      mode,
+      moodEnergy,
+      radioSessionId: '',
+      batchId: parsed.batchId,
+      tracks: parsed.tracks,
+      batchAnchorId: parsed.batchAnchorId,
+      nextQueueTrackId: parsed.nextQueueTrackId,
+      radioStartedFrom: `radio-mobile-user-onyourwave-${moodEnergy}`,
     }
   }
 
   async function waveFetch(opts = {}) {
     const oauth = yandexOAuth(cfg().yandexToken)
     if (!oauth) return { ok: false, error: 'Нужен токен Яндекса' }
+    const mode = opts.mode || 'default'
+    const resetSession = !!opts.resetSession
     const radioSessionId = String(opts.radioSessionId || '').trim()
-    if (!opts.resetSession && radioSessionId) {
-      const queue = opts.batchAnchorId ? [String(opts.batchAnchorId)] : []
-      const r = await fetchJson(`${YM}/rotor/session/${encodeURIComponent(radioSessionId)}/tracks`, {
+    const batchAnchorId = String(opts.batchAnchorId || '').trim()
+
+    const packSession = async (parsed) => {
+      if (!parsed?.tracks?.length) return null
+      await sendRotorRadioStarted(oauth, parsed)
+      return { ok: true, apiMode: 'session', ...parsed }
+    }
+
+    if (!resetSession && radioSessionId) {
+      const queue = batchAnchorId ? [batchAnchorId] : []
+      try {
+        const r = await fetchJson(`${YM}/rotor/session/${encodeURIComponent(radioSessionId)}/tracks`, {
+          method: 'POST',
+          headers: yandexRotorHeaders(oauth),
+          body: JSON.stringify({ queue }),
+          timeout: 28000,
+        })
+        if (r.data?.error) {
+          return { ok: false, error: String(r.data.error?.message || r.data.error?.name || 'session/tracks') }
+        }
+        const cont = await packSession(parseRotorBody(r.data, mode))
+        if (cont) return cont
+      } catch (e) {
+        if (!batchAnchorId) return { ok: false, error: String(e.message || e) }
+      }
+    }
+
+    if (!resetSession && !radioSessionId && batchAnchorId) {
+      return waveFetchLegacy(oauth, { ...opts, mode, resetSession: false, batchAnchorId })
+    }
+
+    if (resetSession) {
+      try {
+        await applyRotorStationMoodSettings(oauth, mode)
+      } catch (_) {}
+    }
+
+    try {
+      const r = await fetchJson(`${YM}/rotor/session/new`, {
         method: 'POST',
         headers: yandexRotorHeaders(oauth),
-        body: JSON.stringify({ queue }),
+        body: JSON.stringify(buildRotorSessionBody(mode)),
         timeout: 28000,
       })
-      const parsed = parseRotorBody(r.data)
-      if (parsed.tracks.length) return { ok: true, ...parsed }
-    }
-    const r = await fetchJson(`${YM}/rotor/session/new`, {
-      method: 'POST',
-      headers: yandexRotorHeaders(oauth),
-      body: JSON.stringify(buildRotorSessionBody(opts.mode)),
-      timeout: 28000,
-    })
-    const parsed = parseRotorBody(r.data)
-    if (!parsed.tracks.length) return { ok: false, error: 'Яндекс волна: пустая сессия' }
-    await sendRotorRadioStarted(oauth, parsed)
-    return { ok: true, ...parsed, mode: opts.mode || 'default' }
+      if (r.data?.error) {
+        return waveFetchLegacy(oauth, { ...opts, mode, resetSession, batchAnchorId })
+      }
+      const fresh = await packSession(parseRotorBody(r.data, mode))
+      if (fresh) return fresh
+    } catch (_) {}
+
+    return waveFetchLegacy(oauth, { ...opts, mode, resetSession, batchAnchorId })
   }
 
   async function waveFeedback(payload) {
     const oauth = yandexOAuth(cfg().yandexToken)
-    if (!oauth || !payload?.radioSessionId) return { ok: false }
-    const event = {
-      type: String(payload.type || ''),
-      timestamp: new Date().toISOString(),
+    if (!oauth) return { ok: false }
+    const radioSessionId = String(payload?.radioSessionId || '').trim()
+    if (radioSessionId) {
+      const event = {
+        type: String(payload.type || ''),
+        timestamp: new Date().toISOString(),
+      }
+      if (payload.trackId != null) event.trackId = String(payload.trackId)
+      if (payload.from) event.from = String(payload.from)
+      if (payload.totalPlayedSeconds != null) event.totalPlayedSeconds = Number(payload.totalPlayedSeconds)
+      await fetchJson(
+        `${YM}/rotor/session/${encodeURIComponent(radioSessionId)}/feedback`,
+        {
+          method: 'POST',
+          headers: yandexRotorHeaders(oauth),
+          body: JSON.stringify({ event, batchId: String(payload.batchId || '') }),
+          timeout: 12000,
+        },
+      )
+      return { ok: true }
     }
-    if (payload.trackId != null) event.trackId = String(payload.trackId)
-    if (payload.from) event.from = String(payload.from)
-    if (payload.totalPlayedSeconds != null) event.totalPlayedSeconds = Number(payload.totalPlayedSeconds)
-    await fetchJson(
-      `${YM}/rotor/session/${encodeURIComponent(payload.radioSessionId)}/feedback`,
-      {
-        method: 'POST',
-        headers: yandexRotorHeaders(oauth),
-        body: JSON.stringify({ event, batchId: String(payload.batchId || '') }),
-        timeout: 12000,
-      },
-    )
-    return { ok: true }
+    if (payload?.trackId != null) {
+      const ok = await rotorStationFeedback(
+        oauth,
+        String(payload.type || ''),
+        {
+          from: payload.from,
+          trackId: payload.trackId,
+          totalPlayedSeconds: payload.totalPlayedSeconds,
+        },
+        String(payload.batchId || ''),
+      )
+      return { ok: !!ok }
+    }
+    return { ok: false }
   }
 
   async function search(q, source) {

@@ -323,13 +323,13 @@ const UI = (() => {
       el.classList.toggle('is-playing', !!key && el.dataset.key === key)
     })
     const from = Player.playingFrom() || ''
-    const waveBtn = $('#btn-wave-play')
+    const waveRow = $('#wave-row')
     const isWave = !!track && (from.includes('волна') || from.includes('Моя волна'))
     const audio = Player.audio
     const playing = isWave && audio && !audio.paused
-    if (waveBtn) {
-      waveBtn.classList.toggle('is-wave-session', isWave)
-      waveBtn.classList.toggle('is-playing', playing)
+    if (waveRow) {
+      waveRow.classList.toggle('is-wave-session', isWave)
+      waveRow.classList.toggle('is-playing', playing)
     }
   }
 
@@ -2212,8 +2212,8 @@ const UI = (() => {
       closeWaveMoodSheet()
     })
 
-    $('#btn-wave-play')?.addEventListener('click', async () => {
-      const row = $('#btn-wave-play')
+    async function handleWaveStart() {
+      const row = $('#wave-row')
       if (busy) return
       Player.primeAudio()
       try {
@@ -2229,7 +2229,9 @@ const UI = (() => {
         busy = false
         row?.classList.remove('is-busy')
       }
-    })
+    }
+    $('#btn-wave-play')?.addEventListener('click', handleWaveStart)
+    $('#btn-wave-title')?.addEventListener('click', handleWaveStart)
 
     $('#playlist-view-edit')?.addEventListener('click', () => {
       const pl = Store.getPlaylist(openPlaylistId)

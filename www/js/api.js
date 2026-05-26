@@ -249,6 +249,16 @@ const Api = (() => {
     const apiModeVal = apiMode()
     const waveOpts = { ...opts, mode: opts.mode || cfg().waveMood || 'default' }
     const hasYm = Boolean(String(cfg().yandexToken || '').trim())
+    if (!hasYm) {
+      throw new Error('Нужен токен Яндекса в настройках')
+    }
+    if (hasYm && apiModeVal !== 'gateway') {
+      try {
+        return await DirectApi.waveFetch(waveOpts)
+      } catch (e) {
+        if (!hasGateway()) throw e
+      }
+    }
     if (hasGateway() && apiModeVal !== 'direct') {
       try {
         const out = await post(
@@ -265,11 +275,8 @@ const Api = (() => {
         if (out?.ok) return out
         if (apiModeVal === 'gateway') throw new Error(out?.error || 'Волна недоступна')
       } catch (e) {
-        if (apiModeVal === 'gateway' || !hasYm) throw e
+        if (apiModeVal === 'gateway') throw e
       }
-    }
-    if (!hasYm) {
-      throw new Error('Нужен токен Яндекса в настройках')
     }
     try {
       return await DirectApi.waveFetch(waveOpts)

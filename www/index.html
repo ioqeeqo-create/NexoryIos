@@ -72,14 +72,21 @@
         <div id="gateway-banner" class="status-banner" hidden></div>
         <div class="home-hero">
           <div class="home-wave-shell ui-shell">
-          <button type="button" class="wave-row" id="btn-wave-play" aria-label="Моя волна">
+          <div class="wave-row" id="wave-row">
             <div class="wave-row__main">
-              <span class="wave-row__play" id="wave-play-btn"><span data-icon="play" data-icon-class="ui-icon"></span></span>
-              <span class="wave-row__body">
-                <span class="wave-row__title">Моя волна</span>
-              </span>
+              <button type="button" class="wave-row__play" id="btn-wave-play" aria-label="Моя волна">
+                <span id="wave-play-btn"><span data-icon="play" data-icon-class="ui-icon"></span></span>
+              </button>
+              <div class="wave-row__body">
+                <button type="button" class="wave-row__title-btn pixel-text" id="btn-wave-title">Моя волна</button>
+                <button type="button" class="wave-mood-inline" id="wave-mood-trigger" aria-haspopup="dialog">
+                  <span class="wave-mood-inline__label">Настроение</span>
+                  <span class="wave-mood-inline__value pixel-text" id="wave-mood-trigger-value">Обычная</span>
+                  <span class="wave-mood-inline__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
+                </button>
+              </div>
             </div>
-            <span class="wave-row__lines" aria-hidden="true">
+            <div class="wave-row__lines" aria-hidden="true">
               <svg class="wave-fine-lines__svg" viewBox="0 0 720 92" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
                 <g class="wave-fine-lines__g wave-fine-lines__g--1">
                   <path fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/>
@@ -94,28 +101,20 @@
                   <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="1.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/></g>
                 </g>
               </svg>
-            </span>
-          </button>
-          <button type="button" class="wave-mood-trigger" id="wave-mood-trigger" aria-haspopup="dialog">
-            <span class="wave-mood-trigger__icon" data-icon="gauge" data-icon-class="ui-icon"></span>
-            <span class="wave-mood-trigger__text">
-              <span class="wave-mood-trigger__label">Настроение</span>
-              <span class="wave-mood-trigger__value pixel-text" id="wave-mood-trigger-value">Обычная</span>
-            </span>
-            <span class="wave-mood-trigger__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
-          </button>
+            </div>
+          </div>
           </div>
         </div>
         <div class="section section--home-plaques">
           <div class="home-plaques">
-            <button type="button" class="home-plaque" id="btn-home-recent">
+            <button type="button" class="home-plaque ui-shell" id="btn-home-recent">
               <span class="home-plaque__covers" id="home-recent-covers"></span>
               <span class="home-plaque__meta">
                 <span class="home-plaque__title">Недавние</span>
                 <span class="home-plaque__count" id="home-recent-count">0 треков</span>
               </span>
             </button>
-            <button type="button" class="home-plaque home-plaque--likes" id="btn-home-likes-play">
+            <button type="button" class="home-plaque home-plaque--likes ui-shell" id="btn-home-likes-play">
               <span class="home-plaque__covers" id="home-likes-covers"></span>
               <span class="home-plaque__meta">
                 <span class="home-plaque__title">Любимые</span>
@@ -124,24 +123,19 @@
             </button>
           </div>
         </div>
+        <p class="home-stats-line pixel-text" id="home-stats-board" aria-label="Статистика прослушивания">
+          <span id="home-stats-tracks">0</span> треков · <span id="home-stats-time">0 м</span> в эфире
+        </p>
         <div class="section section--home-sc">
           <h2 class="section-title--pixel pixel-text">Популярные треки</h2>
-          <div class="h-scroll home-sc-scroll" id="home-popular-scroll" data-track-list></div>
+          <div class="home-sc-fade-wrap">
+            <div class="h-scroll home-sc-scroll" id="home-popular-scroll" data-track-list></div>
+          </div>
         </div>
         <div class="section section--home-sc">
           <h2 class="section-title--pixel pixel-text">Миксы</h2>
-          <div class="h-scroll home-sc-scroll" id="home-mixes-scroll" data-track-list></div>
-        </div>
-        <div class="section section--home-stats">
-          <div class="home-stats-board" id="home-stats-board" aria-label="Статистика прослушивания">
-            <div class="home-stats-card">
-              <span class="home-stats-card__value pixel-text" id="home-stats-tracks">0</span>
-              <span class="home-stats-card__label">треков</span>
-            </div>
-            <div class="home-stats-card home-stats-card--time">
-              <span class="home-stats-card__value pixel-text" id="home-stats-time">0 м</span>
-              <span class="home-stats-card__label">в эфире</span>
-            </div>
+          <div class="home-sc-fade-wrap">
+            <div class="h-scroll home-sc-scroll" id="home-mixes-scroll" data-track-list></div>
           </div>
         </div>
         <div class="home-scroll-spacer" aria-hidden="true"></div>
