@@ -96,7 +96,14 @@
               </svg>
             </span>
           </button>
-          <div class="wave-moods" id="wave-moods" role="group" aria-label="Настроение волны"></div>
+          <button type="button" class="wave-mood-trigger" id="wave-mood-trigger" aria-haspopup="dialog">
+            <span class="wave-mood-trigger__icon" data-icon="gauge" data-icon-class="ui-icon"></span>
+            <span class="wave-mood-trigger__text">
+              <span class="wave-mood-trigger__label">Настроение</span>
+              <span class="wave-mood-trigger__value pixel-text" id="wave-mood-trigger-value">Обычная</span>
+            </span>
+            <span class="wave-mood-trigger__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
+          </button>
           </div>
         </div>
         <div class="section section--home-plaques">
@@ -228,7 +235,7 @@
                 <option value="gateway">Только gateway (VPS)</option>
               </select>
             </label>
-            <p class="field-hint">Авто: Яндекс/VK/SC с телефона. Импорт плейлистов — через сервер.</p>
+            <p class="field-hint">Авто: Яндекс/VK/SC с телефона. Импорт плейлистов Яндекс и VK — по токену с телефона.</p>
           </div>
           <div class="settings-group settings-group--server">
             <h3 class="settings-label">Сервер Gateway</h3>
@@ -595,6 +602,17 @@
       <h2 class="sheet__title">Источник поиска</h2>
       <div class="source-picker" id="search-source-picker" role="listbox"></div>
       <button type="button" class="link-btn sheet__cancel" id="search-source-cancel">Отмена</button>
+    </div>
+  </div>
+
+  <div class="sheet sheet--list" id="wave-mood-sheet" hidden>
+    <div class="sheet__backdrop" id="wave-mood-sheet-close"></div>
+    <div class="sheet__panel safe-bottom">
+      <div class="sheet__grabber" aria-hidden="true"></div>
+      <h2 class="sheet__title">Настроение волны</h2>
+      <p class="sheet__hint">Выбери настроение для «Моей волны»</p>
+      <div class="wave-mood-sheet-list" id="wave-mood-sheet-list" role="listbox" aria-label="Настроение волны"></div>
+      <button type="button" class="link-btn sheet__cancel" id="wave-mood-sheet-cancel">Готово</button>
     </div>
   </div>
 

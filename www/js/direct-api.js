@@ -1296,6 +1296,92 @@ const DirectApi = (() => {
     return { ok: true, service: 'yandex', name, tracks }
   }
 
+  function parseVkPlaylistRef(input) {
+    const raw = String(input || '').trim()
+    if (!raw) return null
+    const widgetArgs = raw.match(/VK\.Widgets\.Playlist\(\s*["'][^"']+["']\s*,\s*(-?\d+)\s*,\s*(\d+)\s*,\s*["']([a-zA-Z0-9_-]+)["']/i)
+    if (widgetArgs) {
+      return { ownerId: widgetArgs[1], albumId: widgetArgs[2], accessKey: widgetArgs[3] || null }
+    }
+    const patterns = [
+      /audio_playlist(-?\d+)_([0-9]+)(?:_([a-zA-Z0-9]+))?/i,
+      /music\.vk\.com\/playlist\/(-?\d+)_([0-9]+)(?:_([a-zA-Z0-9]+))?/i,
+      /vk\.com\/music\/playlist\/(-?\d+)_([0-9]+)(?:_([a-zA-Z0-9]+))?/i,
+      /vk\.com\/audios(-?\d+)\?.*section=playlist_(-?\d+)_([0-9]+)/i,
+    ]
+    for (const rx of patterns) {
+      const m = raw.match(rx)
+      if (!m) continue
+      if (m.length >= 4 && /section=playlist/i.test(rx.source)) {
+        return { ownerId: m[1], albumId: m[3], accessKey: m[4] || null }
+      }
+      return { ownerId: m[1], albumId: m[2], accessKey: m[3] || null }
+    }
+    return null
+  }
+
+  function vkImportItems(body) {
+    const r = body?.response
+    if (Array.isArray(r)) return r
+    if (Array.isArray(r?.items)) return r.items
+    if (Array.isArray(r?.audios)) return r.audios
+    if (Array.isArray(r?.list)) return r.list
+    return []
+  }
+
+  function mapVkImportTrack(t) {
+    if (!t?.title) return null
+    const id = t?.owner_id != null && t?.id != null ? `${t.owner_id}_${t.id}` : String(t?.id || '')
+    if (!id) return null
+    return {
+      title: String(t.title || '').trim(),
+      artist: String(t?.artist || '—').trim(),
+      cover: t?.album?.thumb?.photo_300 || t?.album?.thumb?.photo_270 || null,
+      source: 'vk',
+      id,
+      url: t?.url || null,
+    }
+  }
+
+  async function importVkLink(link) {
+    const ref = parseVkPlaylistRef(link)
+    if (!ref) return { ok: false, error: 'Не удалось распознать ссылку VK' }
+    const tok = String(cfg().vkToken || '').trim()
+    if (!tok) return { ok: false, error: 'Нужен VK токен в настройках' }
+
+    const base = {
+      owner_id: String(ref.ownerId),
+      playlist_id: String(ref.albumId),
+      access_token: tok,
+    }
+    if (ref.accessKey) base.access_key = String(ref.accessKey)
+
+    const byId = await vkKate('audio.getPlaylistById', base)
+    if (!byId.data?.error) {
+      const r0 = Array.isArray(byId.data?.response) ? byId.data.response[0] : byId.data?.response || {}
+      const rawRows = Array.isArray(r0?.audios) ? r0.audios : Array.isArray(r0?.list) ? r0.list : []
+      const tracks = rawRows.map(mapVkImportTrack).filter(Boolean)
+      if (tracks.length) {
+        return { ok: true, service: 'vk', name: String(r0?.title || 'VK плейлист'), tracks }
+      }
+    }
+
+    const params = {
+      owner_id: String(ref.ownerId),
+      album_id: String(ref.albumId),
+      access_token: tok,
+      count: '600',
+    }
+    if (ref.accessKey) params.access_key = String(ref.accessKey)
+    const r = await vkKate('audio.get', params)
+    if (r.data?.error) {
+      return { ok: false, error: r.data.error.error_msg || 'VK API error' }
+    }
+    const tracks = vkImportItems(r.data).map(mapVkImportTrack).filter(Boolean)
+    if (!tracks.length) return { ok: false, error: 'VK плейлист пуст или недоступен' }
+    return { ok: true, service: 'vk', name: 'VK плейлист', tracks }
+  }
+
   async function importPlaylistLink({ url, json } = {}) {
     if (json != null && json !== '') {
       return { ok: false, error: 'JSON импортируется локально в приложении' }
@@ -1307,7 +1393,8 @@ const DirectApi = (() => {
     }
     const isYandex = /(^|\/\/)(music\.)?yandex\./i.test(link) || /(^|\/\/)yandex\.[^/]+/i.test(link)
     if (isYandex) return importYandexLink(link)
-    return { ok: false, error: 'Напрямую с телефона пока только Яндекс. VK — через Gateway.' }
+    if (parseVkPlaylistRef(link)) return importVkLink(link)
+    return { ok: false, error: 'Поддерживаются ссылки Яндекс Музыки и VK' }
   }
 
   return {
@@ -1319,6 +1406,7 @@ const DirectApi = (() => {
     waveFetch,
     waveFeedback,
     parseYandexLink,
+    parseVkPlaylistRef,
     importPlaylistLink,
     fetchSoundCloudReleases,
     fetchSoundCloudChartKind,

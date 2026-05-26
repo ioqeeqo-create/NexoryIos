@@ -413,21 +413,50 @@ const UI = (() => {
     runSearch($('#search-input')?.value || '')
   }
 
-  function renderWaveMoods() {
-    const el = $('#wave-moods')
+  function waveMoodLabel(id) {
+    if (typeof NexoryConfig === 'undefined') return 'Обычная'
+    const m = NexoryConfig.WAVE_MOODS.find((x) => x.id === id)
+    return m?.label || 'Обычная'
+  }
+
+  function renderWaveMoodTrigger() {
+    const val = $('#wave-mood-trigger-value')
+    if (val) val.textContent = waveMoodLabel(Store.get().waveMood || 'default')
+    Icons.mount($('#wave-mood-trigger'))
+  }
+
+  function renderWaveMoodSheetList() {
+    const el = $('#wave-mood-sheet-list')
     if (!el || typeof NexoryConfig === 'undefined') return
     const mood = Store.get().waveMood || 'default'
     el.innerHTML = NexoryConfig.WAVE_MOODS.map((m) => {
-      const active = m.id === mood ? ' wave-mood--active' : ''
+      const active = m.id === mood ? ' wave-mood-sheet-item--active' : ''
       const icon = m.icon || 'audio-lines'
       const tint = m.tint ? `--mood-tint:${m.tint};` : ''
       const border = m.border ? `--mood-border:${m.border};` : ''
-      return `<button type="button" class="wave-mood${active}" data-wave-mood="${esc(m.id)}" data-mood="${esc(m.id)}" style="${tint}${border}">
-        <span class="wave-mood__icon" data-icon="${esc(icon)}" data-icon-class="ui-icon"></span>
-        <span class="wave-mood__label">${esc(m.label)}</span>
+      return `<button type="button" class="wave-mood-sheet-item${active}" data-wave-mood="${esc(m.id)}" style="${tint}${border}" role="option" aria-selected="${m.id === mood}">
+        <span class="wave-mood-sheet-item__icon" data-icon="${esc(icon)}" data-icon-class="ui-icon"></span>
+        <span class="wave-mood-sheet-item__label">${esc(m.label)}</span>
+        <span class="wave-mood-sheet-item__check" data-icon="check" data-icon-class="ui-icon"></span>
       </button>`
     }).join('')
     Icons.mount(el)
+  }
+
+  function renderWaveMoods() {
+    renderWaveMoodTrigger()
+    renderWaveMoodSheetList()
+  }
+
+  function openWaveMoodSheet() {
+    renderWaveMoodSheetList()
+    const sheet = $('#wave-mood-sheet')
+    if (sheet) sheet.hidden = false
+  }
+
+  function closeWaveMoodSheet() {
+    const sheet = $('#wave-mood-sheet')
+    if (sheet) sheet.hidden = true
   }
 
   function renderThemeCards() {
@@ -1458,7 +1487,7 @@ const UI = (() => {
     if (/^[\[{]/.test(t)) return 'json'
     const u = t.toLowerCase()
     if (u.includes('music.yandex') || u.includes('yandex.ru/playlists') || u.includes('yandex.ru/album') || u.includes('yandex.ru/playlist')) return 'yandex'
-    if (u.includes('vk.com') || u.includes('vk.ru') || u.includes('m.vk.com')) return 'vk'
+    if (u.includes('vk.com') || u.includes('vk.ru') || u.includes('m.vk.com') || u.includes('music.vk.com')) return 'vk'
     if (u.includes('soundcloud.com')) return 'soundcloud'
     return null
   }
@@ -1599,6 +1628,12 @@ const UI = (() => {
         throw new Error('Не распознан плейлист Яндекса — открой плейлист → Поделиться → скопируй ссылку')
       }
     }
+    if (src === 'vk' && DirectApi.parseVkPlaylistRef) {
+      if (!DirectApi.parseVkPlaylistRef(t)) {
+        throw new Error('Не распознан плейлист VK — открой плейлист → Поделиться → скопируй ссылку')
+      }
+      if (!Store.get().vkToken) throw new Error('Добавь VK токен в настройках')
+    }
   }
 
   async function fetchImportPreview(raw) {
@@ -1649,7 +1684,7 @@ const UI = (() => {
       }
     }
     const tracks = out.tracks || []
-    if (out.service === 'yandex' && tracks.length) {
+    if ((out.service === 'yandex' || out.service === 'vk') && tracks.length) {
       const norm = Store.normalizeTracks(tracks)
       importState.failed = []
       return {
@@ -2107,10 +2142,14 @@ const UI = (() => {
       toast('Без токенов музыка не заработает')
     })
 
-    $('#wave-moods')?.addEventListener('click', (e) => {
+    $('#wave-mood-trigger')?.addEventListener('click', openWaveMoodSheet)
+    $('#wave-mood-sheet-close')?.addEventListener('click', closeWaveMoodSheet)
+    $('#wave-mood-sheet-cancel')?.addEventListener('click', closeWaveMoodSheet)
+    $('#wave-mood-sheet-list')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-wave-mood]')
       if (!btn) return
       setWaveMood(btn.dataset.waveMood)
+      closeWaveMoodSheet()
     })
 
     $('#btn-wave-play')?.addEventListener('click', async () => {

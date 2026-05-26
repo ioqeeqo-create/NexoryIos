@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 11
+  const PALETTE_VERSION = 12
 
   const THEMES = {
 
@@ -736,6 +736,36 @@ const Theme = (() => {
 
     setVar('--accent-fill-strong', hexToRgba(theme.accent, 0.18))
 
+    applyPlaybackAccentVars(theme)
+
+  }
+
+
+
+  function applyPlaybackAccentVars(theme) {
+
+    const accent = theme.accent
+
+    const accent2 = theme.accent2 || theme.accent
+
+    setVar('--playback-accent', accent)
+
+    setVar('--playback-accent-2', accent2)
+
+    setVar('--playback-accent-glow', theme.accentGlow || hexToRgba(accent, 0.32))
+
+    setVar('--playback-accent-soft', hexToRgba(accent, 0.14))
+
+    setVar('--playback-accent-border', hexToRgba(accent, 0.28))
+
+  }
+
+
+
+  function themeAccentBase() {
+
+    return THEMES[Store.get().theme] || THEMES.dark
+
   }
 
 
@@ -806,9 +836,17 @@ const Theme = (() => {
 
     setVar('--wave-unplayed', t.waveUnplayed)
 
-    applyAccentVars(t)
+    applyAccentVars(themeAccentBase())
+
+    applyPlaybackAccentVars(t)
 
     applyDecorVars(t)
+
+    setVar('--wave-line-1', hexToRgba(t.accent, 0.22))
+
+    setVar('--wave-line-2', hexToRgba(t.accent, 0.14))
+
+    setVar('--wave-line-3', hexToRgba(t.accent, 0.18))
 
 
 
