@@ -1136,6 +1136,8 @@ const Theme = (() => {
       bg.style.filter = 'blur(72px) saturate(0) brightness(0.92) contrast(1.02)'
     } else if (dark) {
       bg.style.filter = 'blur(72px) saturate(1.2) brightness(0.72) contrast(1.05)'
+    } else if (document.documentElement.classList.contains('cover-theme-on')) {
+      bg.style.filter = 'blur(72px) saturate(1.65) brightness(0.94) contrast(1.03)'
     } else {
       bg.style.filter = 'blur(64px) saturate(1.5) brightness(0.88)'
     }

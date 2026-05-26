@@ -77,14 +77,7 @@
               <button type="button" class="wave-row__play" id="btn-wave-play" aria-label="Моя волна">
                 <span id="wave-play-btn"><span data-icon="play" data-icon-class="ui-icon"></span></span>
               </button>
-              <div class="wave-row__body">
-                <button type="button" class="wave-row__title-btn pixel-text" id="btn-wave-title">Моя волна</button>
-                <button type="button" class="wave-mood-inline" id="wave-mood-trigger" aria-haspopup="dialog">
-                  <span class="wave-mood-inline__label">Настроение</span>
-                  <span class="wave-mood-inline__value pixel-text" id="wave-mood-trigger-value">Обычная</span>
-                  <span class="wave-mood-inline__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
-                </button>
-              </div>
+              <button type="button" class="wave-row__title-btn pixel-text" id="btn-wave-title">Моя волна</button>
             </div>
             <div class="wave-row__lines" aria-hidden="true">
               <svg class="wave-fine-lines__svg" viewBox="0 0 720 92" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -102,6 +95,14 @@
                 </g>
               </svg>
             </div>
+            <button type="button" class="wave-mood-block" id="wave-mood-trigger" aria-haspopup="dialog">
+              <span class="wave-mood-block__icon" data-icon="gauge" data-icon-class="ui-icon"></span>
+              <span class="wave-mood-block__text">
+                <span class="wave-mood-block__label">Настроение</span>
+                <span class="wave-mood-block__value pixel-text" id="wave-mood-trigger-value">Обычная</span>
+              </span>
+              <span class="wave-mood-block__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
+            </button>
           </div>
           </div>
         </div>
