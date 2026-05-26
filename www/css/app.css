@@ -1943,21 +1943,21 @@ html.cover-theme-mono .full-player__bg {
   filter: blur(72px) saturate(0) brightness(0.92) contrast(1.02);
 }
 html.cover-theme-mono .fp-orb { opacity: 0.35; filter: blur(64px) grayscale(1); }
-/* Светлые участки обложки — цветной «амбилайт» в плеере */
+/* Светлые участки обложки — цветной «амбилайт» в плеере (только playback-accent, не тема) */
 html.cover-theme-lit .full-player {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--player-bg, #121218) 55%, var(--accent, #888) 45%) 0%,
+    color-mix(in srgb, var(--player-bg, #121218) 68%, var(--playback-accent) 32%) 0%,
     var(--player-bg, #07080d) 72%
   );
 }
 html.cover-theme-lit .full-player::before {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--accent, #fff) 35%, transparent) 0%,
+    color-mix(in srgb, var(--playback-accent) 24%, transparent) 0%,
     transparent 58%
   );
-  opacity: 1;
+  opacity: 0.85;
 }
 html.cover-theme-lit .full-player__bg {
   filter: blur(68px) saturate(1.75) brightness(1.1) contrast(1.04);
@@ -1974,8 +1974,11 @@ html.cover-theme-lit .full-player__bg::before {
     radial-gradient(ellipse 50% 40% at 88% 70%, var(--player-glow-2, transparent) 0%, transparent 50%);
 }
 html.cover-theme-lit .fp-orb {
-  opacity: 0.68;
+  opacity: 0.52;
   filter: blur(72px);
+}
+body.accent-from-cover html.cover-theme-lit .fp-orb {
+  opacity: 0.44;
 }
 html.cover-theme-lit .fp-orb--1 {
   left: var(--player-hi-x, 50%);
@@ -2244,7 +2247,7 @@ html.cover-theme-mono .full-player__bg-layer.is-active {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .fp-header__pill .ui-icon { width: 16px; height: 16px; opacity: 0.85; flex-shrink: 0; stroke: rgba(255,255,255,0.8); }
-body.accent-from-cover .fp-header__pill .ui-icon { stroke: var(--playback-accent); }
+html.cover-theme-on .fp-header__pill .ui-icon { stroke: var(--playback-accent); }
 .fp-cover-block .fp-meta { flex-shrink: 0; position: relative; z-index: 1; }
 .fp-cover-block .fp-controls-panel { margin-top: 0; }
 .full-player--lyrics .fp-cover-block {
@@ -2381,8 +2384,8 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
 .fp-cover-btn .ui-icon { width: 20px; height: 20px; }
 .fp-cover-btn--like { left: 12px; }
 .fp-cover-btn--add { right: 12px; opacity: 1; pointer-events: auto; }
-.fp-cover-btn.is-active { color: var(--accent); }
-.fp-cover-btn.is-active .ui-icon { fill: var(--accent); stroke: var(--accent); }
+.fp-cover-btn.is-active { color: var(--playback-accent); }
+.fp-cover-btn.is-active .ui-icon { fill: var(--playback-accent); stroke: var(--playback-accent); }
 .fp-meta { text-align: center; padding: 6px 14px 0; max-width: 100%; }
 .fp-title-wrap { margin: 0 auto 10px; max-width: 100%; }
 .fp-title-wrap:not(.is-scrolling) { text-align: center; }
@@ -2407,8 +2410,15 @@ body.fp-lyrics-open .fp-header__pill { opacity: 0.92; }
   0%, 14% { transform: translateX(0); }
   100% { transform: translateX(var(--scroll-shift, 0)); }
 }
-.fp-artist { margin: 0; color: var(--text-dim); font-size: 14px; }
-body.accent-from-cover .fp-artist { color: var(--playback-accent); opacity: 0.92; }
+.fp-artist {
+  margin: 0;
+  color: color-mix(in srgb, var(--playback-accent) 68%, var(--text-dim));
+  font-size: 14px;
+}
+html.cover-theme-on .fp-artist {
+  color: color-mix(in srgb, var(--playback-accent) 78%, var(--text-dim));
+  opacity: 0.95;
+}
 .fp-wave-block {
   margin-top: 0;
   margin-bottom: 10px;
@@ -2458,8 +2468,13 @@ body.accent-from-cover .fp-artist { color: var(--playback-accent); opacity: 0.92
   box-shadow: 0 10px 28px var(--playback-accent-glow);
   transition: background 0.65s var(--ease-out), box-shadow 0.5s ease;
 }
-body.accent-from-cover .fp-controls-panel .icon-btn--xl .ui-icon { fill: #fff; }
+html.cover-theme-on .fp-controls-panel .icon-btn--xl .ui-icon { fill: #fff; stroke: none; }
 .fp-controls-panel .icon-btn--xl .ui-icon { fill: #fff; stroke: none; }
+html.cover-theme-on .full-player .icon-btn.is-active { color: var(--playback-accent); }
+html.cover-theme-on .full-player .icon-btn.is-active .ui-icon {
+  fill: var(--playback-accent);
+  stroke: var(--playback-accent);
+}
 /* ── Playlist actions sheet ── */
 .sheet__panel--actions { padding-top: 10px; }
 .pl-actions-head {

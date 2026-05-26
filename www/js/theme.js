@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 13
+  const PALETTE_VERSION = 14
 
   const THEMES = {
 
