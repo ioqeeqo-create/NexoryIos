@@ -77,31 +77,33 @@
               <button type="button" class="wave-row__play" id="btn-wave-play" aria-label="Моя волна">
                 <span id="wave-play-btn"><span data-icon="play" data-icon-class="ui-icon"></span></span>
               </button>
-              <button type="button" class="wave-row__title-btn pixel-text" id="btn-wave-title">Моя волна</button>
+              <div class="wave-row__body">
+                <button type="button" class="wave-row__title-btn pixel-text" id="btn-wave-title">Моя волна</button>
+              </div>
             </div>
             <div class="wave-row__lines" aria-hidden="true">
               <svg class="wave-fine-lines__svg" viewBox="0 0 720 92" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
                 <g class="wave-fine-lines__g wave-fine-lines__g--1">
-                  <path fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/>
-                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/></g>
+                  <path fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="2.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/>
+                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="2.35" d="M0,50 C160,24 320,76 480,50 S800,24 960,50 S1120,76 1280,50 S1440,24 1440,50"/></g>
                 </g>
                 <g class="wave-fine-lines__g wave-fine-lines__g--2">
-                  <path fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.35" d="M0,66 C160,90 320,42 480,66 S800,90 960,66 S1120,42 1280,66 S1440,90 1440,66"/>
-                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.35" d="M0,66 C160,90 320,42 480,66 S800,90 960,66 S1120,42 1280,66 S1440,90 1440,66"/></g>
+                  <path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="2.35" d="M0,66 C160,90 320,42 480,66 S800,90 960,66 S1120,42 1280,66 S1440,90 1440,66"/>
+                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="2.35" d="M0,66 C160,90 320,42 480,66 S800,90 960,66 S1120,42 1280,66 S1440,90 1440,66"/></g>
                 </g>
                 <g class="wave-fine-lines__g wave-fine-lines__g--3">
-                  <path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="1.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/>
-                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="1.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/></g>
+                  <path fill="none" stroke="rgba(255,255,255,0.36)" stroke-width="2.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/>
+                  <g transform="translate(1440 0)"><path fill="none" stroke="rgba(255,255,255,0.36)" stroke-width="2.35" d="M0,34 C160,10 320,58 480,34 S800,10 960,34 S1120,58 1280,34 S1440,10 1440,34"/></g>
                 </g>
               </svg>
             </div>
-            <button type="button" class="wave-mood-block" id="wave-mood-trigger" aria-haspopup="dialog">
-              <span class="wave-mood-block__icon" data-icon="gauge" data-icon-class="ui-icon"></span>
-              <span class="wave-mood-block__text">
-                <span class="wave-mood-block__label">Настроение</span>
-                <span class="wave-mood-block__value pixel-text" id="wave-mood-trigger-value">Обычная</span>
+            <button type="button" class="wave-mood-inline" id="wave-mood-trigger" aria-haspopup="dialog">
+              <span class="wave-mood-inline__icon" data-icon="gauge" data-icon-class="ui-icon"></span>
+              <span class="wave-mood-inline__text">
+                <span class="wave-mood-inline__label">Настроение</span>
+                <span class="wave-mood-inline__value pixel-text" id="wave-mood-trigger-value">Обычная</span>
               </span>
-              <span class="wave-mood-block__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
+              <span class="wave-mood-inline__chev" data-icon="chevron-right" data-icon-class="ui-icon"></span>
             </button>
           </div>
           </div>

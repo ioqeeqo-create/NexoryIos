@@ -424,10 +424,10 @@ const Theme = (() => {
       playerGlow2 = hexToRgba(hiHex, midA * litBoost)
       playerGlow3 = hexToRgba(accent2, 0.34 * litBoost)
       playerOverlay = [
-        `radial-gradient(ellipse 115% 78% at ${hiX}% ${hiY}%, ${hexToRgba(topHex, mono ? 0.42 : 0.78)} 0%, transparent 62%)`,
-        `radial-gradient(ellipse 82% 58% at ${hiX}% ${Math.min(58, hiY + 16)}%, ${hexToRgba(hiHex, mono ? 0.28 : 0.55)} 0%, transparent 58%)`,
-        `radial-gradient(ellipse 58% 44% at 88% 74%, ${hexToRgba(accent2, 0.32)} 0%, transparent 54%)`,
-        `linear-gradient(180deg, ${hexToRgba(topHex, mono ? 0.16 : 0.32)} 0%, ${hexToRgba(accent, 0.14)} 30%, rgba(0,0,0,0.86) 100%)`,
+        `radial-gradient(ellipse 115% 78% at ${hiX}% ${hiY}%, ${hexToRgba(topHex, mono ? 0.38 : 0.62)} 0%, transparent 68%)`,
+        `radial-gradient(ellipse 82% 58% at ${hiX}% ${Math.min(58, hiY + 16)}%, ${hexToRgba(hiHex, mono ? 0.22 : 0.42)} 0%, transparent 62%)`,
+        `radial-gradient(ellipse 58% 44% at 88% 74%, ${hexToRgba(accent2, 0.24)} 0%, transparent 58%)`,
+        `linear-gradient(180deg, ${hexToRgba(topHex, mono ? 0.12 : 0.22)} 0%, ${hexToRgba(accent, 0.1)} 36%, rgba(0,0,0,0.52) 100%)`,
       ].join(', ')
     }
     return {
@@ -1136,8 +1136,10 @@ const Theme = (() => {
       bg.style.filter = 'blur(72px) saturate(0) brightness(0.92) contrast(1.02)'
     } else if (dark) {
       bg.style.filter = 'blur(72px) saturate(1.2) brightness(0.72) contrast(1.05)'
+    } else if (lit && document.documentElement.classList.contains('cover-theme-on')) {
+      bg.style.filter = 'blur(108px) saturate(2) brightness(1.08) contrast(1.02)'
     } else if (document.documentElement.classList.contains('cover-theme-on')) {
-      bg.style.filter = 'blur(72px) saturate(1.65) brightness(0.94) contrast(1.03)'
+      bg.style.filter = 'blur(100px) saturate(1.85) brightness(1) contrast(1.02)'
     } else {
       bg.style.filter = 'blur(64px) saturate(1.5) brightness(0.88)'
     }
