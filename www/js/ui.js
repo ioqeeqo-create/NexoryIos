@@ -233,6 +233,8 @@ const UI = (() => {
 
   let recentSheetTimer = null
   let recentDrag = null
+  let waveMoodSheetTimer = null
+  let waveMoodDrag = null
   let playlistViewTimer = null
   const trackTap = { active: false, moved: false, x: 0, y: 0, el: null, container: null, key: null }
 
@@ -448,15 +450,74 @@ const UI = (() => {
     renderWaveMoodSheetList()
   }
 
-  function openWaveMoodSheet() {
-    renderWaveMoodSheetList()
+  function bindWaveMoodSheetSwipe() {
     const sheet = $('#wave-mood-sheet')
-    if (sheet) sheet.hidden = false
+    const panel = sheet?.querySelector('.sheet__panel--wave-mood')
+    if (!sheet || !panel || sheet.dataset.swipeBound) return
+    sheet.dataset.swipeBound = '1'
+    const startDrag = (e) => {
+      if (sheet.hidden) return
+      if (e.target.closest('.wave-mood-sheet-item, button, input')) return
+      waveMoodDrag = { pid: e.pointerId, startY: e.clientY, dy: 0 }
+      panel.setPointerCapture?.(e.pointerId)
+      panel.classList.add('is-dragging')
+    }
+    const moveDrag = (e) => {
+      if (!waveMoodDrag || waveMoodDrag.pid !== e.pointerId) return
+      waveMoodDrag.dy = Math.max(0, e.clientY - waveMoodDrag.startY)
+      const shift = Math.min(waveMoodDrag.dy, 280)
+      panel.style.transform = `translateY(${shift}px)`
+      panel.style.opacity = String(Math.max(0.55, 1 - shift / 420))
+      const backdrop = sheet.querySelector('.sheet__backdrop')
+      if (backdrop) backdrop.style.opacity = String(Math.max(0, 0.55 - shift / 500))
+    }
+    const endDrag = (e) => {
+      if (!waveMoodDrag || waveMoodDrag.pid !== e.pointerId) return
+      panel.releasePointerCapture?.(e.pointerId)
+      const commit = waveMoodDrag.dy > 100
+      panel.style.transform = ''
+      panel.style.opacity = ''
+      const backdrop = sheet.querySelector('.sheet__backdrop')
+      if (backdrop) backdrop.style.opacity = ''
+      panel.classList.remove('is-dragging')
+      waveMoodDrag = null
+      if (commit) openWaveMoodSheet(false)
+    }
+    panel.addEventListener('pointerdown', startDrag)
+    panel.addEventListener('pointermove', moveDrag)
+    panel.addEventListener('pointerup', endDrag)
+    panel.addEventListener('pointercancel', endDrag)
+    sheet.querySelector('.sheet__grabber')?.addEventListener('pointerdown', startDrag)
+  }
+
+  function openWaveMoodSheet(open = true) {
+    const sheet = $('#wave-mood-sheet')
+    if (!sheet) return
+    clearTimeout(waveMoodSheetTimer)
+    if (!open) {
+      if (sheet.hidden) return
+      sheet.classList.remove('is-opening')
+      sheet.classList.add('is-closing')
+      document.body.classList.remove('wave-mood-sheet-open')
+      waveMoodSheetTimer = setTimeout(() => {
+        sheet.hidden = true
+        sheet.classList.remove('is-closing')
+      }, 360)
+      return
+    }
+    renderWaveMoodSheetList()
+    sheet.hidden = false
+    sheet.classList.remove('is-closing')
+    document.body.classList.add('wave-mood-sheet-open')
+    void sheet.offsetWidth
+    sheet.classList.add('is-opening')
+    Icons.mount(sheet)
+    waveMoodSheetTimer = setTimeout(() => sheet.classList.remove('is-opening'), 480)
+    bindWaveMoodSheetSwipe()
   }
 
   function closeWaveMoodSheet() {
-    const sheet = $('#wave-mood-sheet')
-    if (sheet) sheet.hidden = true
+    openWaveMoodSheet(false)
   }
 
   function renderThemeCards() {
@@ -2142,9 +2203,8 @@ const UI = (() => {
       toast('Без токенов музыка не заработает')
     })
 
-    $('#wave-mood-trigger')?.addEventListener('click', openWaveMoodSheet)
+    $('#wave-mood-trigger')?.addEventListener('click', () => openWaveMoodSheet(true))
     $('#wave-mood-sheet-close')?.addEventListener('click', closeWaveMoodSheet)
-    $('#wave-mood-sheet-cancel')?.addEventListener('click', closeWaveMoodSheet)
     $('#wave-mood-sheet-list')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-wave-mood]')
       if (!btn) return

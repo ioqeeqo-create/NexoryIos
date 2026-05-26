@@ -2,7 +2,7 @@ const Theme = (() => {
 
   const BASE_BG = '#050814'
 
-  const PALETTE_VERSION = 12
+  const PALETTE_VERSION = 13
 
   const THEMES = {
 
@@ -720,7 +720,7 @@ const Theme = (() => {
 
 
 
-  function applyAccentVars(theme) {
+  function applyAccentVars(theme, { syncPlayback = true } = {}) {
 
     setVar('--accent', theme.accent)
 
@@ -736,7 +736,7 @@ const Theme = (() => {
 
     setVar('--accent-fill-strong', hexToRgba(theme.accent, 0.18))
 
-    applyPlaybackAccentVars(theme)
+    if (syncPlayback) applyPlaybackAccentVars(theme)
 
   }
 
@@ -836,7 +836,7 @@ const Theme = (() => {
 
     setVar('--wave-unplayed', t.waveUnplayed)
 
-    applyAccentVars(themeAccentBase())
+    applyAccentVars(themeAccentBase(), { syncPlayback: false })
 
     applyPlaybackAccentVars(t)
 
