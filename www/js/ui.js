@@ -816,7 +816,7 @@ const UI = (() => {
     if (idx < 0) return
 
     if (!Api.isConfigured()) {
-      toast('Сначала настрой gateway')
+      toast('Добавь токен в настройках')
       showSetupGate()
       return
     }
@@ -1200,7 +1200,7 @@ const UI = (() => {
     if (!banner) return
     if (!Api.isConfigured()) {
       banner.hidden = false
-      banner.innerHTML = 'Подключи Яндекс/VK или gateway на VPS.<br><button type="button" id="banner-settings">Настройки</button>'
+      banner.innerHTML = 'Добавь токен Яндекса, VK или SoundCloud.<br><button type="button" id="banner-settings">Настройки</button>'
       $('#banner-settings')?.addEventListener('click', () => showScreen('settings'), { once: true })
       return
     }
@@ -1264,6 +1264,19 @@ const UI = (() => {
       setupScrollTitles(el)
       highlightPlayingTrack(Player.current())
       return
+    }
+    const feedKind = key === 'popular-v2' ? 'sc-cis-pop:20' : key === 'mixes-v2' ? 'sc-cis-mix:20' : ''
+    if (feedKind && typeof ApiCache !== 'undefined') {
+      const cached = ApiCache.getFeed(feedKind)
+      if (cached?.length) {
+        homeScCache[key] = cached
+        el.innerHTML = cached.map(cardHtml).join('')
+        bindTrackClicks(el, cached, title)
+        Icons.mount(el)
+        setupScrollTitles(el)
+        highlightPlayingTrack(Player.current())
+        return
+      }
     }
     homeScLoading[key] = true
     el.innerHTML = '<p class="empty-hint empty-hint--inline">Загрузка…</p>'
@@ -1723,8 +1736,8 @@ const UI = (() => {
       out = await Api.importPlaylist(isJson ? { json: raw } : { url: raw })
     } catch (e) {
       const msg = String(e?.message || e)
-      if (/load failed|сеть/i.test(msg) && Api.hasGateway?.()) {
-        throw new Error(`${msg}. Проверь Gateway URL/Secret в настройках`)
+      if (/load failed|сеть/i.test(msg)) {
+        throw new Error(`${msg}. Проверь токен в настройках`)
       }
       throw e
     }
@@ -1846,7 +1859,7 @@ const UI = (() => {
     if (!raw) return toast('Вставь ссылку')
     const hasYm = Boolean(String(Store.get().yandexToken || '').trim())
     if (!Api.isConfigured() && !hasYm) {
-      toast('Добавь токен Яндекса или Gateway в настройках')
+      toast('Добавь токен Яндекса в настройках')
       showSetupGate()
       return
     }
@@ -2185,7 +2198,7 @@ const UI = (() => {
     $('#gate-save')?.addEventListener('click', async () => {
       saveFromGate()
       if (!Api.isConfigured()) {
-        toast('Укажи токены Яндекс/VK или gateway на VPS')
+        toast('Укажи токен Яндекса или VK в настройках')
         return
       }
       hideSetupGate()
@@ -2271,7 +2284,7 @@ const UI = (() => {
       if (busy) return
       Player.primeAudio()
       if (!Api.isConfigured()) {
-        toast('Сначала настрой gateway')
+        toast('Добавь токен в настройках')
         showSetupGate()
         return
       }

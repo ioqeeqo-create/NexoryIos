@@ -13,11 +13,15 @@ const Store = (() => {
     localStorage.setItem(KEY, JSON.stringify(data))
   }
 
+  const LEGACY_GATEWAY_URL = 'http://85.239.34.229'
+  const LEGACY_GATEWAY_SECRET =
+    'd7e68022ac41dd20db61c45f6ed54222c0bd56e5313f15b50263ef3358c70dca'
+
   function defaults() {
     return {
-      apiMode: 'auto',
-      gatewayUrl: typeof NexoryConfig !== 'undefined' ? NexoryConfig.DEFAULT_SERVER_URL : '',
-      gatewaySecret: typeof NexoryConfig !== 'undefined' ? NexoryConfig.DEFAULT_SERVER_SECRET : '',
+      apiMode: 'direct',
+      gatewayUrl: '',
+      gatewaySecret: '',
       yandexToken: '',
       vkToken: '',
       scClientId: '',
@@ -46,8 +50,10 @@ const Store = (() => {
   function get() {
     const d = defaults()
     const merged = { ...d, ...load() }
-    if (!String(merged.gatewayUrl || '').trim() && d.gatewayUrl) merged.gatewayUrl = d.gatewayUrl
-    if (!String(merged.gatewaySecret || '').trim() && d.gatewaySecret) merged.gatewaySecret = d.gatewaySecret
+    if (String(merged.gatewayUrl || '').trim() === LEGACY_GATEWAY_URL) merged.gatewayUrl = ''
+    if (String(merged.gatewaySecret || '').trim() === LEGACY_GATEWAY_SECRET) merged.gatewaySecret = ''
+    const mode = String(merged.apiMode || '').toLowerCase()
+    if (mode === 'auto' && !String(merged.gatewayUrl || '').trim()) merged.apiMode = 'direct'
     if (!merged.waveMood) merged.waveMood = 'default'
     return merged
   }

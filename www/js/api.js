@@ -27,9 +27,7 @@ const Api = (() => {
 
   function serverBases() {
     const raw = String(cfg().gatewayUrl || '').trim().replace(/\/+$/, '')
-    const fallback =
-      typeof NexoryConfig !== 'undefined' ? String(NexoryConfig.DEFAULT_SERVER_URL || '').replace(/\/+$/, '') : ''
-    const url = raw || fallback
+    const url = raw
     if (!url) return []
     const out = []
     const add = (u) => {
@@ -150,43 +148,38 @@ const Api = (() => {
       if (!hasGateway()) throw e
     }
     if (!hasGateway()) {
-      throw new Error('Нет gateway и прямой запрос не удался')
+      throw new Error('Нужен токен в настройках (Яндекс / VK / SoundCloud)')
     }
     return post(gatewayPath, gatewayBody, ms)
   }
 
   async function search(q, source) {
-    return withHybrid(
+    const cached = typeof ApiCache !== 'undefined' ? ApiCache.getSearch(q, source) : null
+    if (cached) return cached
+    const out = await withHybrid(
       () => DirectApi.search(q, source),
       '/search',
       { q, source, tokens: tokens() },
       TIMEOUT.search,
       { allowEmptyDirect: true },
     )
+    if (typeof ApiCache !== 'undefined' && out && (out.tracks?.length || out.ok !== false)) {
+      ApiCache.setSearch(q, source, out)
+    }
+    return out
   }
 
   async function resolve(track) {
-    const src = String(track?.source || '').toLowerCase()
-    const mode = apiMode()
-    const preferGateway = hasGateway() && mode !== 'direct' && (src === 'soundcloud' || src === 'yandex')
-    if (preferGateway) {
-      try {
-        const gw = await post(
-          '/resolve',
-          { track, tokens: tokens(), preferMobile: true },
-          TIMEOUT.resolve,
-        )
-        if (gw.ok && gw.url) return gw
-      } catch (e) {
-        if (mode === 'gateway') throw e
-      }
-    }
-    return withHybrid(
+    const cached = typeof ApiCache !== 'undefined' ? ApiCache.getResolve(track) : null
+    if (cached) return { ok: true, url: cached }
+    const out = await withHybrid(
       () => DirectApi.resolve(track),
       '/resolve',
       { track, tokens: tokens(), preferMobile: true },
       TIMEOUT.resolve,
     )
+    if (out?.ok && out.url && typeof ApiCache !== 'undefined') ApiCache.setResolve(track, out.url)
+    return out
   }
 
   async function importPlaylist({ url, json }) {
@@ -198,9 +191,12 @@ const Api = (() => {
     }
     const link = String(url || '').trim()
     const isYandex = /(^|\/\/)(music\.)?yandex\./i.test(link) || /(^|\/\/)yandex\.[^/]+/i.test(link)
+    const isVk = /vk\.com|vk\.ru/i.test(link)
     const hasYm = Boolean(String(cfg().yandexToken || '').trim())
+    const hasVk = Boolean(String(cfg().vkToken || '').trim())
     const mode = apiMode()
-    if (isYandex && hasYm && mode !== 'gateway') {
+    const canDirectImport = (isYandex && hasYm) || (isVk && hasVk)
+    if (canDirectImport && mode !== 'gateway') {
       try {
         const out = await DirectApi.importPlaylistLink({ url: link })
         if (out?.ok) return out
@@ -218,13 +214,9 @@ const Api = (() => {
         if (mode === 'gateway') throw e
       }
     }
-    if (isYandex && hasYm) {
-      return DirectApi.importPlaylistLink({ url: link })
-    }
-    if (hasGateway()) {
-      return post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
-    }
-    throw new Error('Импорт: настрой Gateway или добавь токен Яндекса')
+    if (canDirectImport) return DirectApi.importPlaylistLink({ url: link })
+    if (hasGateway()) return post('/playlist/import', { url, json, tokens: tokens() }, TIMEOUT.import)
+    throw new Error('Импорт: добавь токен Яндекса или VK в настройках')
   }
 
   async function validateYandex(token) {
@@ -324,20 +316,30 @@ const Api = (() => {
     return DirectApi.fetchSoundCloudReleases()
   }
 
+  async function cachedFeed(kind, fetcher) {
+    const hit = typeof ApiCache !== 'undefined' ? ApiCache.getFeed(kind) : null
+    if (hit?.length) return hit
+    const tracks = await fetcher()
+    if (typeof ApiCache !== 'undefined' && Array.isArray(tracks) && tracks.length) {
+      ApiCache.setFeed(kind, tracks)
+    }
+    return tracks
+  }
+
   async function soundCloudChartKind(kind, limit) {
-    return DirectApi.fetchSoundCloudChartKind(kind, limit)
+    return cachedFeed(`sc-chart:${kind}:${limit}`, () => DirectApi.fetchSoundCloudChartKind(kind, limit))
   }
 
   async function soundCloudMixes(limit) {
-    return DirectApi.fetchSoundCloudMixes(limit)
+    return cachedFeed(`sc-mixes:${limit}`, () => DirectApi.fetchSoundCloudMixes(limit))
   }
 
   async function soundCloudCisPopular(limit) {
-    return DirectApi.fetchSoundCloudCisPopular(limit)
+    return cachedFeed(`sc-cis-pop:${limit}`, () => DirectApi.fetchSoundCloudCisPopular(limit))
   }
 
   async function soundCloudCisMixes(limit) {
-    return DirectApi.fetchSoundCloudCisMixes(limit)
+    return cachedFeed(`sc-cis-mix:${limit}`, () => DirectApi.fetchSoundCloudCisMixes(limit))
   }
 
   async function validateSoundCloud(token) {

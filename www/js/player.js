@@ -126,10 +126,10 @@ const Player = (() => {
     const code = audio?.error?.code
     if (/load failed/i.test(msg) || code === 2 || code === 4) {
       if (track?.source === 'yandex') {
-        return 'Яндекс: поток не открылся. Проверь токен и gateway на VPS'
+        return 'Яндекс: поток не открылся. Проверь OAuth-токен в настройках'
       }
       if (track?.source === 'soundcloud') {
-        return 'SoundCloud: поток не открылся. Обнови VPS (git pull) и Client ID'
+        return 'SoundCloud: поток не открылся. Настройки → «Найти Client ID»'
       }
       return 'Поток не загрузился — попробуй другой трек'
     }
@@ -240,6 +240,11 @@ const Player = (() => {
 
   async function resolveUrl(track) {
     if (track.url && track.source !== 'soundcloud') return track.url
+    const cached = typeof ApiCache !== 'undefined' ? ApiCache.getResolve(track) : null
+    if (cached) {
+      track.url = cached
+      return cached
+    }
     let lastErr = new Error('Не удалось получить поток')
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -320,7 +325,7 @@ const Player = (() => {
   }
 
   async function playQueue(tracks, startIdx = 0, fromLabel = '', opts = {}) {
-    if (!Api.isConfigured()) throw new Error('Настрой gateway URL и Secret')
+    if (!Api.isConfigured()) throw new Error('Добавь токен Яндекса, VK или SoundCloud в настройках')
     const list = Store.normalizeTracks(tracks)
     if (!list.length) throw new Error('Нет треков для воспроизведения')
     let start = Math.max(0, Math.min(startIdx, list.length - 1))

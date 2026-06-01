@@ -38,17 +38,17 @@
     <div class="setup-gate__scroll safe-top safe-bottom">
       <img class="setup-gate__logo" src="assets/nexory-icon.png" alt="Nexory" />
       <h1 class="setup-gate__title">Nexory</h1>
-      <p class="setup-gate__text">Гибрид: токены Яндекс/VK — поиск и волна с телефона. Gateway на VPS (Timeweb) — импорт и SoundCloud.</p>
+      <p class="setup-gate__text">Вставь токен Яндекса — музыка идёт с телефона, без VPS. Gateway на своём сервере — только если нужен запасной вариант.</p>
       <label class="field"><span>Режим API</span>
         <select id="gate-api-mode">
-          <option value="auto">Авто (сначала с телефона)</option>
-          <option value="direct">Только с телефона</option>
-          <option value="gateway">Только gateway</option>
+          <option value="direct">С телефона (токены)</option>
+          <option value="auto">Авто — телефон, при сбое VPS</option>
+          <option value="gateway">Только VPS</option>
         </select>
       </label>
       <input type="hidden" id="gate-gateway" />
       <input type="hidden" id="gate-secret" />
-      <button type="button" class="secondary-btn" id="gate-test">Проверить сервер</button>
+      <button type="button" class="secondary-btn" id="gate-test" hidden>Проверить сервер</button>
       <small class="field-hint" id="gate-status"></small>
       <label class="field"><span>Яндекс OAuth</span><textarea id="gate-yandex" rows="2" placeholder="OAuth токен"></textarea></label>
       <label class="field"><span>VK token</span><input type="password" id="gate-vk" placeholder="опционально" autocomplete="off" /></label>
@@ -227,9 +227,9 @@
             <h3 class="settings-label">Подключение</h3>
             <label class="field"><span>Режим API</span>
               <select id="cfg-api-mode">
-                <option value="auto">Авто — с телефона, при сбое gateway</option>
-                <option value="direct">Только с телефона</option>
-                <option value="gateway">Только gateway (VPS)</option>
+                <option value="direct">С телефона (токены) — рекомендуется</option>
+                <option value="auto">Авто — телефон, при сбое свой VPS</option>
+                <option value="gateway">Только VPS (опционально)</option>
               </select>
             </label>
             <p class="field-hint">Авто: Яндекс/VK/SC с телефона. Импорт плейлистов Яндекс и VK — по токену с телефона.</p>
@@ -622,6 +622,7 @@
   <script src="js/store.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/http.js"></script>
+  <script src="js/cache.js"></script>
   <script src="js/bridge.js"></script>
   <script src="js/direct-api.js"></script>
   <script src="js/api.js"></script>

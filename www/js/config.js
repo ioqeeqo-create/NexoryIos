@@ -2,9 +2,9 @@
 const NexoryConfig = {
   /** Redirect URI в приложении SoundCloud → Developers. */
   SC_OAUTH_REDIRECT: 'nexory://oauth/soundcloud',
-  DEFAULT_SERVER_URL: 'http://85.239.34.229',
-  DEFAULT_SERVER_SECRET:
-    'd7e68022ac41dd20db61c45f6ed54222c0bd56e5313f15b50263ef3358c70dca',
+  /** Пусто = без VPS; пользователь задаёт gateway вручную при необходимости. */
+  DEFAULT_SERVER_URL: '',
+  DEFAULT_SERVER_SECRET: '',
   SEARCH_SOURCES: [
     { id: 'yandex', label: 'Яндекс', icon: 'assets/source-yandex-music.png' },
     { id: 'vk', label: 'VK', icon: 'assets/source-vk.png' },
